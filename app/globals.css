@@ -1,26 +1,128 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
 
+/* ─── Brand Color Tokens & Font Variables ────────────────────────────────── */
 @theme inline {
+  /* Primary — Deep green: sustainability, Guyanese nature */
+  --color-karis-green-50:  oklch(0.97 0.02 155);
+  --color-karis-green-100: oklch(0.92 0.04 155);
+  --color-karis-green-500: oklch(0.45 0.08 155);
+  --color-karis-green-700: oklch(0.32 0.07 155);
+  --color-karis-green-900: oklch(0.20 0.05 155);
+
+  /* Accent — Warm gold/amber: oil wealth, sunlight, grace */
+  --color-karis-gold-300: oklch(0.85 0.10 80);
+  --color-karis-gold-500: oklch(0.72 0.13 75);
+  --color-karis-gold-700: oklch(0.55 0.12 70);
+
+  /* Neutral — Warm stone/taupe: upscale elegance */
+  --color-karis-stone-50:  oklch(0.98 0.005 70);
+  --color-karis-stone-100: oklch(0.95 0.01 70);
+  --color-karis-stone-300: oklch(0.85 0.015 70);
+  --color-karis-stone-500: oklch(0.65 0.02 70);
+  --color-karis-stone-900: oklch(0.22 0.01 70);
+
+  /* Status colors */
+  --color-status-yellow: oklch(0.82 0.15 90);
+  --color-status-orange: oklch(0.70 0.18 50);
+  --color-status-red:    oklch(0.58 0.21 25);
+  --color-status-green:  oklch(0.65 0.16 145);
+
+  /* Shadcn primitive mappings → COK brand */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+
+  /* Typography — map CSS vars to Tailwind font utilities */
+  --font-display: var(--font-cormorant-garamond);
+  --font-heading: var(--font-fraunces);
+  --font-body: var(--font-inter);
+  --font-sans: var(--font-inter);
+  --font-mono: ui-monospace, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* ─── Shadcn/ui CSS variables overridden with COK brand palette ─────────── */
+:root {
+  /* Surfaces */
+  --background: oklch(0.98 0.005 70);        /* karis-stone-50 */
+  --foreground: oklch(0.22 0.01 70);          /* karis-stone-900 */
+
+  /* Card */
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.22 0.01 70);
+
+  /* Popover */
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.22 0.01 70);
+
+  /* Primary — brand green */
+  --primary: oklch(0.20 0.05 155);            /* karis-green-900 */
+  --primary-foreground: oklch(1 0 0);
+
+  /* Secondary — warm gold */
+  --secondary: oklch(0.72 0.13 75);           /* karis-gold-500 */
+  --secondary-foreground: oklch(0.20 0.05 155);
+
+  /* Muted */
+  --muted: oklch(0.95 0.01 70);              /* karis-stone-100 */
+  --muted-foreground: oklch(0.65 0.02 70);   /* karis-stone-500 */
+
+  /* Accent */
+  --accent: oklch(0.85 0.10 80);             /* karis-gold-300 */
+  --accent-foreground: oklch(0.20 0.05 155);
+
+  /* Destructive */
+  --destructive: oklch(0.58 0.21 25);        /* status-red */
+
+  /* Chrome */
+  --border: oklch(0.85 0.015 70);            /* karis-stone-300 */
+  --input: oklch(0.85 0.015 70);
+  --ring: oklch(0.72 0.13 75);               /* karis-gold-500 */
+  --radius: 0.75rem;
+}
+
+/* ─── Base Styles ────────────────────────────────────────────────────────── */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
   }
-}
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-inter), system-ui, sans-serif;
+  }
+
+  /* Tabular figures on all numeric wallet/ledger displays */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Focus ring — gold */
+  :focus-visible {
+    outline: 2px solid oklch(0.72 0.13 75);
+    outline-offset: 2px;
+  }
 }

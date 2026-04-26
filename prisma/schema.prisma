@@ -1,0 +1,384 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum Role {
+  MASTER_ADMIN
+  ADMIN
+  VENDOR
+  RESIDENT
+  VISITOR
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  PENDING_KYC
+}
+
+enum TransactionType {
+  DEPOSIT
+  PURCHASE
+  TRANSFER
+  BARTER
+  PAYROLL
+  RESIDENT_SETTLEMENT
+  VENDOR_SETTLEMENT
+  VISITOR_SETTLEMENT
+  TREASURY_ADJUSTMENT
+  FEE_SPLIT
+  REVERSAL
+}
+
+enum SettlementStatus {
+  PENDING_APPROVAL
+  APPROVED
+  DECLINED
+  SETTLED
+  CANCELLED
+}
+
+enum PropertyType {
+  OWNERSHIP
+  RENTAL
+  ADMIN
+}
+
+enum PropertyCategory {
+  COMMERCIAL
+  RESIDENTIAL
+  MIXED
+}
+
+enum IssueLevel {
+  YELLOW
+  ORANGE
+  RED
+}
+
+enum IssueStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+// ─── Core Identity ────────────────────────────────────────────────────────────
+
+model User {
+  id              String        @id @default(cuid())
+  clerkId         String?       @unique
+  memberId        String        @unique
+  email           String        @unique
+  fullName        String
+  role            Role
+  status          AccountStatus @default(PENDING_KYC)
+  profilePhotoUrl String?
+  introduction    String?       @db.Text
+  kyc             Json?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  wallet           Wallet?
+  ownedProperties  PropertyOwnership[]
+  rentedProperties PropertyTenancy[]
+  notifications    Notification[]
+  issuesReported   Issue[]          @relation("IssueReporter")
+  issuesAssigned   Issue[]          @relation("IssueAssignee")
+  votes            VoteSubmission[]
+
+  @@index([email])
+  @@index([role])
+  @@index([status])
+}
+
+// ─── Wallet & Ledger ──────────────────────────────────────────────────────────
+
+model Wallet {
+  id        String        @id @default(cuid())
+  userId    String?       @unique
+  user      User?         @relation(fields: [userId], references: [id])
+  isSystem  Boolean       @default(false)
+  systemKey String?       @unique
+  entries   LedgerEntry[]
+  createdAt DateTime      @default(now())
+
+  @@index([systemKey])
+}
+
+model FeeSchedule {
+  id          String        @id @default(cuid())
+  effectiveAt DateTime
+  rules       Json
+  createdBy   String
+  createdAt   DateTime      @default(now())
+  transactions Transaction[]
+
+  @@index([effectiveAt])
+}
+
+model Transaction {
+  id            String          @id @default(cuid())
+  type          TransactionType
+  description   String
+  reference     String?
+  feeScheduleId String?
+  feeSchedule   FeeSchedule?    @relation(fields: [feeScheduleId], references: [id])
+  initiatedBy   String?
+  metadata      Json?
+  createdAt     DateTime        @default(now())
+  entries       LedgerEntry[]
+
+  @@index([createdAt])
+  @@index([type])
+}
+
+model LedgerEntry {
+  id            String      @id @default(cuid())
+  transactionId String
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+  walletId      String
+  wallet        Wallet      @relation(fields: [walletId], references: [id])
+  amount        Decimal     @db.Decimal(20, 8)
+  description   String?
+  createdAt     DateTime    @default(now())
+
+  @@index([walletId])
+  @@index([transactionId])
+}
+
+// ─── Financial Operations ─────────────────────────────────────────────────────
+
+model Deposit {
+  id            String   @id @default(cuid())
+  userId        String
+  fiatAmount    Decimal  @db.Decimal(20, 2)
+  currency      String   @default("USD")
+  paymentMethod String
+  proofUrl      String?
+  recordedBy    String
+  transactionId String   @unique
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
+}
+
+model SettlementRequest {
+  id             String           @id @default(cuid())
+  userId         String
+  amount         Decimal          @db.Decimal(20, 8)
+  status         SettlementStatus @default(PENDING_APPROVAL)
+  purpose        String?
+  approvedBy     String?
+  approvedAt     DateTime?
+  declinedReason String?
+  settledBy      String?
+  settledAt      DateTime?
+  proofUrl       String?
+  transactionId  String?
+  createdAt      DateTime         @default(now())
+
+  @@index([userId])
+  @@index([status])
+}
+
+model TreasuryAdjustment {
+  id         String   @id @default(cuid())
+  amount     Decimal  @db.Decimal(20, 2)
+  currency   String   @default("USD")
+  reason     String
+  recordedBy String
+  createdAt  DateTime @default(now())
+}
+
+// ─── Property ─────────────────────────────────────────────────────────────────
+
+model Property {
+  id             String              @id @default(cuid())
+  code           String              @unique
+  type           PropertyType
+  category       PropertyCategory
+  address        String?
+  totalPrice     Decimal?            @db.Decimal(20, 2)
+  specifications Json?
+  photos         String[]
+  documents      Json?
+  createdAt      DateTime            @default(now())
+
+  ownerships   PropertyOwnership[]
+  tenancies    PropertyTenancy[]
+  installments PropertyInstallment[]
+}
+
+model PropertyOwnership {
+  id           String    @id @default(cuid())
+  propertyId   String
+  userId       String
+  ownershipPct Decimal   @default(100)
+  contractDate DateTime
+  contractUrl  String?
+
+  property Property         @relation(fields: [propertyId], references: [id])
+  user     User             @relation(fields: [userId], references: [id])
+  payments PropertyPayment[]
+}
+
+model PropertyInstallment {
+  id           String   @id @default(cuid())
+  propertyId   String
+  number       Int
+  dueDate      DateTime
+  amount       Decimal  @db.Decimal(20, 2)
+  progressNote String?
+
+  property Property         @relation(fields: [propertyId], references: [id])
+  payments PropertyPayment[]
+}
+
+model PropertyPayment {
+  id            String   @id @default(cuid())
+  installmentId String
+  ownershipId   String
+  amount        Decimal  @db.Decimal(20, 2)
+  paidAt        DateTime
+  proofUrl      String?
+
+  installment PropertyInstallment @relation(fields: [installmentId], references: [id])
+  ownership   PropertyOwnership   @relation(fields: [ownershipId], references: [id])
+}
+
+model PropertyTenancy {
+  id           String   @id @default(cuid())
+  propertyId   String
+  userId       String
+  cycle        String
+  cyclePayment Decimal  @db.Decimal(20, 2)
+  contractDate DateTime
+  contractUrl  String?
+
+  property      Property             @relation(fields: [propertyId], references: [id])
+  user          User                 @relation(fields: [userId], references: [id])
+  cyclePayments TenancyCyclePayment[]
+}
+
+model TenancyCyclePayment {
+  id          String   @id @default(cuid())
+  tenancyId   String
+  cycleNumber Int
+  amount      Decimal  @db.Decimal(20, 2)
+  paidAt      DateTime
+  proofUrl    String?
+
+  tenancy PropertyTenancy @relation(fields: [tenancyId], references: [id])
+}
+
+// ─── Community ────────────────────────────────────────────────────────────────
+
+model CommunityUpdate {
+  id          String   @id @default(cuid())
+  category    String
+  headline    String
+  message     String   @db.Text
+  photoUrl    String?
+  publishedBy String
+  publishedAt DateTime @default(now())
+
+  acknowledgements UpdateAcknowledgement[]
+}
+
+model UpdateAcknowledgement {
+  id             String   @id @default(cuid())
+  updateId       String
+  userId         String
+  acknowledgedAt DateTime @default(now())
+
+  update CommunityUpdate @relation(fields: [updateId], references: [id])
+
+  @@unique([updateId, userId])
+}
+
+model Vote {
+  id          String    @id @default(cuid())
+  headline    String
+  description String    @db.Text
+  isOpen      Boolean   @default(true)
+  createdBy   String
+  createdAt   DateTime  @default(now())
+  closedAt    DateTime?
+
+  options     VoteOption[]
+  submissions VoteSubmission[]
+}
+
+model VoteOption {
+  id          String @id @default(cuid())
+  voteId      String
+  label       String
+  description String @db.Text
+
+  vote        Vote             @relation(fields: [voteId], references: [id])
+  submissions VoteSubmission[]
+}
+
+model VoteSubmission {
+  id          String   @id @default(cuid())
+  voteId      String
+  optionId    String
+  userId      String
+  submittedAt DateTime @default(now())
+
+  vote   Vote       @relation(fields: [voteId], references: [id])
+  option VoteOption @relation(fields: [optionId], references: [id])
+  user   User       @relation(fields: [userId], references: [id])
+
+  @@unique([voteId, userId])
+}
+
+model Issue {
+  id          String      @id @default(cuid())
+  reporterId  String
+  assigneeId  String?
+  seriousness IssueLevel
+  urgency     IssueLevel
+  category    String
+  message     String      @db.Text
+  status      IssueStatus @default(OPEN)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  reporter User       @relation("IssueReporter", fields: [reporterId], references: [id])
+  assignee User?      @relation("IssueAssignee", fields: [assigneeId], references: [id])
+  replies  IssueReply[]
+}
+
+model IssueReply {
+  id        String   @id @default(cuid())
+  issueId   String
+  authorId  String
+  message   String   @db.Text
+  createdAt DateTime @default(now())
+
+  issue Issue @relation(fields: [issueId], references: [id])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  body      String?
+  link      String?
+  priority  String    @default("yellow")
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, readAt])
+}
