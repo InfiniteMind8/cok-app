@@ -30,7 +30,6 @@ export function SettlementRow({ request }: SettlementRowProps) {
   const [isPending, startTransition] = useTransition()
 
   const config = STATUS_CONFIG[request.status]
-  const StatusIcon = config.icon
 
   const amount = new Prisma.Decimal(request.amount)
   const formatted = amount.toFixed(2)

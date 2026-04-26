@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
@@ -54,7 +54,7 @@ export function DepositSheet({ users }: DepositSheetProps) {
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     setValue,
     reset,
     formState: { errors },
@@ -63,7 +63,7 @@ export function DepositSheet({ users }: DepositSheetProps) {
     defaultValues: { currency: 'USD', userId: '', paymentMethod: '', fiatAmount: '' },
   })
 
-  const watchAmount = watch('fiatAmount')
+  const watchAmount = useWatch({ control, name: 'fiatAmount', defaultValue: '' })
   const kPreview = (() => {
     const n = parseFloat(watchAmount)
     if (isNaN(n) || n <= 0) return null

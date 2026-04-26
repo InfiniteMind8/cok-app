@@ -2,7 +2,6 @@ import Link from 'next/link'
 import { ExternalLink } from 'lucide-react'
 import { PageHeader } from '@/components/admin/page-header'
 import { KAmount } from '@/components/admin/k-amount'
-import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
   TableBody,
@@ -12,7 +11,6 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { db } from '@/lib/db'
-import { getWalletBalance } from '@/lib/ledger/balance'
 import { getTreasuryReserveBalance } from '@/lib/queries/dashboard'
 import { Prisma } from '@prisma/client'
 import { format } from 'date-fns'

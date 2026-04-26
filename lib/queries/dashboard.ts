@@ -29,11 +29,6 @@ export async function getSystemWalletSummary(): Promise<{ key: string; balance: 
 }
 
 export async function getTotalCirculatingCredits(): Promise<Prisma.Decimal> {
-  const agg = await db.ledgerEntry.aggregate({
-    where: { wallet: { isSystem: false }, amount: { gt: 0 } },
-    _sum: { amount: true },
-  })
-  // Circulating = positive entries in user wallets minus negative entries = net balance
   const netAgg = await db.ledgerEntry.aggregate({
     where: { wallet: { isSystem: false } },
     _sum: { amount: true },

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, startTransition } from 'react'
 import { X, Share } from 'lucide-react'
 
 export function IOSInstallPrompt() {
@@ -13,7 +13,7 @@ export function IOSInstallPrompt() {
     const dismissed = localStorage.getItem('karis-ios-prompt-dismissed') === '1'
 
     if (isIOS && !isStandalone && !dismissed) {
-      setVisible(true)
+      startTransition(() => setVisible(true))
     }
   }, [])
 
@@ -30,7 +30,7 @@ export function IOSInstallPrompt() {
       <div className="flex-1">
         <p className="font-body text-sm font-medium">Add to Home Screen</p>
         <p className="font-body text-xs text-karis-green-100 mt-0.5 leading-relaxed">
-          Tap the share icon below, then "Add to Home Screen" for the full Karis experience.
+          Tap the share icon below, then &ldquo;Add to Home Screen&rdquo; for the full Karis experience.
         </p>
       </div>
       <button

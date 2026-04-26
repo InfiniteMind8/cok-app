@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useTransition } from 'react'
-import { useForm } from 'react-hook-form'
+import { useTransition } from 'react'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
@@ -39,7 +39,7 @@ export function SettlementRequestSheet({ open, onOpenChange, balance }: Settleme
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     reset,
     formState: { errors },
   } = useForm<FormValues>({
@@ -47,7 +47,7 @@ export function SettlementRequestSheet({ open, onOpenChange, balance }: Settleme
     defaultValues: { amount: '', purpose: '' },
   })
 
-  const watchAmount = watch('amount')
+  const watchAmount = useWatch({ control, name: 'amount', defaultValue: '' })
 
   const estimatedFee = (() => {
     const n = parseFloat(watchAmount)

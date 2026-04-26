@@ -23,8 +23,6 @@ export function TenancyStatusCard({
   contractDate,
   cyclePayments,
 }: TenancyStatusCardProps) {
-  const latestCycle = cyclePayments[0]
-
   return (
     <div className="bg-white border border-karis-stone-100 rounded-2xl shadow-sm p-5">
       <h3 className="font-heading text-base text-karis-green-900 mb-4">Rental status</h3>

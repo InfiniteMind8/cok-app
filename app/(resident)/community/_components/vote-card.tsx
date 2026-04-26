@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from 'react'
 import { Vote } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { castVoteAction } from '@/app/(resident)/_actions/community'
 import { cn } from '@/lib/utils'
