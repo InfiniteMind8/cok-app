@@ -2,7 +2,7 @@
 
 import { requireRole } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { IssueStatus } from '@prisma/client'
+import { AnnouncementTargetType, IssueStatus, Role } from '@prisma/client'
 import { notify, notifyAllOfRole } from '@/lib/notifications/service'
 import { revalidatePath } from 'next/cache'
 
@@ -11,33 +11,90 @@ export async function publishUpdateAction(input: {
   category: string
   message: string
   photoUrl?: string
+  targetType?: AnnouncementTargetType
+  targetRole?: Role
+  targetGroupId?: string
+  targetUserIds?: string[]
 }) {
   const admin = await requireRole(['MASTER_ADMIN', 'ADMIN'])
 
   if (!input.headline.trim()) throw new Error('Headline is required')
   if (!input.message.trim()) throw new Error('Message is required')
 
-  await db.communityUpdate.create({
+  const targetType = input.targetType ?? AnnouncementTargetType.COMMUNITY_WIDE
+
+  const update = await db.communityUpdate.create({
     data: {
       headline: input.headline.trim(),
       category: input.category.trim(),
       message: input.message.trim(),
       photoUrl: input.photoUrl ?? null,
       publishedBy: admin.id,
+      targetType,
+      targetRole: targetType === AnnouncementTargetType.ROLE ? (input.targetRole ?? null) : null,
+      targetGroupId: targetType === AnnouncementTargetType.VISITOR_GROUP ? (input.targetGroupId ?? null) : null,
+      targetUserIds: targetType === AnnouncementTargetType.SPECIFIC_USERS ? (input.targetUserIds ?? []) : [],
+    },
+  })
+
+  await db.auditLog.create({
+    data: {
+      action: 'PUBLISH',
+      entity: 'CommunityUpdate',
+      entityId: update.id,
+      actorId: admin.id,
+      after: { targetType, headline: update.headline },
     },
   })
 
   try {
-    await notifyAllOfRole(['RESIDENT', 'VISITOR'], {
-      type: 'COMMUNITY_UPDATE',
-      title: `New update: ${input.headline.trim()}`,
-      link: '/community',
-    })
+    if (targetType === AnnouncementTargetType.COMMUNITY_WIDE) {
+      await notifyAllOfRole(['RESIDENT', 'VISITOR'], {
+        type: 'COMMUNITY_UPDATE',
+        title: `New update: ${input.headline.trim()}`,
+        link: '/community',
+      })
+    } else if (targetType === AnnouncementTargetType.ROLE && input.targetRole) {
+      await notifyAllOfRole([input.targetRole], {
+        type: 'COMMUNITY_UPDATE',
+        title: `New update: ${input.headline.trim()}`,
+        link: '/community',
+      })
+    } else if (targetType === AnnouncementTargetType.VISITOR_GROUP && input.targetGroupId) {
+      const memberships = await db.visitorGroupMembership.findMany({
+        where: { groupId: input.targetGroupId, removedAt: null },
+        select: { userId: true },
+      })
+      await Promise.all(
+        memberships.map((m) =>
+          notify({
+            userId: m.userId,
+            type: 'COMMUNITY_UPDATE',
+            title: `New update: ${input.headline.trim()}`,
+            link: '/community',
+            priority: 'yellow',
+          }),
+        ),
+      )
+    } else if (targetType === AnnouncementTargetType.SPECIFIC_USERS && input.targetUserIds?.length) {
+      await Promise.all(
+        input.targetUserIds.map((userId) =>
+          notify({
+            userId,
+            type: 'COMMUNITY_UPDATE',
+            title: `New update: ${input.headline.trim()}`,
+            link: '/community',
+            priority: 'yellow',
+          }),
+        ),
+      )
+    }
   } catch {
     // Notification failure must not fail publish
   }
 
   revalidatePath('/community')
+  revalidatePath('/admin/visitors/groups')
 }
 
 export async function createVoteAction(input: {

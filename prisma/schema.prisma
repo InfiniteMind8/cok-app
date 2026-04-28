@@ -101,6 +101,13 @@ enum EmailLogStatus {
   FAILED
 }
 
+enum AnnouncementTargetType {
+  COMMUNITY_WIDE
+  ROLE
+  VISITOR_GROUP
+  SPECIFIC_USERS
+}
+
 enum RequestStatus {
   PENDING
   APPROVED
@@ -150,12 +157,16 @@ model User {
   ownedProperties  PropertyOwnership[]
   rentedProperties PropertyTenancy[]
   notifications    Notification[]
-  issuesReported   Issue[]          @relation("IssueReporter")
-  issuesAssigned   Issue[]          @relation("IssueAssignee")
+  issuesReported   Issue[]                  @relation("IssueReporter")
+  issuesAssigned   Issue[]                  @relation("IssueAssignee")
   votes            VoteSubmission[]
-  visitorProfile   VisitorProfile?  @relation("VisitorUser")
-  hostedVisitors   VisitorProfile[] @relation("VisitorHost")
+  visitorProfile   VisitorProfile?          @relation("VisitorUser")
+  hostedVisitors   VisitorProfile[]         @relation("VisitorHost")
   vendorProfile    VendorProfile?
+  // C.2: visitor group relations
+  createdGroups    VisitorGroup[]           @relation("VisitorGroupCreator")
+  groupMemberships VisitorGroupMembership[] @relation("VisitorGroupMember")
+  groupsAssigned   VisitorGroupMembership[] @relation("VisitorGroupAssigner")
 
   @@index([email])
   @@index([role])
@@ -403,15 +414,24 @@ model TenancyCyclePayment {
 // ─── Community ────────────────────────────────────────────────────────────────
 
 model CommunityUpdate {
-  id          String   @id @default(cuid())
-  category    String
-  headline    String
-  message     String   @db.Text
-  photoUrl    String?
-  publishedBy String
-  publishedAt DateTime @default(now())
+  id            String                 @id @default(cuid())
+  category      String
+  headline      String
+  message       String                 @db.Text
+  photoUrl      String?
+  publishedBy   String
+  publishedAt   DateTime               @default(now())
+  // C.2: announcement targeting
+  targetType    AnnouncementTargetType @default(COMMUNITY_WIDE)
+  targetRole    Role?
+  targetGroupId String?
+  targetGroup   VisitorGroup?          @relation(fields: [targetGroupId], references: [id])
+  targetUserIds String[]               @default([])
 
   acknowledgements UpdateAcknowledgement[]
+
+  @@index([targetType])
+  @@index([targetGroupId])
 }
 
 model UpdateAcknowledgement {
@@ -493,6 +513,39 @@ model IssueReply {
   createdAt DateTime @default(now())
 
   issue Issue @relation(fields: [issueId], references: [id])
+}
+
+// ─── Visitor Groups (Prompt C.2) ──────────────────────────────────────────────
+
+model VisitorGroup {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  theme       String?
+  description String   @db.Text
+  createdById String
+  createdBy   User     @relation("VisitorGroupCreator", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  archived    Boolean  @default(false)
+
+  memberships   VisitorGroupMembership[]
+  announcements CommunityUpdate[]
+
+  @@index([archived])
+}
+
+model VisitorGroupMembership {
+  id           String       @id @default(cuid())
+  userId       String
+  user         User         @relation("VisitorGroupMember", fields: [userId], references: [id])
+  groupId      String
+  group        VisitorGroup @relation(fields: [groupId], references: [id])
+  assignedById String
+  assignedBy   User         @relation("VisitorGroupAssigner", fields: [assignedById], references: [id])
+  assignedAt   DateTime     @default(now())
+  removedAt    DateTime?
+
+  @@index([userId, removedAt])
+  @@index([groupId, removedAt])
 }
 
 // ─── Email Delivery ───────────────────────────────────────────────────────────

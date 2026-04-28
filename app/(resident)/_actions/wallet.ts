@@ -1,6 +1,6 @@
 'use server'
 
-import { requireRole } from '@/lib/auth'
+import { requireRole, denyIfVisitor } from '@/lib/auth'
 import { requestSettlement } from '@/lib/ledger/settlements'
 import { getWalletBalance } from '@/lib/ledger/balance'
 import { db } from '@/lib/db'
@@ -8,7 +8,8 @@ import { Prisma } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 
 export async function requestSettlementAction(amount: string, purpose: string) {
-  const user = await requireRole(['RESIDENT', 'VISITOR'])
+  await denyIfVisitor()
+  const user = await requireRole(['RESIDENT'])
 
   const parsedAmount = new Prisma.Decimal(amount)
   if (parsedAmount.lte(0)) throw new Error('Amount must be greater than zero')
@@ -26,7 +27,8 @@ export async function requestSettlementAction(amount: string, purpose: string) {
 }
 
 export async function cancelSettlementRequestAction(requestId: string) {
-  const user = await requireRole(['RESIDENT', 'VISITOR'])
+  await denyIfVisitor()
+  const user = await requireRole(['RESIDENT'])
 
   const request = await db.settlementRequest.findUnique({ where: { id: requestId } })
   if (!request) throw new Error('Settlement request not found')

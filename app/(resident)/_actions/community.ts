@@ -1,13 +1,13 @@
 'use server'
 
-import { requireRole } from '@/lib/auth'
+import { requireRole, denyIfVisitor } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { IssueLevel, AttachmentEntityType } from '@prisma/client'
 import { notifyAllOfRole } from '@/lib/notifications/service'
 import { revalidatePath } from 'next/cache'
 
 export async function acknowledgeUpdateAction(updateId: string) {
-  const user = await requireRole(['RESIDENT', 'VISITOR'])
+  const user = await requireRole(['RESIDENT', 'VISITOR', 'ADMIN', 'MASTER_ADMIN'])
 
   await db.updateAcknowledgement.upsert({
     where: { updateId_userId: { updateId, userId: user.id } },
@@ -19,7 +19,8 @@ export async function acknowledgeUpdateAction(updateId: string) {
 }
 
 export async function castVoteAction(voteId: string, optionId: string) {
-  const user = await requireRole(['RESIDENT', 'VISITOR'])
+  await denyIfVisitor()
+  const user = await requireRole(['RESIDENT'])
 
   const vote = await db.vote.findUnique({ where: { id: voteId } })
   if (!vote) throw new Error('Vote not found')

@@ -1,5 +1,5 @@
 import 'server-only'
-import { IssueLevel, IssueStatus, Role } from '@prisma/client'
+import { AnnouncementTargetType, IssueLevel, IssueStatus, Role } from '@prisma/client'
 import { db } from '@/lib/db'
 
 export async function getUnreadNotificationCount(userId: string) {
@@ -120,10 +120,33 @@ export async function getUserVoteSubmission(voteId: string, userId: string) {
   })
 }
 
-export async function getUpdatesWithAcknowledgements(userId: string, page = 1, pageSize = 20) {
+export async function getUpdatesWithAcknowledgements(
+  userId: string,
+  userRole: Role,
+  groupIds: string[] = [],
+  page = 1,
+  pageSize = 20,
+) {
   const skip = (page - 1) * pageSize
+
+  // Admins see everything; other roles get filtered by targetType
+  const isAdmin = userRole === 'MASTER_ADMIN' || userRole === 'ADMIN'
+  const where = isAdmin
+    ? {}
+    : {
+        OR: [
+          { targetType: AnnouncementTargetType.COMMUNITY_WIDE },
+          { targetType: AnnouncementTargetType.ROLE, targetRole: userRole },
+          ...(groupIds.length > 0
+            ? [{ targetType: AnnouncementTargetType.VISITOR_GROUP, targetGroupId: { in: groupIds } }]
+            : []),
+          { targetType: AnnouncementTargetType.SPECIFIC_USERS, targetUserIds: { has: userId } },
+        ],
+      }
+
   const [updates, total] = await Promise.all([
     db.communityUpdate.findMany({
+      where,
       skip,
       take: pageSize,
       orderBy: { publishedAt: 'desc' },
@@ -134,7 +157,7 @@ export async function getUpdatesWithAcknowledgements(userId: string, page = 1, p
         },
       },
     }),
-    db.communityUpdate.count(),
+    db.communityUpdate.count({ where }),
   ])
   return { updates, total }
 }

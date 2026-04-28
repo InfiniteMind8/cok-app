@@ -60,6 +60,8 @@ interface CreateAccountInput {
   visitorFields?: VisitorFields
   vendorFields?: VendorFields
   attachments?: AttachmentInput[]
+  // C.2: visitor group assignments
+  groupIds?: string[]
 }
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
@@ -140,6 +142,17 @@ export async function createAccountAction(input: CreateAccountInput) {
           },
         })
       }
+    }
+
+    // C.2: assign visitor groups if specified
+    if (input.role === 'VISITOR' && input.groupIds && input.groupIds.length > 0) {
+      await tx.visitorGroupMembership.createMany({
+        data: input.groupIds.map((groupId) => ({
+          groupId,
+          userId: newUser.id,
+          assignedById: actor.id,
+        })),
+      })
     }
 
     await tx.auditLog.create({

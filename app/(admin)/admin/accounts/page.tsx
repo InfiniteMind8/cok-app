@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { getUsers } from '@/lib/queries/accounts'
+import { getVisitorGroups } from '@/lib/queries/visitor-groups'
 import { Role, AccountStatus } from '@prisma/client'
 import { CreateAccountDialog } from './_components/create-account-dialog'
 import { AccountsTable } from './_components/accounts-table'
@@ -86,13 +87,22 @@ export default async function AccountsPage({
   searchParams: Promise<SearchParams>
 }) {
   const sp = await searchParams
+  const visitorGroups = await getVisitorGroups(false)
 
   return (
     <div className="p-8 max-w-7xl">
       <PageHeader
         title="Accounts"
         subtitle="Manage member accounts, roles, and KYC status."
-        action={<CreateAccountDialog />}
+        action={
+          <CreateAccountDialog
+            visitorGroups={visitorGroups.map((g) => ({
+              id: g.id,
+              name: g.name,
+              theme: g.theme,
+            }))}
+          />
+        }
       />
 
       {/* Filters */}

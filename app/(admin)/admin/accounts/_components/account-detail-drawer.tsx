@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -21,6 +22,7 @@ interface AccountDetailDrawerProps {
     walletBalance: Prisma.Decimal | null
     kyc: Record<string, string> | null
   } | null
+  visitorGroups?: Array<{ id: string; name: string }>
 }
 
 const roleColors: Record<string, string> = {
@@ -37,7 +39,7 @@ const statusColors: Record<string, string> = {
   PENDING_KYC: 'bg-status-yellow/20 text-karis-stone-700',
 }
 
-export function AccountDetailDrawer({ open, onClose, user }: AccountDetailDrawerProps) {
+export function AccountDetailDrawer({ open, onClose, user, visitorGroups = [] }: AccountDetailDrawerProps) {
   if (!user) return null
 
   const initials = user.fullName
@@ -105,6 +107,36 @@ export function AccountDetailDrawer({ open, onClose, user }: AccountDetailDrawer
                 {kyc.country && <Row label="Country" value={kyc.country} />}
                 {kyc.phone && <Row label="Phone" value={kyc.phone} />}
               </div>
+            </div>
+          )}
+
+          {/* Visitor groups — shown only for visitors */}
+          {user.role === 'VISITOR' && (
+            <div>
+              <p className="text-xs font-body text-karis-stone-500 uppercase tracking-wider mb-2">
+                Visitor groups
+              </p>
+              {visitorGroups.length === 0 ? (
+                <p className="text-sm font-body text-karis-stone-400">Not assigned to any groups.</p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {visitorGroups.map((g) => (
+                    <Link
+                      key={g.id}
+                      href={`/admin/visitors/groups/${g.id}`}
+                      className="font-body text-xs px-2.5 py-1 rounded-lg bg-karis-green-900/8 text-karis-green-900 hover:bg-karis-green-900/15 transition-colors"
+                    >
+                      {g.name}
+                    </Link>
+                  ))}
+                </div>
+              )}
+              <Link
+                href="/admin/visitors/groups"
+                className="text-xs font-body text-karis-stone-400 hover:text-karis-green-900 transition-colors"
+              >
+                Manage visitor groups →
+              </Link>
             </div>
           )}
         </div>

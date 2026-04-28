@@ -35,7 +35,13 @@ export async function getUsers(filters: UserFilter = {}) {
       skip,
       take: pageSize,
       orderBy: { createdAt: 'desc' },
-      include: { wallet: { select: { id: true } } },
+      include: {
+        wallet: { select: { id: true } },
+        groupMemberships: {
+          where: { removedAt: null },
+          include: { group: { select: { id: true, name: true } } },
+        },
+      },
     }),
     db.user.count({ where }),
   ])

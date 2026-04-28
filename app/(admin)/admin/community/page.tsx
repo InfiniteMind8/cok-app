@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { getCommunityUpdates, getAdminVotes, getIssues } from '@/lib/queries/community'
+import { getVisitorGroups } from '@/lib/queries/visitor-groups'
 import { IssueLevel, IssueStatus, Role } from '@prisma/client'
 import { NewUpdateSheet } from './_components/new-update-sheet'
 import { NewVoteSheet, CloseVoteButton } from './_components/new-vote-sheet'
@@ -44,10 +45,11 @@ export default async function CommunityPage({
   const issueRole = Object.values(Role).includes(sp.role as Role)
     ? (sp.role as Role) : undefined
 
-  const [{ updates }, votes, { issues }] = await Promise.all([
+  const [{ updates }, votes, { issues }, visitorGroups] = await Promise.all([
     getCommunityUpdates(1, 20),
     getAdminVotes(),
     getIssues({ seriousness, urgency, status: issueStatus, role: issueRole, page: 1, pageSize: 40 }),
+    getVisitorGroups(false),
   ])
 
   const openIssueCount = issues.filter((i) => i.status === 'OPEN' || i.status === 'IN_PROGRESS').length
@@ -81,7 +83,13 @@ export default async function CommunityPage({
         <TabsContent value="updates">
           <div className="flex justify-between items-center mb-5">
             <span className="text-xs font-body text-karis-stone-500">{updates.length} update{updates.length !== 1 ? 's' : ''}</span>
-            <NewUpdateSheet />
+            <NewUpdateSheet
+              visitorGroups={visitorGroups.map((g) => ({
+                id: g.id,
+                name: g.name,
+                theme: g.theme,
+              }))}
+            />
           </div>
           {updates.length === 0 ? (
             <EmptyState icon={MessageSquare} title="No updates yet" body="Community updates will appear here after publishing." />

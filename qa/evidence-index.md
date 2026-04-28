@@ -38,3 +38,16 @@
 | B.3 | build | `pnpm build` | 32 routes compiled (down from 35 — route count is correct; B.3 adds no new routes) |
 | B.3 | uploadthing | size literal fix | UploadThing requires power-of-2 sizes; "20MB"→"16MB", "10MB"→"8MB", "50MB"→"64MB", "5MB"→"4MB" (closest valid values per D-015) |
 | B.3 | manual | Playwright | Deferred to D.10 per D-016 |
+| C.1 | test | `lib/ledger/__tests__/currency.test.ts` | 165/165 pass — multi-currency display helpers |
+| C.1 | typecheck | `pnpm typecheck` | Exit 0, zero errors |
+| C.1 | commit | `2d6ec95` | feat(multi-currency): C.1 multi-currency display |
+| C.2 | schema | `prisma/schema.prisma` | `AnnouncementTargetType` enum; `VisitorGroup` + `VisitorGroupMembership` models; targeting fields on `CommunityUpdate`; User back-refs |
+| C.2 | migration | `prisma/migrations/20260428215229_add_visitor_groups/` | Migration created via `prisma migrate dev`; committed; requires `prisma migrate deploy` on connected DB (R-C2-03) |
+| C.2 | test | `lib/visitor-groups/__tests__/groups.test.ts` | 14 tests: createGroupAction (creates+audits, blank name throws, name conflict throws), archiveGroupAction (sets archived+audits, not found throws), assignMemberAction (creates+audits, non-VISITOR throws, duplicate throws, archived group throws), removeMemberAction (sets removedAt) — all pass |
+| C.2 | test | `lib/queries/__tests__/community-feed-filter.test.ts` | 6 tests: MASTER_ADMIN → empty where, ADMIN → empty where, RESIDENT → COMMUNITY_WIDE+ROLE(RESIDENT), VISITOR with groups → COMMUNITY_WIDE+VISITOR_GROUP+SPECIFIC_USERS, VISITOR without groups → no VISITOR_GROUP filter, VENDOR → COMMUNITY_WIDE+ROLE(VENDOR) — all pass |
+| C.2 | test | `tests/e2e/c2-visitor-groups.spec.ts` | 3 scenarios documented as `describe.skip` TODOs; deferred to D.10 per D-019 |
+| C.2 | typecheck | `pnpm typecheck` | Exit 0, zero errors — all new files + 8 modified files clean |
+| C.2 | test-total | `pnpm test --run` | 181 pass / 3 skip (E2E stubs) — 16 new tests above baseline of 165 |
+| C.2 | auth-guard | `denyIfVisitor()` | Applied to: `castVoteAction`, `requestSettlementAction`, `cancelSettlementRequestAction`; visitor role blocked at Server Action layer |
+| C.2 | feed-filter | `getUpdatesWithAcknowledgements` | OR-filter: COMMUNITY_WIDE + ROLE(userRole) + VISITOR_GROUP(in groupIds) + SPECIFIC_USERS(has userId); admins bypass filter |
+| C.2 | audit-log | visitor-groups actions | AuditLog entries written for: GROUP_CREATE, GROUP_EDIT, GROUP_ARCHIVE, GROUP_UNARCHIVE, ASSIGN_MEMBER, REMOVE_MEMBER, PUBLISH_UPDATE |

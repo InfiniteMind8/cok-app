@@ -46,3 +46,12 @@ export async function requireRole(role: Role | Role[]) {
 export async function getClerkUser() {
   return currentUser()
 }
+
+// C.2: enforce visitor permission boundary at Server Action layer
+export async function denyIfVisitor() {
+  const user = await getCurrentUser()
+  if (!user) redirect('/sign-in')
+  if (user.role === 'VISITOR') {
+    throw new Error('Visitors do not have access to this feature.')
+  }
+}

@@ -30,6 +30,7 @@ interface UserRow {
   createdAt: Date
   walletBalance: Prisma.Decimal | null
   kyc: Record<string, string> | null
+  groupMemberships?: Array<{ group: { id: string; name: string } }>
 }
 
 interface AccountsTableProps {
@@ -160,6 +161,7 @@ export function AccountsTable({ users }: AccountsTableProps) {
         open={!!drawerUser}
         onClose={() => setDrawerUser(null)}
         user={drawerUser}
+        visitorGroups={drawerUser?.groupMemberships?.map((m) => ({ id: m.group.id, name: m.group.name })) ?? []}
       />
     </>
   )

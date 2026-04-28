@@ -55,7 +55,13 @@ const baseSchema = z.object({
 
 type FormValues = z.infer<typeof baseSchema>
 
-export function CreateAccountDialog() {
+interface VisitorGroupOption {
+  id: string
+  name: string
+  theme?: string | null
+}
+
+export function CreateAccountDialog({ visitorGroups = [] }: { visitorGroups?: VisitorGroupOption[] }) {
   const [open, setOpen] = useState(false)
   const [result, setResult] = useState<{ memberId: string } | null>(null)
   const [copied, setCopied] = useState(false)
@@ -65,6 +71,7 @@ export function CreateAccountDialog() {
   const [vendorDocFiles, setVendorDocFiles] = useState<UploadedFile[]>([])
   const [vehiclePlates, setVehiclePlates] = useState<string[]>([])
   const [plateInput, setPlateInput] = useState('')
+  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([])
 
   const {
     register,
@@ -89,7 +96,14 @@ export function CreateAccountDialog() {
     setVendorDocFiles([])
     setVehiclePlates([])
     setPlateInput('')
+    setSelectedGroupIds([])
     setOpen(false)
+  }
+
+  function toggleGroup(id: string) {
+    setSelectedGroupIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    )
   }
 
   function addPlate() {
@@ -132,6 +146,7 @@ export function CreateAccountDialog() {
             expectedArrival: values.expectedArrival,
             expectedDeparture: values.expectedDeparture,
           } : undefined,
+          groupIds: values.role === 'VISITOR' && selectedGroupIds.length > 0 ? selectedGroupIds : undefined,
           vendorFields: values.role === 'VENDOR' ? {
             businessName: values.businessName,
             businessCategory: values.businessCategory,
@@ -411,6 +426,32 @@ export function CreateAccountDialog() {
                       onComplete={(files) => setIdDocFiles((prev) => [...prev, ...files])}
                       onRemove={(key) => setIdDocFiles((prev) => prev.filter((f) => f.key !== key))}
                     />
+
+                    {visitorGroups.length > 0 && (
+                      <div className="space-y-2">
+                        <Label className="text-xs font-body text-karis-stone-500">Visitor groups (optional)</Label>
+                        <div className="flex flex-wrap gap-2">
+                          {visitorGroups.map((g) => {
+                            const selected = selectedGroupIds.includes(g.id)
+                            return (
+                              <button
+                                key={g.id}
+                                type="button"
+                                onClick={() => toggleGroup(g.id)}
+                                className={`font-body text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+                                  selected
+                                    ? 'bg-karis-green-900 text-white border-karis-green-900'
+                                    : 'bg-white text-karis-stone-600 border-karis-stone-200 hover:border-karis-green-900/40'
+                                }`}
+                              >
+                                {g.name}
+                                {g.theme ? ` · ${g.theme}` : ''}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
