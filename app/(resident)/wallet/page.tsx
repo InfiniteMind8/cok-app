@@ -4,10 +4,12 @@ import { getCurrentUser } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { getWalletSummary } from '@/lib/ledger/balance'
 import { getRecentTransactions } from '@/lib/queries/wallet'
+import { getCurrentRates } from '@/lib/currency/rate-resolver'
 import { WalletHeroCard } from './_components/wallet-hero-card'
 import { WalletStatCards } from './_components/wallet-stat-cards'
 import { TransactionList } from './_components/transaction-list'
 import { WalletSkeleton } from '@/components/resident/wallet-skeleton'
+import type { DisplayCurrencyCode } from '@/lib/currency/format-amount'
 
 export default async function WalletPage() {
   const user = await getCurrentUser()
@@ -29,7 +31,11 @@ async function WalletContent({
   fullName: string
   memberId: string
 }) {
-  const wallet = await db.wallet.findUnique({ where: { userId } })
+  const [wallet, userPrefs, rates] = await Promise.all([
+    db.wallet.findUnique({ where: { userId } }),
+    db.user.findUnique({ where: { id: userId }, select: { displayCurrency: true } }),
+    getCurrentRates(),
+  ])
 
   if (!wallet) {
     return (
@@ -49,6 +55,8 @@ async function WalletContent({
     getRecentTransactions(wallet.id, 10),
   ])
 
+  const displayCurrency = (userPrefs?.displayCurrency ?? 'KCRD') as DisplayCurrencyCode
+
   return (
     <div className="px-4 py-5 max-w-lg mx-auto space-y-5 pb-8">
       <WalletHeroCard
@@ -61,6 +69,8 @@ async function WalletContent({
         totalDeposited={summary.totalDeposited}
         totalEarned={summary.totalEarned}
         totalEligibleForConversion={summary.totalEligibleForConversion}
+        displayCurrency={displayCurrency !== 'KCRD' ? displayCurrency : undefined}
+        rates={displayCurrency !== 'KCRD' ? rates : undefined}
       />
 
       <section>

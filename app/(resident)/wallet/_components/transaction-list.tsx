@@ -13,6 +13,8 @@ import {
   ReceiptText,
   Settings2,
   Undo2,
+  ArrowLeftRight,
+  Sparkles,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { TransactionDetailSheet } from './transaction-detail-sheet'
@@ -30,6 +32,8 @@ const TYPE_ICON: Record<TransactionType, React.ComponentType<{ size?: number; cl
   FEE_SPLIT: ReceiptText,
   TREASURY_ADJUSTMENT: Settings2,
   REVERSAL: Undo2,
+  FIAT_CONVERSION: ArrowLeftRight,
+  CONVERSION_BONUS: Sparkles,
 }
 
 interface TransactionListProps {

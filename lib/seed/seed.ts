@@ -637,6 +637,47 @@ async function main() {
     console.log('  Notifications: Devon already has notifications — skipped')
   }
 
+  // ── C.1: Currency system wallets ─────────────────────────────────────────────
+
+  for (const key of ['fiat_settlement', 'promotions'] as const) {
+    await db.wallet.upsert({
+      where: { systemKey: key },
+      update: {},
+      create: { isSystem: true, systemKey: key },
+    })
+    console.log(`  System wallet: ${key}`)
+  }
+
+  // ── C.1: Initial conversion rates ────────────────────────────────────────────
+
+  type RateSeed = { base: 'KCRD' | 'USD' | 'GYD'; quote: 'KCRD' | 'USD' | 'GYD'; rate: string }
+  const rateSeed: RateSeed[] = [
+    { base: 'KCRD', quote: 'USD', rate: '1.00000000' },
+    { base: 'USD', quote: 'KCRD', rate: '1.00000000' },
+    { base: 'KCRD', quote: 'GYD', rate: '210.00000000' },
+    { base: 'GYD', quote: 'KCRD', rate: '0.00476190' },
+    { base: 'USD', quote: 'GYD', rate: '210.00000000' },
+    { base: 'GYD', quote: 'USD', rate: '0.00476190' },
+  ]
+
+  const seedFrom = new Date(Date.now() - 60_000) // 1 minute ago
+  const karisUser = await db.user.findFirst({ where: { email: 'karis@cityofkaris.com' }, select: { id: true } })
+  const setBy = karisUser?.id ?? 'system'
+
+  for (const r of rateSeed) {
+    const existing = await db.conversionRate.findFirst({
+      where: { baseCurrency: r.base, quoteCurrency: r.quote, effectiveTo: null },
+    })
+    if (!existing) {
+      await db.conversionRate.create({
+        data: { baseCurrency: r.base, quoteCurrency: r.quote, rate: r.rate, effectiveFrom: seedFrom, setBy },
+      })
+      console.log(`  Rate: ${r.base} → ${r.quote} = ${r.rate}`)
+    } else {
+      console.log(`  Rate: ${r.base} → ${r.quote} already set — skipped`)
+    }
+  }
+
   console.log('\nSeed complete.')
 }
 

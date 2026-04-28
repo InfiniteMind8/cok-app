@@ -1,6 +1,7 @@
 import 'server-only'
+import Link from 'next/link'
 import { format } from 'date-fns'
-import { Settings, Wallet, Activity } from 'lucide-react'
+import { Wallet, Activity, DollarSign, Tag, ChevronRight } from 'lucide-react'
 import { PageHeader } from '@/components/admin/page-header'
 import { KAmount } from '@/components/admin/k-amount'
 import {
@@ -17,6 +18,8 @@ import { getActiveFeeSchedule } from '@/lib/ledger/fee-engine'
 import { db } from '@/lib/db'
 import type { FeeScheduleRules } from '@/lib/ledger/types'
 import { Prisma } from '@prisma/client'
+import { FeeScheduleEditor } from './_components/fee-schedule-editor'
+import { getFeeScheduleHistory } from '@/app/(admin)/_actions/settings'
 
 const SYSTEM_KEY_LABELS: Record<string, string> = {
   treasury_reserve: 'Treasury Reserve',
@@ -63,14 +66,14 @@ async function getRecentAdminActivity() {
 }
 
 export default async function SettingsPage() {
-  const [feeSchedule, systemWallets, recentActivity] = await Promise.all([
+  const [feeSchedule, systemWallets, recentActivity, history] = await Promise.all([
     getActiveFeeSchedule(),
     getSystemWalletSummary(),
     getRecentAdminActivity(),
+    getFeeScheduleHistory(),
   ])
 
   const rules = (feeSchedule?.rules ?? {}) as FeeScheduleRules
-  const ruleEntries = Object.entries(rules) as [string, { totalPct: number; communityFundPct: number; operationsFundPct: number; developerSharePct: number }][]
 
   return (
     <div className="p-8 max-w-5xl space-y-10">
@@ -79,71 +82,53 @@ export default async function SettingsPage() {
         subtitle="Fee schedule, system wallets, and admin activity."
       />
 
-      {/* ─── Active Fee Schedule ──────────────────────────────────────── */}
+      {/* ─── Sub-settings navigation ─────────────────────────────────── */}
+      <section>
+        <div className="grid grid-cols-2 gap-4">
+          <Link
+            href="/admin/settings/currency"
+            className="flex items-center gap-4 bg-white border border-karis-stone-100 rounded-xl shadow-sm px-5 py-4 hover:border-karis-green-300 hover:shadow-md transition-all group"
+          >
+            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-karis-green-50 text-karis-green-700">
+              <DollarSign size={16} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-body text-sm font-medium text-karis-stone-900">Currency Rates</div>
+              <div className="font-body text-xs text-karis-stone-500">KCRD ↔ USD ↔ GYD conversion rates</div>
+            </div>
+            <ChevronRight size={15} className="text-karis-stone-400 group-hover:text-karis-green-600 shrink-0" />
+          </Link>
+
+          <Link
+            href="/admin/settings/promotions"
+            className="flex items-center gap-4 bg-white border border-karis-stone-100 rounded-xl shadow-sm px-5 py-4 hover:border-karis-green-300 hover:shadow-md transition-all group"
+          >
+            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-karis-gold-50 text-karis-gold-700">
+              <Tag size={16} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-body text-sm font-medium text-karis-stone-900">Promotions</div>
+              <div className="font-body text-xs text-karis-stone-500">Bonus K Credit incentives on conversions</div>
+            </div>
+            <ChevronRight size={15} className="text-karis-stone-400 group-hover:text-karis-green-600 shrink-0" />
+          </Link>
+        </div>
+      </section>
+
+      {/* ─── Fee Schedule Editor ──────────────────────────────────────── */}
       <section>
         <div className="flex items-center gap-2 mb-4">
-          <Settings size={15} className="text-karis-stone-500" />
-          <h2 className="font-heading text-base text-karis-green-900">Active Fee Schedule</h2>
+          <h2 className="font-heading text-base text-karis-green-900">Fee Schedule</h2>
+          <Badge variant="secondary" className="font-body text-xs bg-status-green/15 text-status-green ml-1">
+            Active
+          </Badge>
+          {feeSchedule && (
+            <span className="font-body text-xs text-karis-stone-400 ml-auto">
+              Since {format(feeSchedule.effectiveAt, 'dd MMM yyyy')}
+            </span>
+          )}
         </div>
-        {!feeSchedule ? (
-          <div className="bg-white border border-karis-stone-100 rounded-xl shadow-sm p-6">
-            <p className="font-body text-sm text-karis-stone-500">No fee schedule configured.</p>
-          </div>
-        ) : (
-          <div className="bg-white border border-karis-stone-100 rounded-xl shadow-sm overflow-hidden">
-            <div className="px-5 py-3 bg-karis-stone-50 border-b border-karis-stone-100 flex items-center gap-3">
-              <span className="font-body text-xs text-karis-stone-500">
-                Effective {format(feeSchedule.effectiveAt, 'dd MMM yyyy')}
-              </span>
-              <Badge variant="secondary" className="font-body text-xs bg-status-green/15 text-status-green">
-                Active
-              </Badge>
-            </div>
-            {ruleEntries.length === 0 ? (
-              <div className="p-5">
-                <p className="font-body text-sm text-karis-stone-500">No fee rules defined.</p>
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-karis-stone-50">
-                    <TableHead className="px-5 font-body text-xs uppercase tracking-wider text-karis-stone-500">Transaction Type</TableHead>
-                    <TableHead className="px-5 font-body text-xs uppercase tracking-wider text-karis-stone-500 text-right">Total %</TableHead>
-                    <TableHead className="px-5 font-body text-xs uppercase tracking-wider text-karis-stone-500 text-right">Community Fund %</TableHead>
-                    <TableHead className="px-5 font-body text-xs uppercase tracking-wider text-karis-stone-500 text-right">Operations %</TableHead>
-                    <TableHead className="px-5 font-body text-xs uppercase tracking-wider text-karis-stone-500 text-right">Developer %</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {ruleEntries.map(([type, rule]) => (
-                    <TableRow key={type}>
-                      <TableCell className="px-5 font-body text-sm text-karis-stone-900">
-                        {type.replace(/_/g, ' ')}
-                      </TableCell>
-                      <TableCell className="px-5 font-body text-sm text-karis-stone-700 text-right tabular-nums">
-                        {rule.totalPct}%
-                      </TableCell>
-                      <TableCell className="px-5 font-body text-sm text-karis-stone-700 text-right tabular-nums">
-                        {rule.communityFundPct}%
-                      </TableCell>
-                      <TableCell className="px-5 font-body text-sm text-karis-stone-700 text-right tabular-nums">
-                        {rule.operationsFundPct}%
-                      </TableCell>
-                      <TableCell className="px-5 font-body text-sm text-karis-stone-700 text-right tabular-nums">
-                        {rule.developerSharePct}%
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-            <div className="px-5 py-2.5 border-t border-karis-stone-100 bg-karis-stone-50">
-              <p className="font-body text-xs text-karis-stone-400">
-                New fee schedules are applied via a migration (change is rare). Contact the dev team to update.
-              </p>
-            </div>
-          </div>
-        )}
+        <FeeScheduleEditor initialRules={rules} history={history} />
       </section>
 
       {/* ─── System Wallets ───────────────────────────────────────────── */}

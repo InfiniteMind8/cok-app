@@ -8,6 +8,7 @@ import { Separator } from '@/components/ui/separator'
 import { MemberQrCard } from './_components/member-qr-card'
 import { ProfilePhotoUpload } from './_components/profile-photo-upload'
 import { ResidentSignOutButton } from './_components/sign-out-button'
+import { DisplayCurrencySelector } from './_components/display-currency-selector'
 import { Wordmark } from '@/components/shared/wordmark'
 
 export const dynamic = 'force-dynamic'
@@ -36,6 +37,7 @@ export default async function ProfilePage() {
       introduction: true,
       kyc: true,
       createdAt: true,
+      displayCurrency: true,
     },
   })
 
@@ -106,6 +108,12 @@ export default async function ProfilePage() {
         </div>
 
         <div className="space-y-3">
+          <DisplayCurrencySelector
+            current={(fullUser.displayCurrency ?? 'KCRD') as 'KCRD' | 'USD' | 'GYD'}
+          />
+
+          <Separator className="bg-karis-stone-100" />
+
           <div className="flex items-center justify-between py-1">
             <p className="font-body text-sm text-karis-stone-700">Notification preferences</p>
             <span className="font-body text-xs text-karis-stone-400">More options are on the way</span>
