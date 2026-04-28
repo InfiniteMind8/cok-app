@@ -15,15 +15,13 @@ import {
   SheetDescription,
 } from '@/components/ui/sheet'
 import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogCancel,
-  AlertDialogAction,
-} from '@/components/ui/alert-dialog'
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalTitle,
+  ModalDescription,
+  ModalFooter,
+} from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -105,7 +103,7 @@ export function NewVoteSheet() {
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-body text-karis-stone-500">Option {index + 1}</span>
                     {fields.length > 2 && (
-                      <button type="button" onClick={() => remove(index)} className="text-karis-stone-400 hover:text-status-red">
+                      <button type="button" onClick={() => remove(index)} className="text-karis-stone-400 hover:text-status-red" aria-label="Remove option">
                         <Trash2 size={13} />
                       </button>
                     )}
@@ -150,22 +148,24 @@ export function CloseVoteButton({ voteId, headline }: { voteId: string; headline
       <Button size="sm" variant="outline" onClick={() => setOpen(true)} className="font-body text-xs h-7 px-3">
         Close vote
       </Button>
-      <AlertDialog open={open} onOpenChange={setOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="font-heading text-karis-green-900">Close vote?</AlertDialogTitle>
-            <AlertDialogDescription className="font-body text-sm text-karis-stone-500">
+      <Modal open={open} onOpenChange={setOpen}>
+        <ModalContent dismissOnBackdrop={false}>
+          <ModalHeader>
+            <ModalTitle className="font-heading text-karis-green-900">Close vote?</ModalTitle>
+            <ModalDescription className="font-body text-sm text-karis-stone-500">
               &ldquo;{headline}&rdquo; — members will no longer be able to submit responses.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="font-body text-sm" disabled={isPending}>Cancel</AlertDialogCancel>
-            <AlertDialogAction className="font-body text-sm" onClick={handleClose} disabled={isPending}>
+            </ModalDescription>
+          </ModalHeader>
+          <ModalFooter>
+            <Button variant="outline" className="font-body text-sm" onClick={() => setOpen(false)} disabled={isPending}>
+              Cancel
+            </Button>
+            <Button className="font-body text-sm" onClick={handleClose} disabled={isPending}>
               {isPending ? 'Closing…' : 'Close vote'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </>
   )
 }

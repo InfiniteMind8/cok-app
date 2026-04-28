@@ -4,13 +4,14 @@ import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog'
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalTitle,
+  ModalDescription,
+  ModalBody,
+  ModalFooter,
+} from '@/components/ui/modal'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { approveSettlementAction, declineSettlementAction } from '@/app/(admin)/_actions/settlements'
@@ -55,18 +56,18 @@ export function ApproveSettlementDialog({ settlement }: { settlement: Settlement
         Approve
       </Button>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="font-heading text-karis-green-900">
+      <Modal open={open} onOpenChange={setOpen}>
+        <ModalContent>
+          <ModalHeader>
+            <ModalTitle className="font-heading text-karis-green-900">
               Approve settlement
-            </DialogTitle>
-            <DialogDescription className="font-body text-sm text-karis-stone-500">
+            </ModalTitle>
+            <ModalDescription className="font-body text-sm text-karis-stone-500">
               This marks the request as approved. The fiat payout is recorded separately.
-            </DialogDescription>
-          </DialogHeader>
+            </ModalDescription>
+          </ModalHeader>
 
-          <div className="space-y-3 py-2">
+          <ModalBody>
             <div className="bg-karis-stone-50 rounded-lg p-4 space-y-2 text-sm font-body">
               <div className="flex justify-between">
                 <span className="text-karis-stone-500">Member</span>
@@ -95,18 +96,18 @@ export function ApproveSettlementDialog({ settlement }: { settlement: Settlement
                 </div>
               )}
             </div>
-          </div>
+          </ModalBody>
 
-          <DialogFooter>
+          <ModalFooter>
             <Button variant="outline" size="sm" onClick={() => setOpen(false)} disabled={isPending}>
               Cancel
             </Button>
             <Button size="sm" onClick={handleApprove} disabled={isPending}>
               {isPending ? 'Approving...' : 'Confirm approval'}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </>
   )
 }
@@ -145,37 +146,39 @@ export function DeclineSettlementDialog({ settlement }: { settlement: Settlement
         Decline
       </Button>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="font-heading text-karis-green-900">
+      <Modal open={open} onOpenChange={setOpen}>
+        <ModalContent>
+          <ModalHeader>
+            <ModalTitle className="font-heading text-karis-green-900">
               Decline settlement
-            </DialogTitle>
-            <DialogDescription className="font-body text-sm text-karis-stone-500">
+            </ModalTitle>
+            <ModalDescription className="font-body text-sm text-karis-stone-500">
               The member will be notified. Provide a clear reason.
-            </DialogDescription>
-          </DialogHeader>
+            </ModalDescription>
+          </ModalHeader>
 
-          <div className="space-y-4 py-2">
-            <div className="bg-karis-stone-50 rounded-lg px-4 py-3 text-sm font-body">
-              <span className="text-karis-stone-500">Request by </span>
-              <span className="text-karis-stone-900 font-medium">{settlement.userName}</span>
-              <span className="text-karis-stone-500"> — </span>
-              <span className="text-karis-gold-700 tabular-nums">K {settlement.amount}</span>
+          <ModalBody>
+            <div className="space-y-4">
+              <div className="bg-karis-stone-50 rounded-lg px-4 py-3 text-sm font-body">
+                <span className="text-karis-stone-500">Request by </span>
+                <span className="text-karis-stone-900 font-medium">{settlement.userName}</span>
+                <span className="text-karis-stone-500"> — </span>
+                <span className="text-karis-gold-700 tabular-nums">K {settlement.amount}</span>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-body text-karis-stone-500">Reason</Label>
+                <Textarea
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="Explain why this request is being declined..."
+                  className="text-sm font-body resize-none"
+                  rows={3}
+                />
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-body text-karis-stone-500">Reason</Label>
-              <Textarea
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                placeholder="Explain why this request is being declined..."
-                className="text-sm font-body resize-none"
-                rows={3}
-              />
-            </div>
-          </div>
+          </ModalBody>
 
-          <DialogFooter>
+          <ModalFooter>
             <Button variant="outline" size="sm" onClick={() => setOpen(false)} disabled={isPending}>
               Cancel
             </Button>
@@ -187,9 +190,9 @@ export function DeclineSettlementDialog({ settlement }: { settlement: Settlement
             >
               {isPending ? 'Declining...' : 'Confirm decline'}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </>
   )
 }

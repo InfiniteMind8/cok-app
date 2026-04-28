@@ -19,12 +19,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog'
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalTitle,
+  ModalDescription,
+  ModalBody,
+  ModalFooter,
+} from '@/components/ui/modal'
 import { raiseIssueAction } from '@/app/(resident)/_actions/community'
 
 const schema = z.object({
@@ -102,6 +104,7 @@ export function RaiseIssueFab() {
   return (
     <>
       <button
+        type="button"
         onClick={() => setOpen(true)}
         className="fixed bottom-20 right-4 z-40 w-14 h-14 bg-karis-green-900 text-white rounded-full shadow-md flex items-center justify-center border-2 border-karis-gold-500 hover:bg-karis-green-700 transition-colors duration-150 ease-out"
         aria-label="Raise an issue"
@@ -109,95 +112,98 @@ export function RaiseIssueFab() {
         <Plus size={24} />
       </button>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-sm w-full mx-4">
-          <DialogHeader className="mb-4">
-            <DialogTitle className="font-heading text-karis-green-900">Raise an issue</DialogTitle>
-            <DialogDescription className="font-body text-sm text-karis-stone-500">
+      <Modal open={open} onOpenChange={setOpen}>
+        <ModalContent>
+          <ModalHeader>
+            <ModalTitle className="font-heading text-karis-green-900">Raise an issue</ModalTitle>
+            <ModalDescription className="font-body text-sm text-karis-stone-500">
               Report a concern to the Admin team. They will follow up directly.
-            </DialogDescription>
-          </DialogHeader>
+            </ModalDescription>
+          </ModalHeader>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-body text-karis-stone-500">Seriousness</Label>
-              <Controller
-                control={control}
-                name="seriousness"
-                render={({ field }) => (
-                  <LevelPicker value={field.value} onChange={field.onChange} />
+          <ModalBody>
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-body text-karis-stone-500">Seriousness</Label>
+                <Controller
+                  control={control}
+                  name="seriousness"
+                  render={({ field }) => (
+                    <LevelPicker value={field.value} onChange={field.onChange} />
+                  )}
+                />
+                {errors.seriousness && (
+                  <p className="text-xs text-status-red font-body">{errors.seriousness.message}</p>
                 )}
-              />
-              {errors.seriousness && (
-                <p className="text-xs text-status-red font-body">{errors.seriousness.message}</p>
-              )}
-            </div>
+              </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs font-body text-karis-stone-500">Urgency</Label>
-              <Controller
-                control={control}
-                name="urgency"
-                render={({ field }) => (
-                  <LevelPicker value={field.value} onChange={field.onChange} />
+              <div className="space-y-1.5">
+                <Label className="text-xs font-body text-karis-stone-500">Urgency</Label>
+                <Controller
+                  control={control}
+                  name="urgency"
+                  render={({ field }) => (
+                    <LevelPicker value={field.value} onChange={field.onChange} />
+                  )}
+                />
+                {errors.urgency && (
+                  <p className="text-xs text-status-red font-body">{errors.urgency.message}</p>
                 )}
-              />
-              {errors.urgency && (
-                <p className="text-xs text-status-red font-body">{errors.urgency.message}</p>
-              )}
-            </div>
+              </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs font-body text-karis-stone-500">Category</Label>
-              <Select onValueChange={(v: string | null) => { if (v !== null) setValue('category', v) }}>
-                <SelectTrigger className="font-body text-sm">
-                  <SelectValue placeholder="Select category…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {['Maintenance', 'Security', 'Treasury', 'Property', 'Other'].map((c) => (
-                    <SelectItem key={c} value={c} className="font-body text-sm">{c}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.category && (
-                <p className="text-xs text-status-red font-body">{errors.category.message}</p>
-              )}
-            </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-body text-karis-stone-500">Category</Label>
+                <Select onValueChange={(v: string | null) => { if (v !== null) setValue('category', v) }}>
+                  <SelectTrigger className="font-body text-sm">
+                    <SelectValue placeholder="Select category…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {['Maintenance', 'Security', 'Treasury', 'Property', 'Other'].map((c) => (
+                      <SelectItem key={c} value={c} className="font-body text-sm">{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.category && (
+                  <p className="text-xs text-status-red font-body">{errors.category.message}</p>
+                )}
+              </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs font-body text-karis-stone-500">Description</Label>
-              <Textarea
-                placeholder="Describe the issue in detail…"
-                className="font-body text-sm resize-none"
-                rows={4}
-                {...register('message')}
-              />
-              {errors.message && (
-                <p className="text-xs text-status-red font-body">{errors.message.message}</p>
-              )}
-            </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-body text-karis-stone-500">Description</Label>
+                <Textarea
+                  placeholder="Describe the issue in detail…"
+                  className="font-body text-sm resize-none"
+                  rows={4}
+                  {...register('message')}
+                />
+                {errors.message && (
+                  <p className="text-xs text-status-red font-body">{errors.message.message}</p>
+                )}
+              </div>
+            </form>
+          </ModalBody>
 
-            <div className="flex gap-3 pt-1">
-              <Button
-                type="button"
-                variant="outline"
-                className="flex-1 font-body text-sm min-h-[44px]"
-                onClick={() => setOpen(false)}
-                disabled={isPending}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                className="flex-1 bg-karis-green-900 text-white font-body text-sm min-h-[44px]"
-                disabled={isPending}
-              >
-                {isPending ? 'Submitting…' : 'Raise issue'}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+          <ModalFooter>
+            <Button
+              type="button"
+              variant="outline"
+              className="font-body text-sm min-h-[44px]"
+              onClick={() => setOpen(false)}
+              disabled={isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              className="bg-karis-green-900 text-white font-body text-sm min-h-[44px]"
+              onClick={handleSubmit(onSubmit)}
+              disabled={isPending}
+            >
+              {isPending ? 'Submitting…' : 'Raise issue'}
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </>
   )
 }

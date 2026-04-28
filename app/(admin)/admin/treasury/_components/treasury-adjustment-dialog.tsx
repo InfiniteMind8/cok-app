@@ -7,13 +7,14 @@ import { z } from 'zod'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog'
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalTitle,
+  ModalDescription,
+  ModalBody,
+  ModalFooter,
+} from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -68,62 +69,64 @@ export function TreasuryAdjustmentDialog() {
         Update backing
       </Button>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="font-heading text-karis-green-900">
+      <Modal open={open} onOpenChange={setOpen}>
+        <ModalContent>
+          <ModalHeader>
+            <ModalTitle className="font-heading text-karis-green-900">
               Update treasury backing
-            </DialogTitle>
-            <DialogDescription className="font-body text-sm text-karis-stone-500">
+            </ModalTitle>
+            <ModalDescription className="font-body text-sm text-karis-stone-500">
               Record a change to the fiat reserves backing K Credits.
-            </DialogDescription>
-          </DialogHeader>
+            </ModalDescription>
+          </ModalHeader>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-2">
-            <div className="grid grid-cols-3 gap-3">
-              <div className="col-span-2 space-y-1.5">
-                <Label className="text-xs font-body text-karis-stone-500">Amount</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  className="font-body text-sm tabular-nums"
-                  {...register('amount')}
+          <ModalBody>
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-2 space-y-1.5">
+                  <Label className="text-xs font-body text-karis-stone-500">Amount</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    className="font-body text-sm tabular-nums"
+                    {...register('amount')}
+                  />
+                  {errors.amount && (
+                    <p className="text-xs text-status-red font-body">{errors.amount.message}</p>
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-body text-karis-stone-500">Currency</Label>
+                  <Select defaultValue="USD" onValueChange={(v: string | null) => { if (v !== null) setValue('currency', v) }}>
+                    <SelectTrigger className="font-body text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="USD" className="font-body text-sm">USD</SelectItem>
+                      <SelectItem value="GYD" className="font-body text-sm">GYD</SelectItem>
+                      <SelectItem value="CAD" className="font-body text-sm">CAD</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-body text-karis-stone-500">Reason</Label>
+                <Textarea
+                  placeholder="Describe this treasury adjustment…"
+                  className="font-body text-sm resize-none"
+                  rows={3}
+                  {...register('reason')}
                 />
-                {errors.amount && (
-                  <p className="text-xs text-status-red font-body">{errors.amount.message}</p>
+                {errors.reason && (
+                  <p className="text-xs text-status-red font-body">{errors.reason.message}</p>
                 )}
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-body text-karis-stone-500">Currency</Label>
-                <Select defaultValue="USD" onValueChange={(v: string | null) => { if (v !== null) setValue('currency', v) }}>
-                  <SelectTrigger className="font-body text-sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="USD" className="font-body text-sm">USD</SelectItem>
-                    <SelectItem value="GYD" className="font-body text-sm">GYD</SelectItem>
-                    <SelectItem value="CAD" className="font-body text-sm">CAD</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            </form>
+          </ModalBody>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs font-body text-karis-stone-500">Reason</Label>
-              <Textarea
-                placeholder="Describe this treasury adjustment…"
-                className="font-body text-sm resize-none"
-                rows={3}
-                {...register('reason')}
-              />
-              {errors.reason && (
-                <p className="text-xs text-status-red font-body">{errors.reason.message}</p>
-              )}
-            </div>
-          </form>
-
-          <DialogFooter>
+          <ModalFooter>
             <Button
               variant="outline"
               size="sm"
@@ -135,9 +138,9 @@ export function TreasuryAdjustmentDialog() {
             <Button size="sm" onClick={handleSubmit(onSubmit)} disabled={isPending}>
               {isPending ? 'Saving…' : 'Save adjustment'}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </>
   )
 }

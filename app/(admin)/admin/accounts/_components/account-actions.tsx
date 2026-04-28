@@ -12,23 +12,14 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogCancel,
-  AlertDialogAction,
-} from '@/components/ui/alert-dialog'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog'
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalTitle,
+  ModalDescription,
+  ModalBody,
+  ModalFooter,
+} from '@/components/ui/modal'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import {
@@ -131,95 +122,99 @@ export function AccountActions({ userId, userName, status, role, onView }: Accou
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* Suspend dialog */}
-      <Dialog open={modal === 'suspend'} onOpenChange={(v) => !v && setModal(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="font-heading text-karis-green-900">
+      {/* Suspend modal */}
+      <Modal open={modal === 'suspend'} onOpenChange={(v) => !v && setModal(null)}>
+        <ModalContent>
+          <ModalHeader>
+            <ModalTitle className="font-heading text-karis-green-900">
               Suspend {userName}
-            </DialogTitle>
-            <DialogDescription className="font-body text-sm text-karis-stone-500">
+            </ModalTitle>
+            <ModalDescription className="font-body text-sm text-karis-stone-500">
               The member will lose access immediately. Provide a reason.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-2 space-y-2">
-            <Label className="text-xs font-body text-karis-stone-500">Reason</Label>
-            <Textarea
-              value={suspendReason}
-              onChange={(e) => setSuspendReason(e.target.value)}
-              placeholder="Explain why this account is being suspended…"
-              className="font-body text-sm resize-none"
-              rows={3}
-            />
-          </div>
-          <DialogFooter>
+            </ModalDescription>
+          </ModalHeader>
+          <ModalBody>
+            <div className="space-y-2">
+              <Label className="text-xs font-body text-karis-stone-500">Reason</Label>
+              <Textarea
+                value={suspendReason}
+                onChange={(e) => setSuspendReason(e.target.value)}
+                placeholder="Explain why this account is being suspended…"
+                className="font-body text-sm resize-none"
+                rows={3}
+              />
+            </div>
+          </ModalBody>
+          <ModalFooter>
             <Button variant="outline" size="sm" onClick={() => setModal(null)} disabled={isPending}>
               Cancel
             </Button>
             <Button variant="destructive" size="sm" onClick={handleSuspend} disabled={isPending || !suspendReason.trim()}>
               {isPending ? 'Suspending…' : 'Suspend account'}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
 
-      {/* Restore dialog */}
-      <AlertDialog open={modal === 'restore'} onOpenChange={(v) => !v && setModal(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="font-heading text-karis-green-900">
+      {/* Restore modal */}
+      <Modal open={modal === 'restore'} onOpenChange={(v) => !v && setModal(null)}>
+        <ModalContent dismissOnBackdrop={false}>
+          <ModalHeader>
+            <ModalTitle className="font-heading text-karis-green-900">
               Restore {userName}?
-            </AlertDialogTitle>
-            <AlertDialogDescription className="font-body text-sm text-karis-stone-500">
+            </ModalTitle>
+            <ModalDescription className="font-body text-sm text-karis-stone-500">
               The account will be set back to Active and the member will regain full access.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="font-body text-sm" disabled={isPending}>
+            </ModalDescription>
+          </ModalHeader>
+          <ModalFooter>
+            <Button variant="outline" size="sm" onClick={() => setModal(null)} disabled={isPending}>
               Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction className="font-body text-sm" onClick={handleRestore} disabled={isPending}>
+            </Button>
+            <Button size="sm" onClick={handleRestore} disabled={isPending}>
               {isPending ? 'Restoring…' : 'Restore account'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
 
-      {/* Upgrade role dialog */}
-      <Dialog open={modal === 'upgrade'} onOpenChange={(v) => !v && setModal(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="font-heading text-karis-green-900">
+      {/* Upgrade role modal */}
+      <Modal open={modal === 'upgrade'} onOpenChange={(v) => !v && setModal(null)}>
+        <ModalContent>
+          <ModalHeader>
+            <ModalTitle className="font-heading text-karis-green-900">
               Change role — {userName}
-            </DialogTitle>
-            <DialogDescription className="font-body text-sm text-karis-stone-500">
+            </ModalTitle>
+            <ModalDescription className="font-body text-sm text-karis-stone-500">
               Current role: <strong>{role}</strong>
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-2 space-y-2">
-            <Label className="text-xs font-body text-karis-stone-500">New role</Label>
-            <Select onValueChange={(v: string | null) => { if (v !== null) setTargetRole(v) }}>
-              <SelectTrigger className="font-body text-sm">
-                <SelectValue placeholder="Select role…" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="VISITOR" className="font-body text-sm">Visitor</SelectItem>
-                <SelectItem value="RESIDENT" className="font-body text-sm">Resident</SelectItem>
-                <SelectItem value="VENDOR" className="font-body text-sm">Vendor</SelectItem>
-                <SelectItem value="ADMIN" className="font-body text-sm">Admin</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter>
+            </ModalDescription>
+          </ModalHeader>
+          <ModalBody>
+            <div className="space-y-2">
+              <Label className="text-xs font-body text-karis-stone-500">New role</Label>
+              <Select onValueChange={(v: string | null) => { if (v !== null) setTargetRole(v) }}>
+                <SelectTrigger className="font-body text-sm">
+                  <SelectValue placeholder="Select role…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="VISITOR" className="font-body text-sm">Visitor</SelectItem>
+                  <SelectItem value="RESIDENT" className="font-body text-sm">Resident</SelectItem>
+                  <SelectItem value="VENDOR" className="font-body text-sm">Vendor</SelectItem>
+                  <SelectItem value="ADMIN" className="font-body text-sm">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </ModalBody>
+          <ModalFooter>
             <Button variant="outline" size="sm" onClick={() => setModal(null)} disabled={isPending}>
               Cancel
             </Button>
             <Button size="sm" onClick={handleUpgrade} disabled={isPending || !targetRole}>
               {isPending ? 'Updating…' : 'Update role'}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </>
   )
 }

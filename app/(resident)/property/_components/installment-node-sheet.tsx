@@ -1,10 +1,11 @@
 'use client'
 
 import { format } from 'date-fns'
-import { X, Download, ExternalLink, Check, Clock, Calendar } from 'lucide-react'
+import { X, Download, ExternalLink, Check, Calendar } from 'lucide-react'
 import { Prisma } from '@prisma/client'
 import { KAmount } from '@/components/admin/k-amount'
 import { cn } from '@/lib/utils'
+import { Sheet, SheetContent } from '@/components/ui/sheet'
 
 interface InstallmentPayment {
   amount: Prisma.Decimal
@@ -34,7 +35,7 @@ export function InstallmentNodeSheet({
   open,
   onClose,
 }: InstallmentNodeSheetProps) {
-  if (!open || !installment) return null
+  if (!installment) return null
 
   const isPaid = installment.payments.length > 0
   const payment = installment.payments[0]
@@ -44,22 +45,13 @@ export function InstallmentNodeSheet({
   const StatusIcon = isPaid ? Check : Calendar
 
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-40 bg-black/40"
-        onClick={onClose}
-        aria-hidden="true"
-      />
-
-      {/* Sheet */}
-      <div
-        className="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-2xl shadow-xl max-h-[85dvh] flex flex-col"
-        role="dialog"
-        aria-modal="true"
-        aria-label={`Installment #${installment.number}`}
+    <Sheet open={open} onOpenChange={(v) => { if (!v) onClose() }}>
+      <SheetContent
+        side="bottom"
+        showCloseButton={false}
+        className="max-h-[85dvh] flex flex-col rounded-t-2xl p-0 gap-0"
       >
-        {/* Handle */}
+        {/* Drag handle */}
         <div className="flex justify-center pt-3 pb-1 shrink-0">
           <div className="w-10 h-1 bg-karis-stone-200 rounded-full" />
         </div>
@@ -70,6 +62,7 @@ export function InstallmentNodeSheet({
             Installment #{installment.number}
           </h2>
           <button
+            type="button"
             onClick={onClose}
             className="w-8 h-8 rounded-full bg-karis-stone-100 hover:bg-karis-stone-200 flex items-center justify-center transition-colors duration-150"
             aria-label="Close"
@@ -131,7 +124,7 @@ export function InstallmentNodeSheet({
 
           {!isPaid && (
             <div className="mt-2 flex items-center gap-2 py-3 px-4 bg-karis-stone-50 rounded-xl">
-              <Clock size={14} className="text-karis-stone-400 shrink-0" />
+              <Calendar size={14} className="text-karis-stone-400 shrink-0" />
               <p className="font-body text-sm text-karis-stone-500">
                 This installment is not yet due.
               </p>
@@ -153,8 +146,8 @@ export function InstallmentNodeSheet({
             </a>
           </div>
         )}
-      </div>
-    </>
+      </SheetContent>
+    </Sheet>
   )
 }
 

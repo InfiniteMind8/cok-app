@@ -8,12 +8,13 @@ import { toast } from 'sonner'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog'
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalTitle,
+  ModalBody,
+  ModalFooter,
+} from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -65,41 +66,43 @@ export function AddInstallmentDialog({ propertyId }: { propertyId: string }) {
       <Button size="sm" onClick={() => setOpen(true)} className="font-body text-sm gap-1.5">
         <Plus size={14} /> Add installment
       </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="font-heading text-karis-green-900">Add installment</DialogTitle>
-          </DialogHeader>
-          <form className="space-y-4 py-2">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-body text-karis-stone-500">Installment #</Label>
-                <Input type="number" min={1} className="font-body text-sm" {...register('number')} />
+      <Modal open={open} onOpenChange={setOpen}>
+        <ModalContent>
+          <ModalHeader>
+            <ModalTitle className="font-heading text-karis-green-900">Add installment</ModalTitle>
+          </ModalHeader>
+          <ModalBody>
+            <form className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-body text-karis-stone-500">Installment #</Label>
+                  <Input type="number" min={1} className="font-body text-sm" {...register('number')} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-body text-karis-stone-500">Due date</Label>
+                  <Input type="date" className="font-body text-sm" {...register('dueDate')} />
+                  {errors.dueDate && <p className="text-xs text-status-red font-body">{errors.dueDate.message}</p>}
+                </div>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-body text-karis-stone-500">Due date</Label>
-                <Input type="date" className="font-body text-sm" {...register('dueDate')} />
-                {errors.dueDate && <p className="text-xs text-status-red font-body">{errors.dueDate.message}</p>}
+                <Label className="text-xs font-body text-karis-stone-500">Amount</Label>
+                <Input type="number" step="0.01" placeholder="0.00" className="font-body text-sm tabular-nums" {...register('amount')} />
+                {errors.amount && <p className="text-xs text-status-red font-body">{errors.amount.message}</p>}
               </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-body text-karis-stone-500">Amount</Label>
-              <Input type="number" step="0.01" placeholder="0.00" className="font-body text-sm tabular-nums" {...register('amount')} />
-              {errors.amount && <p className="text-xs text-status-red font-body">{errors.amount.message}</p>}
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-body text-karis-stone-500">Progress note (optional)</Label>
-              <Input placeholder="e.g. Foundation poured" className="font-body text-sm" {...register('progressNote')} />
-            </div>
-          </form>
-          <DialogFooter>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-body text-karis-stone-500">Progress note (optional)</Label>
+                <Input placeholder="e.g. Foundation poured" className="font-body text-sm" {...register('progressNote')} />
+              </div>
+            </form>
+          </ModalBody>
+          <ModalFooter>
             <Button variant="outline" size="sm" onClick={() => setOpen(false)} disabled={isPending}>Cancel</Button>
             <Button size="sm" onClick={handleSubmit(onSubmit)} disabled={isPending}>
               {isPending ? 'Saving…' : 'Add installment'}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </>
   )
 }
@@ -146,50 +149,52 @@ export function AssignOwnerDialog({ propertyId, users }: { propertyId: string; u
       <Button size="sm" onClick={() => setOpen(true)} className="font-body text-sm gap-1.5">
         <Plus size={14} /> Assign owner
       </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="font-heading text-karis-green-900">Assign owner</DialogTitle>
-          </DialogHeader>
-          <form className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-body text-karis-stone-500">Member</Label>
-              <Select onValueChange={(v: string | null) => { if (v !== null) setValue('userId', v) }}>
-                <SelectTrigger className="font-body text-sm"><SelectValue placeholder="Select member…" /></SelectTrigger>
-                <SelectContent>
-                  {users.map((u) => (
-                    <SelectItem key={u.id} value={u.id} className="font-body text-sm">
-                      {u.fullName} ({u.memberId})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.userId && <p className="text-xs text-status-red font-body">{errors.userId.message}</p>}
-            </div>
-            <div className="grid grid-cols-2 gap-4">
+      <Modal open={open} onOpenChange={setOpen}>
+        <ModalContent>
+          <ModalHeader>
+            <ModalTitle className="font-heading text-karis-green-900">Assign owner</ModalTitle>
+          </ModalHeader>
+          <ModalBody>
+            <form className="space-y-4">
               <div className="space-y-1.5">
-                <Label className="text-xs font-body text-karis-stone-500">Ownership %</Label>
-                <Input type="number" min={1} max={100} className="font-body text-sm" {...register('ownershipPct')} />
+                <Label className="text-xs font-body text-karis-stone-500">Member</Label>
+                <Select onValueChange={(v: string | null) => { if (v !== null) setValue('userId', v) }}>
+                  <SelectTrigger className="font-body text-sm"><SelectValue placeholder="Select member…" /></SelectTrigger>
+                  <SelectContent>
+                    {users.map((u) => (
+                      <SelectItem key={u.id} value={u.id} className="font-body text-sm">
+                        {u.fullName} ({u.memberId})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.userId && <p className="text-xs text-status-red font-body">{errors.userId.message}</p>}
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-body text-karis-stone-500">Ownership %</Label>
+                  <Input type="number" min={1} max={100} className="font-body text-sm" {...register('ownershipPct')} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-body text-karis-stone-500">Contract date</Label>
+                  <Input type="date" className="font-body text-sm" {...register('contractDate')} />
+                  {errors.contractDate && <p className="text-xs text-status-red font-body">{errors.contractDate.message}</p>}
+                </div>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-body text-karis-stone-500">Contract date</Label>
-                <Input type="date" className="font-body text-sm" {...register('contractDate')} />
-                {errors.contractDate && <p className="text-xs text-status-red font-body">{errors.contractDate.message}</p>}
+                <Label className="text-xs font-body text-karis-stone-500">Contract URL (optional)</Label>
+                <Input type="url" placeholder="https://…" className="font-body text-sm" {...register('contractUrl')} />
               </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-body text-karis-stone-500">Contract URL (optional)</Label>
-              <Input type="url" placeholder="https://…" className="font-body text-sm" {...register('contractUrl')} />
-            </div>
-          </form>
-          <DialogFooter>
+            </form>
+          </ModalBody>
+          <ModalFooter>
             <Button variant="outline" size="sm" onClick={() => setOpen(false)} disabled={isPending}>Cancel</Button>
             <Button size="sm" onClick={handleSubmit(onSubmit)} disabled={isPending}>
               {isPending ? 'Saving…' : 'Assign owner'}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </>
   )
 }
@@ -230,64 +235,66 @@ export function AssignTenantDialog({ propertyId, users }: { propertyId: string; 
       <Button size="sm" variant="outline" onClick={() => setOpen(true)} className="font-body text-sm gap-1.5">
         <Plus size={14} /> Assign tenant
       </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="font-heading text-karis-green-900">Assign tenant</DialogTitle>
-          </DialogHeader>
-          <form className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-body text-karis-stone-500">Member</Label>
-              <Select onValueChange={(v: string | null) => { if (v !== null) setValue('userId', v) }}>
-                <SelectTrigger className="font-body text-sm"><SelectValue placeholder="Select member…" /></SelectTrigger>
-                <SelectContent>
-                  {users.map((u) => (
-                    <SelectItem key={u.id} value={u.id} className="font-body text-sm">
-                      {u.fullName} ({u.memberId})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.userId && <p className="text-xs text-status-red font-body">{errors.userId.message}</p>}
-            </div>
-            <div className="grid grid-cols-2 gap-4">
+      <Modal open={open} onOpenChange={setOpen}>
+        <ModalContent>
+          <ModalHeader>
+            <ModalTitle className="font-heading text-karis-green-900">Assign tenant</ModalTitle>
+          </ModalHeader>
+          <ModalBody>
+            <form className="space-y-4">
               <div className="space-y-1.5">
-                <Label className="text-xs font-body text-karis-stone-500">Rental cycle</Label>
-                <Select onValueChange={(v: string | null) => { if (v !== null) setValue('cycle', v) }}>
-                  <SelectTrigger className="font-body text-sm"><SelectValue placeholder="Select…" /></SelectTrigger>
+                <Label className="text-xs font-body text-karis-stone-500">Member</Label>
+                <Select onValueChange={(v: string | null) => { if (v !== null) setValue('userId', v) }}>
+                  <SelectTrigger className="font-body text-sm"><SelectValue placeholder="Select member…" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="monthly" className="font-body text-sm">Monthly</SelectItem>
-                    <SelectItem value="weekly" className="font-body text-sm">Weekly</SelectItem>
-                    <SelectItem value="annual" className="font-body text-sm">Annual</SelectItem>
-                    <SelectItem value="daily" className="font-body text-sm">Daily</SelectItem>
+                    {users.map((u) => (
+                      <SelectItem key={u.id} value={u.id} className="font-body text-sm">
+                        {u.fullName} ({u.memberId})
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
-                {errors.cycle && <p className="text-xs text-status-red font-body">{errors.cycle.message}</p>}
+                {errors.userId && <p className="text-xs text-status-red font-body">{errors.userId.message}</p>}
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-body text-karis-stone-500">Rental cycle</Label>
+                  <Select onValueChange={(v: string | null) => { if (v !== null) setValue('cycle', v) }}>
+                    <SelectTrigger className="font-body text-sm"><SelectValue placeholder="Select…" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="monthly" className="font-body text-sm">Monthly</SelectItem>
+                      <SelectItem value="weekly" className="font-body text-sm">Weekly</SelectItem>
+                      <SelectItem value="annual" className="font-body text-sm">Annual</SelectItem>
+                      <SelectItem value="daily" className="font-body text-sm">Daily</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {errors.cycle && <p className="text-xs text-status-red font-body">{errors.cycle.message}</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-body text-karis-stone-500">Cycle payment</Label>
+                  <Input type="number" step="0.01" placeholder="0.00" className="font-body text-sm tabular-nums" {...register('cyclePayment')} />
+                  {errors.cyclePayment && <p className="text-xs text-status-red font-body">{errors.cyclePayment.message}</p>}
+                </div>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-body text-karis-stone-500">Cycle payment</Label>
-                <Input type="number" step="0.01" placeholder="0.00" className="font-body text-sm tabular-nums" {...register('cyclePayment')} />
-                {errors.cyclePayment && <p className="text-xs text-status-red font-body">{errors.cyclePayment.message}</p>}
+                <Label className="text-xs font-body text-karis-stone-500">Contract date</Label>
+                <Input type="date" className="font-body text-sm" {...register('contractDate')} />
+                {errors.contractDate && <p className="text-xs text-status-red font-body">{errors.contractDate.message}</p>}
               </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-body text-karis-stone-500">Contract date</Label>
-              <Input type="date" className="font-body text-sm" {...register('contractDate')} />
-              {errors.contractDate && <p className="text-xs text-status-red font-body">{errors.contractDate.message}</p>}
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-body text-karis-stone-500">Contract URL (optional)</Label>
-              <Input type="url" placeholder="https://…" className="font-body text-sm" {...register('contractUrl')} />
-            </div>
-          </form>
-          <DialogFooter>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-body text-karis-stone-500">Contract URL (optional)</Label>
+                <Input type="url" placeholder="https://…" className="font-body text-sm" {...register('contractUrl')} />
+              </div>
+            </form>
+          </ModalBody>
+          <ModalFooter>
             <Button variant="outline" size="sm" onClick={() => setOpen(false)} disabled={isPending}>Cancel</Button>
             <Button size="sm" onClick={handleSubmit(onSubmit)} disabled={isPending}>
               {isPending ? 'Saving…' : 'Assign tenant'}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </>
   )
 }
