@@ -1,0 +1,34 @@
+# Phase 1+ Progress Tracker
+
+| Prompt | Status | Acceptance Met | Commit(s) | Test Status | Evidence | Blockers |
+|---|---|---|---|---|---|---|
+| A.1 — Resend email delivery | Done | Yes | (pending git commit) | 52/52 pass, typecheck clean | `lib/email/__tests__/`, `qa/evidence-index.md` | DNS domain verification requires Dr. Munroe action (see `docs/email-setup.md`) |
+| A.2 — Fee schedule editor | Done | Yes | (pending git commit) | 60/60 pass, typecheck clean | `lib/ledger/__tests__/fee-schedule.test.ts`, `qa/evidence-index.md` | Migration requires connected DB (`prisma migrate deploy`) — see R-004 |
+| A.3 — Approvals Center tabs | Done | Yes | (pending git commit) | 76/76 pass, typecheck clean, build 31 routes | `app/(admin)/_actions/__tests__/`, `qa/evidence-index.md` | Migration `20260428000003_a3_approvals_center` requires connected DB — see R-005 |
+| B.1 — Brand sign-in page | Done | Yes | (pending git commit) | 93/93 pass, typecheck clean, build 34 routes | `app/(auth)/sign-in/[[...sign-in]]/__tests__/`, `qa/evidence-index.md` | Screenshots deferred to E.3 (no live server in this session); Playwright deferred to D.10 per D-009 |
+| B.2 — Modal/popup edge pass | Done | Yes | 19fe49f | 96/96 pass, typecheck clean, build 35 routes | `components/ui/__tests__/modal.test.ts`, `qa/evidence-index.md` | Screenshots deferred to E.3; Playwright focus-trap deferred to D.10 per D-013 |
+| B.3 — Intake form completion | Done | Yes | (pending git commit) | 141/141 pass, typecheck clean, build 32 routes | `app/(admin)/_actions/__tests__/`, `lib/storage/__tests__/`, `qa/evidence-index.md` | Migration `20260428000004_b3_intake_forms` requires connected DB — see R-008; UploadThing size literals capped at closest power-of-2 — see D-015; Playwright deferred to D.10 — see D-016 |
+| C.1 — Multi-currency display | Not Started | — | — | — | — | — |
+| C.2 — Visitor Groups system | Not Started | — | — | — | — | — |
+| C.3 — Rental cycle + extension | Not Started | — | — | — | — | — |
+| D.1 — Bulk Excel import (members) | Not Started | — | — | — | — | — |
+| D.2 — Bulk Excel import (properties) | Not Started | — | — | — | — | — |
+| D.3 — MFA enforcement staff roles | Not Started | — | — | — | — | — |
+| D.4 — Audit log viewer + data directory | Not Started | — | — | — | — | — |
+| D.5 — Treasury reconciliation auto-alerts | Not Started | — | — | — | — | — |
+| D.6 — Emergency broadcast | Not Started | — | — | — | — | — |
+| D.7 — Onboarding tour | Not Started | — | — | — | — | — |
+| D.8 — Sentry monitoring | Not Started | — | — | — | — | — |
+| D.9 — Rate limiting on Server Actions | Not Started | — | — | — | — | — |
+| D.10 — Playwright E2E coverage | Not Started | — | — | — | — | — |
+| D.11 — File storage strategy | Not Started | — | — | — | — | — |
+| D.12 — Backup & restore runbook | Not Started | — | — | — | — | — |
+| D.13 — Webhook handler Clerk events | Not Started | — | — | — | — | — |
+| D.14 — System wallet floor protection | Not Started | — | — | — | — | — |
+| D.15 — Full email template suite | Not Started | — | — | — | — | — |
+| E.1 — Technical function test sweep | Not Started | — | — | — | — | — |
+| E.2 — Security test sweep | Not Started | — | — | — | — | — |
+| E.3 — UX/accessibility test sweep | Not Started | — | — | — | — | — |
+| E.4 — Code quality inspection | Not Started | — | — | — | — | — |
+| F.1 — Production build hardening | Not Started | — | — | — | — | — |
+| F.2 — PWA → Play Store packaging | Not Started | — | — | — | — | — |

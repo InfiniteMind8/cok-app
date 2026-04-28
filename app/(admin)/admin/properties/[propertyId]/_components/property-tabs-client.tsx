@@ -29,6 +29,7 @@ import {
   assignOwnerAction,
   assignTenantAction,
 } from '@/app/(admin)/_actions/properties'
+import { FileUpload, type UploadedFile } from '@/components/ui/file-upload'
 
 // ─── Add Installment ────────────────────────────────────────────────────────
 
@@ -203,27 +204,43 @@ export function AssignOwnerDialog({ propertyId, users }: { propertyId: string; u
 
 const tenantSchema = z.object({
   userId: z.string().min(1, 'Select a member'),
-  cycle: z.string().min(1, 'Cycle required'),
-  cyclePayment: z.string().min(1, 'Cycle payment required'),
+  cycle: z.string().min(1, 'Cycle unit required'),
+  cyclePayment: z.string().min(1, 'Cycle payment (KCRD) required'),
   contractDate: z.string().min(1, 'Contract date required'),
-  contractUrl: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  depositAmount: z.string().optional(),
 })
 type TenantFormValues = z.infer<typeof tenantSchema>
 
 export function AssignTenantDialog({ propertyId, users }: { propertyId: string; users: UserOption[] }) {
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
+  const [leaseFiles, setLeaseFiles] = useState<UploadedFile[]>([])
   const { register, handleSubmit, setValue, reset, formState: { errors } } = useForm<TenantFormValues>({
     resolver: zodResolver(tenantSchema),
   })
 
+  function handleClose() {
+    reset()
+    setLeaseFiles([])
+    setOpen(false)
+  }
+
   function onSubmit(values: TenantFormValues) {
+    const leaseFile = leaseFiles[0]
     startTransition(async () => {
       try {
-        await assignTenantAction({ ...values, propertyId })
+        await assignTenantAction({
+          ...values,
+          propertyId,
+          leaseAgreementKey: leaseFile?.url,
+          leaseAgreementName: leaseFile?.name,
+          leaseAgreementSize: leaseFile?.size,
+          leaseAgreementMime: leaseFile?.type,
+        })
         toast.success('Tenant assigned')
-        reset()
-        setOpen(false)
+        handleClose()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed')
       }
@@ -235,15 +252,15 @@ export function AssignTenantDialog({ propertyId, users }: { propertyId: string; 
       <Button size="sm" variant="outline" onClick={() => setOpen(true)} className="font-body text-sm gap-1.5">
         <Plus size={14} /> Assign tenant
       </Button>
-      <Modal open={open} onOpenChange={setOpen}>
-        <ModalContent>
+      <Modal open={open} onOpenChange={(v) => { if (!v) handleClose() }}>
+        <ModalContent size="lg">
           <ModalHeader>
             <ModalTitle className="font-heading text-karis-green-900">Assign tenant</ModalTitle>
           </ModalHeader>
           <ModalBody>
             <form className="space-y-4">
               <div className="space-y-1.5">
-                <Label className="text-xs font-body text-karis-stone-500">Member</Label>
+                <Label className="text-xs font-body text-karis-stone-500">Resident <span className="text-status-red">*</span></Label>
                 <Select onValueChange={(v: string | null) => { if (v !== null) setValue('userId', v) }}>
                   <SelectTrigger className="font-body text-sm"><SelectValue placeholder="Select member…" /></SelectTrigger>
                   <SelectContent>
@@ -256,39 +273,62 @@ export function AssignTenantDialog({ propertyId, users }: { propertyId: string; 
                 </Select>
                 {errors.userId && <p className="text-xs text-status-red font-body">{errors.userId.message}</p>}
               </div>
-              <div className="grid grid-cols-2 gap-4">
+
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-body text-karis-stone-500">Rental cycle</Label>
+                  <Label className="text-xs font-body text-karis-stone-500">Start date</Label>
+                  <Input type="date" className="font-body text-sm" {...register('startDate')} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-body text-karis-stone-500">End date</Label>
+                  <Input type="date" className="font-body text-sm" {...register('endDate')} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-body text-karis-stone-500">Cycle unit <span className="text-status-red">*</span></Label>
                   <Select onValueChange={(v: string | null) => { if (v !== null) setValue('cycle', v) }}>
                     <SelectTrigger className="font-body text-sm"><SelectValue placeholder="Select…" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="monthly" className="font-body text-sm">Monthly</SelectItem>
-                      <SelectItem value="weekly" className="font-body text-sm">Weekly</SelectItem>
-                      <SelectItem value="annual" className="font-body text-sm">Annual</SelectItem>
-                      <SelectItem value="daily" className="font-body text-sm">Daily</SelectItem>
+                      <SelectItem value="DAILY" className="font-body text-sm">Daily</SelectItem>
+                      <SelectItem value="WEEKLY" className="font-body text-sm">Weekly</SelectItem>
+                      <SelectItem value="MONTHLY" className="font-body text-sm">Monthly</SelectItem>
+                      <SelectItem value="ANNUAL" className="font-body text-sm">Annual</SelectItem>
                     </SelectContent>
                   </Select>
                   {errors.cycle && <p className="text-xs text-status-red font-body">{errors.cycle.message}</p>}
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-body text-karis-stone-500">Cycle payment</Label>
-                  <Input type="number" step="0.01" placeholder="0.00" className="font-body text-sm tabular-nums" {...register('cyclePayment')} />
+                  <Label className="text-xs font-body text-karis-stone-500">Cycle amount (KCRD) <span className="text-status-red">*</span></Label>
+                  <Input type="number" step="0.01" min="0" placeholder="0.00" className="font-body text-sm tabular-nums" {...register('cyclePayment')} />
                   {errors.cyclePayment && <p className="text-xs text-status-red font-body">{errors.cyclePayment.message}</p>}
                 </div>
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-body text-karis-stone-500">Contract date</Label>
-                <Input type="date" className="font-body text-sm" {...register('contractDate')} />
-                {errors.contractDate && <p className="text-xs text-status-red font-body">{errors.contractDate.message}</p>}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-body text-karis-stone-500">Deposit amount (KCRD)</Label>
+                  <Input type="number" step="0.01" min="0" placeholder="0.00" className="font-body text-sm tabular-nums" {...register('depositAmount')} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-body text-karis-stone-500">Contract date <span className="text-status-red">*</span></Label>
+                  <Input type="date" className="font-body text-sm" {...register('contractDate')} />
+                  {errors.contractDate && <p className="text-xs text-status-red font-body">{errors.contractDate.message}</p>}
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-body text-karis-stone-500">Contract URL (optional)</Label>
-                <Input type="url" placeholder="https://…" className="font-body text-sm" {...register('contractUrl')} />
-              </div>
+
+              <FileUpload
+                endpoint="leaseDocuments"
+                label="Lease agreement PDF"
+                value={leaseFiles}
+                onComplete={(files) => setLeaseFiles(files.slice(0, 1))}
+                onRemove={() => setLeaseFiles([])}
+              />
             </form>
           </ModalBody>
           <ModalFooter>
-            <Button variant="outline" size="sm" onClick={() => setOpen(false)} disabled={isPending}>Cancel</Button>
+            <Button variant="outline" size="sm" onClick={handleClose} disabled={isPending}>Cancel</Button>
             <Button size="sm" onClick={handleSubmit(onSubmit)} disabled={isPending}>
               {isPending ? 'Saving…' : 'Assign tenant'}
             </Button>

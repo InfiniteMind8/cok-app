@@ -2,7 +2,7 @@
 
 import { requireRole } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { IssueLevel } from '@prisma/client'
+import { IssueLevel, AttachmentEntityType } from '@prisma/client'
 import { notifyAllOfRole } from '@/lib/notifications/service'
 import { revalidatePath } from 'next/cache'
 
@@ -32,25 +32,71 @@ export async function castVoteAction(voteId: string, optionId: string) {
   revalidatePath('/community')
 }
 
+interface IssueAttachment {
+  storageKey: string
+  mimeType: string
+  sizeBytes: number
+  name: string
+  fieldName: string
+}
+
 export async function raiseIssueAction(input: {
   seriousness: IssueLevel
   urgency: IssueLevel
   category: string
   message: string
+  title?: string
+  location?: string
+  propertyId?: string
+  contactPreference?: string
+  attachments?: IssueAttachment[]
 }) {
   const user = await requireRole(['RESIDENT', 'VISITOR'])
 
   if (!input.message.trim()) throw new Error('Message is required')
   if (!input.category.trim()) throw new Error('Category is required')
 
-  await db.issue.create({
-    data: {
-      reporterId: user.id,
-      seriousness: input.seriousness,
-      urgency: input.urgency,
-      category: input.category.trim(),
-      message: input.message.trim(),
-    },
+  await db.$transaction(async (tx) => {
+    const issue = await tx.issue.create({
+      data: {
+        reporterId: user.id,
+        seriousness: input.seriousness,
+        urgency: input.urgency,
+        category: input.category.trim(),
+        message: input.message.trim(),
+        title: input.title?.trim() ?? null,
+        location: input.location?.trim() ?? null,
+        propertyId: input.propertyId ?? null,
+        contactPreference: input.contactPreference ?? null,
+      },
+    })
+
+    if (input.attachments && input.attachments.length > 0) {
+      for (const att of input.attachments) {
+        await tx.attachment.create({
+          data: {
+            storageKey: att.storageKey,
+            mimeType: att.mimeType,
+            sizeBytes: BigInt(att.sizeBytes),
+            name: att.name,
+            entityType: AttachmentEntityType.ISSUE,
+            entityId: issue.id,
+            fieldName: att.fieldName,
+            uploadedBy: user.id,
+          },
+        })
+      }
+    }
+
+    await tx.auditLog.create({
+      data: {
+        action: 'RAISE_ISSUE',
+        entity: 'Issue',
+        entityId: issue.id,
+        actorId: user.id,
+        after: { category: issue.category, seriousness: issue.seriousness },
+      },
+    })
   })
 
   try {
@@ -58,11 +104,12 @@ export async function raiseIssueAction(input: {
       type: 'ISSUE_RAISED',
       title: 'New issue raised',
       body:
+        (input.title ? input.title + ': ' : '') +
         input.category.trim() +
         ': ' +
         input.message.trim().slice(0, 80) +
         (input.message.trim().length > 80 ? '…' : ''),
-      link: '/community?tab=issues',
+      link: '/admin/community',
     })
   } catch {
     // Notification failure must not fail the issue submission

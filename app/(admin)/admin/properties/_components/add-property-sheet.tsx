@@ -1,11 +1,11 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { useForm, useFieldArray } from 'react-hook-form'
+import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import { Building2, Plus, Trash2 } from 'lucide-react'
+import { Building2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import {
@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
   SelectContent,
@@ -24,45 +25,106 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { FileUpload, type UploadedFile } from '@/components/ui/file-upload'
 import { createPropertyAction } from '@/app/(admin)/_actions/properties'
 
 const schema = z.object({
-  code: z.string().min(1, 'Property code required'),
+  code: z.string().min(1, 'Property code is required *'),
   type: z.enum(['OWNERSHIP', 'RENTAL', 'ADMIN']),
   category: z.enum(['COMMERCIAL', 'RESIDENTIAL', 'MIXED']),
+  propertyStatus: z.enum(['VACANT', 'OCCUPIED', 'UNDER_CONSTRUCTION']).optional(),
   address: z.string().optional(),
+  addressLine2: z.string().optional(),
+  lotNumber: z.string().optional(),
+  sizeSqm: z.string().optional(),
+  bedrooms: z.string().optional(),
+  bathrooms: z.string().optional(),
+  parkingSpots: z.string().optional(),
+  yearBuilt: z.string().optional(),
   totalPrice: z.string().optional(),
-  specs: z.array(z.object({ key: z.string(), value: z.string() })),
+  currentValuationKcrd: z.string().optional(),
+  notes: z.string().optional(),
 })
 
 type FormValues = z.infer<typeof schema>
 
+interface AttachmentGroup {
+  photos: UploadedFile[]
+  titleDeed: UploadedFile[]
+  occupancyPermit: UploadedFile[]
+  utilityDocs: UploadedFile[]
+}
+
 export function AddPropertySheet() {
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
+  const [attachments, setAttachments] = useState<AttachmentGroup>({
+    photos: [],
+    titleDeed: [],
+    occupancyPermit: [],
+    utilityDocs: [],
+  })
   const router = useRouter()
 
-  const { register, handleSubmit, setValue, reset, control, formState: { errors } } =
-    useForm<FormValues>({
-      resolver: zodResolver(schema),
-      defaultValues: { type: 'OWNERSHIP', category: 'RESIDENTIAL', specs: [] },
-    })
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    reset,
+    formState: { errors, isDirty },
+  } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      type: 'OWNERSHIP',
+      category: 'RESIDENTIAL',
+      propertyStatus: 'VACANT',
+    },
+  })
 
-  const { fields, append, remove } = useFieldArray({ control, name: 'specs' })
+  function handleClose() {
+    if (isDirty) {
+      if (!confirm('Discard unsaved changes?')) return
+    }
+    reset()
+    setAttachments({ photos: [], titleDeed: [], occupancyPermit: [], utilityDocs: [] })
+    setOpen(false)
+  }
+
+  function appendFiles(group: keyof AttachmentGroup, files: UploadedFile[]) {
+    setAttachments((prev) => ({ ...prev, [group]: [...prev[group], ...files] }))
+  }
+
+  function removeFile(group: keyof AttachmentGroup, key: string) {
+    setAttachments((prev) => ({
+      ...prev,
+      [group]: prev[group].filter((f) => f.key !== key),
+    }))
+  }
 
   function onSubmit(values: FormValues) {
-    const specifications = Object.fromEntries(
-      values.specs.filter((s) => s.key.trim()).map((s) => [s.key.trim(), s.value.trim()])
-    )
+    const allAttachments = [
+      ...attachments.photos.map((f) => ({ ...f, fieldName: 'photos' })),
+      ...attachments.titleDeed.map((f) => ({ ...f, fieldName: 'titleDeed' })),
+      ...attachments.occupancyPermit.map((f) => ({ ...f, fieldName: 'occupancyPermit' })),
+      ...attachments.utilityDocs.map((f) => ({ ...f, fieldName: 'utilityDocs' })),
+    ]
+
     startTransition(async () => {
       try {
         const result = await createPropertyAction({
           ...values,
-          specifications,
-          photos: [],
+          photos: attachments.photos.map((f) => f.url),
+          attachments: allAttachments.map((f) => ({
+            storageKey: f.url,
+            mimeType: f.type,
+            sizeBytes: f.size,
+            name: f.name,
+            fieldName: f.fieldName,
+          })),
         })
         toast.success(`Property ${values.code} created`)
         reset()
+        setAttachments({ photos: [], titleDeed: [], occupancyPermit: [], utilityDocs: [] })
         setOpen(false)
         router.push(`/admin/properties/${result.propertyId}`)
       } catch (err) {
@@ -78,8 +140,8 @@ export function AddPropertySheet() {
         Add property
       </Button>
 
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+      <Sheet open={open} onOpenChange={(v) => { if (!v) handleClose() }}>
+        <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
           <SheetHeader className="mb-6">
             <SheetTitle className="font-heading text-karis-green-900">Add property</SheetTitle>
             <SheetDescription className="font-body text-sm text-karis-stone-500">
@@ -87,85 +149,177 @@ export function AddPropertySheet() {
             </SheetDescription>
           </SheetHeader>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-body text-karis-stone-500">Property code</Label>
-              <Input className="font-body text-sm uppercase" placeholder="COK-001" {...register('code')} />
-              {errors.code && <p className="text-xs text-status-red font-body">{errors.code.message}</p>}
-            </div>
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
 
-            <div className="grid grid-cols-2 gap-4">
+            {/* ── Basic ── */}
+            <section className="space-y-4">
+              <p className="text-xs font-body text-karis-stone-400 uppercase tracking-wider">Basic</p>
+
               <div className="space-y-1.5">
-                <Label className="text-xs font-body text-karis-stone-500">Type</Label>
-                <Select defaultValue="OWNERSHIP" onValueChange={(v) => setValue('type', v as FormValues['type'])}>
-                  <SelectTrigger className="font-body text-sm"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="OWNERSHIP" className="font-body text-sm">Ownership</SelectItem>
-                    <SelectItem value="RENTAL" className="font-body text-sm">Rental</SelectItem>
-                    <SelectItem value="ADMIN" className="font-body text-sm">Admin</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label className="text-xs font-body text-karis-stone-500">
+                  Property code <span className="text-status-red">*</span>
+                </Label>
+                <Input className="font-body text-sm uppercase" placeholder="COK-001" {...register('code')} />
+                {errors.code && <p className="text-xs text-status-red font-body">{errors.code.message}</p>}
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-body text-karis-stone-500">Category</Label>
-                <Select defaultValue="RESIDENTIAL" onValueChange={(v) => setValue('category', v as FormValues['category'])}>
-                  <SelectTrigger className="font-body text-sm"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="RESIDENTIAL" className="font-body text-sm">Residential</SelectItem>
-                    <SelectItem value="COMMERCIAL" className="font-body text-sm">Commercial</SelectItem>
-                    <SelectItem value="MIXED" className="font-body text-sm">Mixed</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs font-body text-karis-stone-500">Address</Label>
-              <Input className="font-body text-sm" placeholder="Plot 12, North Sector" {...register('address')} />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs font-body text-karis-stone-500">Total price (fiat)</Label>
-              <Input type="number" step="0.01" className="font-body text-sm tabular-nums" placeholder="0.00" {...register('totalPrice')} />
-            </div>
-
-            {/* Specifications key-value editor */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-body text-karis-stone-500">Specifications</Label>
-                <button
-                  type="button"
-                  onClick={() => append({ key: '', value: '' })}
-                  className="text-xs font-body text-karis-green-700 hover:text-karis-green-900 flex items-center gap-1"
-                >
-                  <Plus size={12} /> Add spec
-                </button>
-              </div>
-              {fields.map((field, index) => (
-                <div key={field.id} className="flex gap-2">
-                  <Input
-                    placeholder="Key"
-                    className="font-body text-sm flex-1"
-                    {...register(`specs.${index}.key`)}
-                  />
-                  <Input
-                    placeholder="Value"
-                    className="font-body text-sm flex-1"
-                    {...register(`specs.${index}.value`)}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => remove(index)}
-                    className="text-karis-stone-400 hover:text-status-red transition-colors"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-body text-karis-stone-500">Type <span className="text-status-red">*</span></Label>
+                  <Select defaultValue="OWNERSHIP" onValueChange={(v) => setValue('type', v as FormValues['type'])}>
+                    <SelectTrigger className="font-body text-sm"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="OWNERSHIP" className="font-body text-sm">Ownership</SelectItem>
+                      <SelectItem value="RENTAL" className="font-body text-sm">Rental</SelectItem>
+                      <SelectItem value="ADMIN" className="font-body text-sm">Admin</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-              ))}
-            </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-body text-karis-stone-500">Category <span className="text-status-red">*</span></Label>
+                  <Select defaultValue="RESIDENTIAL" onValueChange={(v) => setValue('category', v as FormValues['category'])}>
+                    <SelectTrigger className="font-body text-sm"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="RESIDENTIAL" className="font-body text-sm">Residential</SelectItem>
+                      <SelectItem value="COMMERCIAL" className="font-body text-sm">Commercial</SelectItem>
+                      <SelectItem value="MIXED" className="font-body text-sm">Mixed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-body text-karis-stone-500">Status <span className="text-status-red">*</span></Label>
+                  <Select defaultValue="VACANT" onValueChange={(v) => setValue('propertyStatus', v as FormValues['propertyStatus'])}>
+                    <SelectTrigger className="font-body text-sm"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="VACANT" className="font-body text-sm">Vacant</SelectItem>
+                      <SelectItem value="OCCUPIED" className="font-body text-sm">Occupied</SelectItem>
+                      <SelectItem value="UNDER_CONSTRUCTION" className="font-body text-sm">Under construction</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </section>
+
+            {/* ── Location ── */}
+            <section className="space-y-4 border-t border-karis-stone-100 pt-4">
+              <p className="text-xs font-body text-karis-stone-400 uppercase tracking-wider">Location</p>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-body text-karis-stone-500">Address line 1</Label>
+                <Input className="font-body text-sm" placeholder="Plot 12, North Sector" {...register('address')} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-body text-karis-stone-500">Address line 2</Label>
+                  <Input className="font-body text-sm" placeholder="Building B" {...register('addressLine2')} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-body text-karis-stone-500">Lot number</Label>
+                  <Input className="font-body text-sm" placeholder="L-042" {...register('lotNumber')} />
+                </div>
+              </div>
+            </section>
+
+            {/* ── Specifications ── */}
+            <section className="space-y-4 border-t border-karis-stone-100 pt-4">
+              <p className="text-xs font-body text-karis-stone-400 uppercase tracking-wider">Specifications</p>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-body text-karis-stone-500">Size (sq m)</Label>
+                  <Input type="number" step="0.01" min="0" className="font-body text-sm tabular-nums" placeholder="120.00" {...register('sizeSqm')} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-body text-karis-stone-500">Year built</Label>
+                  <Input type="number" min="1900" max="2100" className="font-body text-sm tabular-nums" placeholder="2022" {...register('yearBuilt')} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-body text-karis-stone-500">Bedrooms</Label>
+                  <Input type="number" min="0" className="font-body text-sm tabular-nums" placeholder="3" {...register('bedrooms')} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-body text-karis-stone-500">Bathrooms</Label>
+                  <Input type="number" min="0" className="font-body text-sm tabular-nums" placeholder="2" {...register('bathrooms')} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-body text-karis-stone-500">Parking spots</Label>
+                  <Input type="number" min="0" className="font-body text-sm tabular-nums" placeholder="1" {...register('parkingSpots')} />
+                </div>
+              </div>
+            </section>
+
+            {/* ── Financials ── */}
+            <section className="space-y-4 border-t border-karis-stone-100 pt-4">
+              <p className="text-xs font-body text-karis-stone-400 uppercase tracking-wider">Financials</p>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-body text-karis-stone-500">Purchase price (fiat)</Label>
+                  <Input type="number" step="0.01" min="0" className="font-body text-sm tabular-nums" placeholder="0.00" {...register('totalPrice')} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-body text-karis-stone-500">Current valuation (KCRD)</Label>
+                  <Input type="number" step="0.01" min="0" className="font-body text-sm tabular-nums" placeholder="0.00" {...register('currentValuationKcrd')} />
+                </div>
+              </div>
+            </section>
+
+            {/* ── Documents ── */}
+            <section className="space-y-4 border-t border-karis-stone-100 pt-4">
+              <p className="text-xs font-body text-karis-stone-400 uppercase tracking-wider">Documents &amp; Photos</p>
+
+              <FileUpload
+                endpoint="propertyPhotos"
+                label="Photos"
+                value={attachments.photos}
+                onComplete={(files) => appendFiles('photos', files)}
+                onRemove={(key) => removeFile('photos', key)}
+              />
+
+              <FileUpload
+                endpoint="propertyDocuments"
+                label="Title deed (PDF)"
+                value={attachments.titleDeed}
+                onComplete={(files) => appendFiles('titleDeed', files)}
+                onRemove={(key) => removeFile('titleDeed', key)}
+              />
+
+              <FileUpload
+                endpoint="propertyDocuments"
+                label="Occupancy permit (PDF)"
+                value={attachments.occupancyPermit}
+                onComplete={(files) => appendFiles('occupancyPermit', files)}
+                onRemove={(key) => removeFile('occupancyPermit', key)}
+              />
+
+              <FileUpload
+                endpoint="propertyDocuments"
+                label="Utility hookup documents (PDF)"
+                value={attachments.utilityDocs}
+                onComplete={(files) => appendFiles('utilityDocs', files)}
+                onRemove={(key) => removeFile('utilityDocs', key)}
+              />
+            </section>
+
+            {/* ── Notes ── */}
+            <section className="space-y-2 border-t border-karis-stone-100 pt-4">
+              <Label className="text-xs font-body text-karis-stone-500">Notes</Label>
+              <Textarea
+                className="font-body text-sm resize-none"
+                rows={3}
+                placeholder="Any additional notes…"
+                {...register('notes')}
+              />
+            </section>
 
             <div className="flex gap-3 pt-2">
-              <Button type="button" variant="outline" className="flex-1 font-body text-sm" onClick={() => setOpen(false)} disabled={isPending}>
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1 font-body text-sm"
+                onClick={handleClose}
+                disabled={isPending}
+              >
                 Cancel
               </Button>
               <Button type="submit" className="flex-1 font-body text-sm" disabled={isPending}>

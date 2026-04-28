@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import { UserPlus, Copy, Check } from 'lucide-react'
+import { UserPlus, Copy, Check, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Modal,
@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
   SelectContent,
@@ -25,41 +26,120 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { FileUpload, type UploadedFile } from '@/components/ui/file-upload'
 import { createAccountAction } from '@/app/(admin)/_actions/accounts'
 
-const schema = z.object({
+const baseSchema = z.object({
   fullName: z.string().min(2, 'Full name required'),
   email: z.string().email('Valid email required'),
   role: z.enum(['RESIDENT', 'VENDOR', 'VISITOR', 'ADMIN']),
-  dob: z.string().optional(),
-  govId: z.string().optional(),
-  country: z.string().optional(),
+  preferredName: z.string().optional(),
   phone: z.string().optional(),
+  gender: z.string().optional(),
+  // Resident
+  nationalIdType: z.string().optional(),
+  nationalIdNumber: z.string().optional(),
+  emergencyContactName: z.string().optional(),
+  emergencyContactPhone: z.string().optional(),
+  householdSize: z.string().optional(),
+  notes: z.string().optional(),
+  // Visitor
+  visitPurpose: z.string().optional(),
+  expectedArrival: z.string().optional(),
+  expectedDeparture: z.string().optional(),
+  // Vendor
+  businessName: z.string().optional(),
+  businessCategory: z.string().optional(),
+  payoutMethod: z.string().optional(),
 })
 
-type FormValues = z.infer<typeof schema>
+type FormValues = z.infer<typeof baseSchema>
 
 export function CreateAccountDialog() {
   const [open, setOpen] = useState(false)
   const [result, setResult] = useState<{ memberId: string } | null>(null)
   const [copied, setCopied] = useState(false)
   const [isPending, startTransition] = useTransition()
+  const [idDocFiles, setIdDocFiles] = useState<UploadedFile[]>([])
+  const [profilePhotoFiles, setProfilePhotoFiles] = useState<UploadedFile[]>([])
+  const [vendorDocFiles, setVendorDocFiles] = useState<UploadedFile[]>([])
+  const [vehiclePlates, setVehiclePlates] = useState<string[]>([])
+  const [plateInput, setPlateInput] = useState('')
 
   const {
     register,
     handleSubmit,
     setValue,
+    watch,
     reset,
     formState: { errors },
   } = useForm<FormValues>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(baseSchema),
     defaultValues: { role: 'RESIDENT' },
   })
 
+  const role = watch('role')
+
+  function handleClose() {
+    reset()
+    setResult(null)
+    setCopied(false)
+    setIdDocFiles([])
+    setProfilePhotoFiles([])
+    setVendorDocFiles([])
+    setVehiclePlates([])
+    setPlateInput('')
+    setOpen(false)
+  }
+
+  function addPlate() {
+    const plate = plateInput.trim().toUpperCase()
+    if (plate && !vehiclePlates.includes(plate)) {
+      setVehiclePlates((prev) => [...prev, plate])
+    }
+    setPlateInput('')
+  }
+
   function onSubmit(values: FormValues) {
+    const attachments = [
+      ...idDocFiles.map((f) => ({ storageKey: f.url, mimeType: f.type, sizeBytes: f.size, name: f.name, fieldName: 'idScan' })),
+      ...profilePhotoFiles.map((f) => ({ storageKey: f.url, mimeType: f.type, sizeBytes: f.size, name: f.name, fieldName: 'profilePhoto' })),
+      ...vendorDocFiles.map((f, i) => ({ storageKey: f.url, mimeType: f.type, sizeBytes: f.size, name: f.name, fieldName: i === 0 ? 'businessLicense' : 'insuranceCert' })),
+    ]
+
     startTransition(async () => {
       try {
-        const res = await createAccountAction(values)
+        const res = await createAccountAction({
+          fullName: values.fullName,
+          email: values.email,
+          role: values.role as 'RESIDENT' | 'VENDOR' | 'VISITOR' | 'ADMIN',
+          preferredName: values.preferredName,
+          phone: values.phone,
+          gender: values.gender,
+          residentFields: values.role === 'RESIDENT' ? {
+            nationalIdType: values.nationalIdType,
+            nationalIdNumber: values.nationalIdNumber,
+            emergencyContactName: values.emergencyContactName,
+            emergencyContactPhone: values.emergencyContactPhone,
+            householdSize: values.householdSize ? parseInt(values.householdSize, 10) : undefined,
+            vehiclePlates,
+            notes: values.notes,
+          } : undefined,
+          visitorFields: values.role === 'VISITOR' ? {
+            nationalIdType: values.nationalIdType,
+            nationalIdNumber: values.nationalIdNumber,
+            visitPurpose: values.visitPurpose,
+            expectedArrival: values.expectedArrival,
+            expectedDeparture: values.expectedDeparture,
+          } : undefined,
+          vendorFields: values.role === 'VENDOR' ? {
+            businessName: values.businessName,
+            businessCategory: values.businessCategory,
+            payoutMethod: values.payoutMethod,
+            notes: values.notes,
+          } : undefined,
+          attachments: attachments.length > 0 ? attachments : undefined,
+        })
         setResult({ memberId: res.memberId })
         toast.success(`Account created — ${res.memberId}`, {
           description: 'Invitation email sent to member.',
@@ -69,13 +149,6 @@ export function CreateAccountDialog() {
         toast.error(err instanceof Error ? err.message : 'Failed to create account')
       }
     })
-  }
-
-  function handleClose() {
-    reset()
-    setResult(null)
-    setCopied(false)
-    setOpen(false)
   }
 
   function copyMemberId() {
@@ -121,25 +194,40 @@ export function CreateAccountDialog() {
                   </div>
                 </div>
                 <p className="text-sm font-body text-karis-stone-500 text-center">
-                  An invitation email has been sent. The member ID is shown above — save it.
+                  An invitation email has been sent. Save the member ID shown above.
                 </p>
               </div>
             ) : (
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+
+                {/* ── Core identity ── */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-body text-karis-stone-500">Full name</Label>
+                    <Label className="text-xs font-body text-karis-stone-500">
+                      Full name <span className="text-status-red">*</span>
+                    </Label>
                     <Input className="font-body text-sm" placeholder="Jane Smith" {...register('fullName')} />
-                    {errors.fullName && (
-                      <p className="text-xs text-status-red font-body">{errors.fullName.message}</p>
-                    )}
+                    {errors.fullName && <p className="text-xs text-status-red font-body">{errors.fullName.message}</p>}
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-body text-karis-stone-500">Role</Label>
+                    <Label className="text-xs font-body text-karis-stone-500">Preferred name</Label>
+                    <Input className="font-body text-sm" placeholder="Jane" {...register('preferredName')} />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-body text-karis-stone-500">
+                    Email <span className="text-status-red">*</span>
+                  </Label>
+                  <Input type="email" className="font-body text-sm" placeholder="jane@example.com" {...register('email')} />
+                  {errors.email && <p className="text-xs text-status-red font-body">{errors.email.message}</p>}
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-body text-karis-stone-500">Role <span className="text-status-red">*</span></Label>
                     <Select defaultValue="RESIDENT" onValueChange={(v) => setValue('role', v as FormValues['role'])}>
-                      <SelectTrigger className="font-body text-sm">
-                        <SelectValue />
-                      </SelectTrigger>
+                      <SelectTrigger className="font-body text-sm"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="RESIDENT" className="font-body text-sm">Resident</SelectItem>
                         <SelectItem value="VENDOR" className="font-body text-sm">Vendor</SelectItem>
@@ -148,39 +236,239 @@ export function CreateAccountDialog() {
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-body text-karis-stone-500">Email address</Label>
-                  <Input type="email" className="font-body text-sm" placeholder="jane@example.com" {...register('email')} />
-                  {errors.email && (
-                    <p className="text-xs text-status-red font-body">{errors.email.message}</p>
-                  )}
-                </div>
-
-                <div className="border-t border-karis-stone-100 pt-4">
-                  <p className="text-xs font-body text-karis-stone-500 mb-3 uppercase tracking-wider">
-                    KYC Information (optional)
-                  </p>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-body text-karis-stone-500">Date of birth</Label>
-                      <Input type="date" className="font-body text-sm" {...register('dob')} />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-body text-karis-stone-500">Country</Label>
-                      <Input className="font-body text-sm" placeholder="Guyana" {...register('country')} />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-body text-karis-stone-500">Government ID number</Label>
-                      <Input className="font-body text-sm" placeholder="GY-123456" {...register('govId')} />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-body text-karis-stone-500">Phone number</Label>
-                      <Input className="font-body text-sm" placeholder="+592 …" {...register('phone')} />
-                    </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-body text-karis-stone-500">Phone</Label>
+                    <Input className="font-body text-sm" placeholder="+592 …" {...register('phone')} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-body text-karis-stone-500">Gender</Label>
+                    <Select onValueChange={(v: unknown) => setValue('gender', v as string)}>
+                      <SelectTrigger className="font-body text-sm"><SelectValue placeholder="Select…" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Male" className="font-body text-sm">Male</SelectItem>
+                        <SelectItem value="Female" className="font-body text-sm">Female</SelectItem>
+                        <SelectItem value="Non-binary" className="font-body text-sm">Non-binary</SelectItem>
+                        <SelectItem value="Prefer not to say" className="font-body text-sm">Prefer not to say</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
+
+                {/* ── Resident-specific ── */}
+                {role === 'RESIDENT' && (
+                  <div className="border-t border-karis-stone-100 pt-4 space-y-4">
+                    <p className="text-xs font-body text-karis-stone-400 uppercase tracking-wider">Resident profile</p>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-body text-karis-stone-500">National ID type</Label>
+                        <Select onValueChange={(v: unknown) => setValue('nationalIdType', v as string)}>
+                          <SelectTrigger className="font-body text-sm"><SelectValue placeholder="Select…" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Passport" className="font-body text-sm">Passport</SelectItem>
+                            <SelectItem value="National ID" className="font-body text-sm">National ID</SelectItem>
+                            <SelectItem value="Driver's licence" className="font-body text-sm">Driver&apos;s licence</SelectItem>
+                            <SelectItem value="Other" className="font-body text-sm">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-body text-karis-stone-500">National ID number</Label>
+                        <Input className="font-body text-sm" {...register('nationalIdNumber')} />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-body text-karis-stone-500">Emergency contact name</Label>
+                        <Input className="font-body text-sm" {...register('emergencyContactName')} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-body text-karis-stone-500">Emergency contact phone</Label>
+                        <Input className="font-body text-sm" placeholder="+592 …" {...register('emergencyContactPhone')} />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-body text-karis-stone-500">Household members</Label>
+                        <Input type="number" min="1" className="font-body text-sm" {...register('householdSize')} />
+                      </div>
+                    </div>
+
+                    {/* Vehicle plates tag input */}
+                    <div className="space-y-2">
+                      <Label className="text-xs font-body text-karis-stone-500">Vehicle plates</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          className="font-body text-sm uppercase flex-1"
+                          placeholder="ABC 1234"
+                          value={plateInput}
+                          onChange={(e) => setPlateInput(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addPlate() } }}
+                        />
+                        <Button type="button" variant="outline" size="sm" onClick={addPlate} className="font-body text-sm">
+                          Add
+                        </Button>
+                      </div>
+                      {vehiclePlates.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {vehiclePlates.map((p) => (
+                            <span
+                              key={p}
+                              className="inline-flex items-center gap-1 bg-karis-stone-100 text-karis-stone-700 font-body text-xs px-2 py-0.5 rounded"
+                            >
+                              {p}
+                              <button
+                                type="button"
+                                onClick={() => setVehiclePlates((prev) => prev.filter((x) => x !== p))}
+                                className="text-karis-stone-400 hover:text-status-red"
+                              >
+                                <X size={11} />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-body text-karis-stone-500">Notes</Label>
+                      <Textarea className="font-body text-sm resize-none" rows={2} {...register('notes')} />
+                    </div>
+
+                    <FileUpload
+                      endpoint="profileDocuments"
+                      label="ID document scan (PDF or image)"
+                      value={idDocFiles}
+                      onComplete={(files) => setIdDocFiles((prev) => [...prev, ...files])}
+                      onRemove={(key) => setIdDocFiles((prev) => prev.filter((f) => f.key !== key))}
+                    />
+
+                    <FileUpload
+                      endpoint="profileDocuments"
+                      label="Profile photo (image)"
+                      value={profilePhotoFiles}
+                      onComplete={(files) => setProfilePhotoFiles((prev) => [...prev, ...files])}
+                      onRemove={(key) => setProfilePhotoFiles((prev) => prev.filter((f) => f.key !== key))}
+                    />
+                  </div>
+                )}
+
+                {/* ── Visitor-specific ── */}
+                {role === 'VISITOR' && (
+                  <div className="border-t border-karis-stone-100 pt-4 space-y-4">
+                    <p className="text-xs font-body text-karis-stone-400 uppercase tracking-wider">Visitor profile</p>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-body text-karis-stone-500">National ID type</Label>
+                        <Select onValueChange={(v: unknown) => setValue('nationalIdType', v as string)}>
+                          <SelectTrigger className="font-body text-sm"><SelectValue placeholder="Select…" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Passport" className="font-body text-sm">Passport</SelectItem>
+                            <SelectItem value="National ID" className="font-body text-sm">National ID</SelectItem>
+                            <SelectItem value="Driver's licence" className="font-body text-sm">Driver&apos;s licence</SelectItem>
+                            <SelectItem value="Other" className="font-body text-sm">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-body text-karis-stone-500">National ID number</Label>
+                        <Input className="font-body text-sm" {...register('nationalIdNumber')} />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-body text-karis-stone-500">Visit purpose</Label>
+                      <Select onValueChange={(v: unknown) => setValue('visitPurpose', v as string)}>
+                        <SelectTrigger className="font-body text-sm"><SelectValue placeholder="Select…" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Business" className="font-body text-sm">Business</SelectItem>
+                          <SelectItem value="Personal" className="font-body text-sm">Personal</SelectItem>
+                          <SelectItem value="Medical" className="font-body text-sm">Medical</SelectItem>
+                          <SelectItem value="Tourism" className="font-body text-sm">Tourism</SelectItem>
+                          <SelectItem value="Other" className="font-body text-sm">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-body text-karis-stone-500">Expected arrival</Label>
+                        <Input type="date" className="font-body text-sm" {...register('expectedArrival')} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-body text-karis-stone-500">Expected departure</Label>
+                        <Input type="date" className="font-body text-sm" {...register('expectedDeparture')} />
+                      </div>
+                    </div>
+
+                    <FileUpload
+                      endpoint="profileDocuments"
+                      label="ID document scan (PDF or image)"
+                      value={idDocFiles}
+                      onComplete={(files) => setIdDocFiles((prev) => [...prev, ...files])}
+                      onRemove={(key) => setIdDocFiles((prev) => prev.filter((f) => f.key !== key))}
+                    />
+                  </div>
+                )}
+
+                {/* ── Vendor-specific ── */}
+                {role === 'VENDOR' && (
+                  <div className="border-t border-karis-stone-100 pt-4 space-y-4">
+                    <p className="text-xs font-body text-karis-stone-400 uppercase tracking-wider">Vendor profile</p>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-body text-karis-stone-500">Business name <span className="text-status-red">*</span></Label>
+                        <Input className="font-body text-sm" {...register('businessName')} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-body text-karis-stone-500">Business category</Label>
+                        <Select onValueChange={(v: unknown) => setValue('businessCategory', v as string)}>
+                          <SelectTrigger className="font-body text-sm"><SelectValue placeholder="Select…" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Construction" className="font-body text-sm">Construction</SelectItem>
+                            <SelectItem value="Maintenance" className="font-body text-sm">Maintenance</SelectItem>
+                            <SelectItem value="Landscaping" className="font-body text-sm">Landscaping</SelectItem>
+                            <SelectItem value="Security" className="font-body text-sm">Security</SelectItem>
+                            <SelectItem value="Cleaning" className="font-body text-sm">Cleaning</SelectItem>
+                            <SelectItem value="Technology" className="font-body text-sm">Technology</SelectItem>
+                            <SelectItem value="Food & Beverage" className="font-body text-sm">Food &amp; Beverage</SelectItem>
+                            <SelectItem value="Healthcare" className="font-body text-sm">Healthcare</SelectItem>
+                            <SelectItem value="Other" className="font-body text-sm">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-body text-karis-stone-500">Payout method</Label>
+                      <Select onValueChange={(v: unknown) => setValue('payoutMethod', v as string)}>
+                        <SelectTrigger className="font-body text-sm"><SelectValue placeholder="Select…" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="BankTransfer" className="font-body text-sm">Bank transfer</SelectItem>
+                          <SelectItem value="Cash" className="font-body text-sm">Cash</SelectItem>
+                          <SelectItem value="KCRDWallet" className="font-body text-sm">KCRD wallet</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-body text-karis-stone-500">Notes</Label>
+                      <Textarea className="font-body text-sm resize-none" rows={2} {...register('notes')} />
+                    </div>
+
+                    <FileUpload
+                      endpoint="vendorDocuments"
+                      label="Business license (PDF) &amp; insurance certificate (PDF)"
+                      value={vendorDocFiles}
+                      onComplete={(files) => setVendorDocFiles((prev) => [...prev, ...files])}
+                      onRemove={(key) => setVendorDocFiles((prev) => prev.filter((f) => f.key !== key))}
+                    />
+                  </div>
+                )}
               </form>
             )}
           </ModalBody>

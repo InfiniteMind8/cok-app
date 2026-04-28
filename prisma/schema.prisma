@@ -56,6 +56,12 @@ enum PropertyCategory {
   MIXED
 }
 
+enum PropertyStatus {
+  VACANT
+  OCCUPIED
+  UNDER_CONSTRUCTION
+}
+
 enum IssueLevel {
   YELLOW
   ORANGE
@@ -67,6 +73,27 @@ enum IssueStatus {
   IN_PROGRESS
   RESOLVED
   CLOSED
+}
+
+enum EmailLogStatus {
+  QUEUED
+  SENT
+  FAILED
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  DECLINED
+}
+
+// Prompt B.3: entity types for file attachments
+enum AttachmentEntityType {
+  PROPERTY
+  USER
+  ISSUE
+  LEASE
+  VOUCHER_REQUEST
 }
 
 // ─── Core Identity ────────────────────────────────────────────────────────────
@@ -82,6 +109,17 @@ model User {
   profilePhotoUrl String?
   introduction    String?       @db.Text
   kyc             Json?
+  // B.3: extended profile fields for all roles
+  preferredName         String?
+  phone                 String?
+  gender                String?
+  nationalIdType        String?
+  nationalIdNumber      String?
+  emergencyContactName  String?
+  emergencyContactPhone String?
+  householdSize         Int?
+  vehiclePlates         String[]
+  notes                 String?  @db.Text
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -92,10 +130,38 @@ model User {
   issuesReported   Issue[]          @relation("IssueReporter")
   issuesAssigned   Issue[]          @relation("IssueAssignee")
   votes            VoteSubmission[]
+  visitorProfile   VisitorProfile?  @relation("VisitorUser")
+  hostedVisitors   VisitorProfile[] @relation("VisitorHost")
+  vendorProfile    VendorProfile?
 
   @@index([email])
   @@index([role])
   @@index([status])
+}
+
+// B.3: visitor-specific profile data
+model VisitorProfile {
+  id                String    @id @default(cuid())
+  userId            String    @unique
+  visitPurpose      String?
+  expectedArrival   DateTime?
+  expectedDeparture DateTime?
+  hostId            String?
+
+  user User  @relation("VisitorUser", fields: [userId], references: [id])
+  host User? @relation("VisitorHost", fields: [hostId], references: [id])
+}
+
+// B.3: vendor-specific profile data
+model VendorProfile {
+  id                   String  @id @default(cuid())
+  userId               String  @unique
+  businessName         String?
+  businessCategory     String?
+  payoutMethod         String?
+  kcrdWalletPreference Boolean @default(false)
+
+  user User @relation(fields: [userId], references: [id])
 }
 
 // ─── Wallet & Ledger ──────────────────────────────────────────────────────────
@@ -115,12 +181,29 @@ model Wallet {
 model FeeSchedule {
   id          String        @id @default(cuid())
   effectiveAt DateTime
+  effectiveTo DateTime?
   rules       Json
   createdBy   String
   createdAt   DateTime      @default(now())
   transactions Transaction[]
 
   @@index([effectiveAt])
+  @@index([effectiveTo])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String
+  entity    String
+  entityId  String?
+  actorId   String
+  before    Json?
+  after     Json?
+  createdAt DateTime @default(now())
+
+  @@index([actorId])
+  @@index([entity, entityId])
+  @@index([createdAt])
 }
 
 model Transaction {
@@ -200,20 +283,32 @@ model TreasuryAdjustment {
 // ─── Property ─────────────────────────────────────────────────────────────────
 
 model Property {
-  id             String              @id @default(cuid())
-  code           String              @unique
-  type           PropertyType
-  category       PropertyCategory
-  address        String?
-  totalPrice     Decimal?            @db.Decimal(20, 2)
-  specifications Json?
-  photos         String[]
-  documents      Json?
-  createdAt      DateTime            @default(now())
+  id                   String           @id @default(cuid())
+  code                 String           @unique
+  type                 PropertyType
+  category             PropertyCategory
+  address              String?
+  totalPrice           Decimal?         @db.Decimal(20, 2)
+  specifications       Json?
+  photos               String[]
+  documents            Json?
+  // B.3: extended property spec fields
+  lotNumber            String?
+  sizeSqm              Decimal?         @db.Decimal(10, 2)
+  bedrooms             Int?
+  bathrooms            Int?
+  parkingSpots         Int?
+  yearBuilt            Int?
+  propertyStatus       PropertyStatus   @default(VACANT)
+  currentValuationKcrd Decimal?         @db.Decimal(20, 2)
+  notes                String?          @db.Text
+  createdAt            DateTime         @default(now())
 
-  ownerships   PropertyOwnership[]
-  tenancies    PropertyTenancy[]
-  installments PropertyInstallment[]
+  ownerships       PropertyOwnership[]
+  tenancies        PropertyTenancy[]
+  installments     PropertyInstallment[]
+  transferRequests PropertyTransferRequest[]
+  issues           Issue[]
 }
 
 model PropertyOwnership {
@@ -254,13 +349,17 @@ model PropertyPayment {
 }
 
 model PropertyTenancy {
-  id           String   @id @default(cuid())
-  propertyId   String
-  userId       String
-  cycle        String
-  cyclePayment Decimal  @db.Decimal(20, 2)
-  contractDate DateTime
-  contractUrl  String?
+  id            String   @id @default(cuid())
+  propertyId    String
+  userId        String
+  cycle         String
+  cyclePayment  Decimal  @db.Decimal(20, 2)
+  contractDate  DateTime
+  contractUrl   String?
+  // B.3: extended lease fields
+  startDate     DateTime?
+  endDate       DateTime?
+  depositAmount Decimal?  @db.Decimal(20, 2)
 
   property      Property             @relation(fields: [propertyId], references: [id])
   user          User                 @relation(fields: [userId], references: [id])
@@ -341,19 +440,25 @@ model VoteSubmission {
 }
 
 model Issue {
-  id          String      @id @default(cuid())
-  reporterId  String
-  assigneeId  String?
-  seriousness IssueLevel
-  urgency     IssueLevel
-  category    String
-  message     String      @db.Text
-  status      IssueStatus @default(OPEN)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id                String      @id @default(cuid())
+  reporterId        String
+  assigneeId        String?
+  seriousness       IssueLevel
+  urgency           IssueLevel
+  category          String
+  message           String      @db.Text
+  status            IssueStatus @default(OPEN)
+  // B.3: extended issue report fields
+  title             String?
+  location          String?
+  propertyId        String?
+  contactPreference String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
 
   reporter User       @relation("IssueReporter", fields: [reporterId], references: [id])
   assignee User?      @relation("IssueAssignee", fields: [assigneeId], references: [id])
+  property Property?  @relation(fields: [propertyId], references: [id])
   replies  IssueReply[]
 }
 
@@ -365,6 +470,26 @@ model IssueReply {
   createdAt DateTime @default(now())
 
   issue Issue @relation(fields: [issueId], references: [id])
+}
+
+// ─── Email Delivery ───────────────────────────────────────────────────────────
+
+model EmailLog {
+  id                String         @id @default(cuid())
+  recipient         String
+  subject           String
+  template          String
+  html              String         @db.Text
+  idempotencyKey    String         @unique
+  status            EmailLogStatus @default(QUEUED)
+  providerMessageId String?
+  providerError     String?
+  sentAt            DateTime?
+  createdAt         DateTime       @default(now())
+
+  @@index([recipient])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model Notification {
@@ -381,4 +506,61 @@ model Notification {
   user User @relation(fields: [userId], references: [id])
 
   @@index([userId, readAt])
+}
+
+// ─── Approvals ────────────────────────────────────────────────────────────────
+
+model PropertyTransferRequest {
+  id             String        @id @default(cuid())
+  propertyId     String
+  property       Property      @relation(fields: [propertyId], references: [id])
+  fromUserId     String
+  toUserId       String
+  requestedBy    String
+  notes          String?       @db.Text
+  status         RequestStatus @default(PENDING)
+  declinedReason String?       @db.Text
+  reviewedBy     String?
+  reviewedAt     DateTime?
+  createdAt      DateTime      @default(now())
+
+  @@index([status])
+  @@index([propertyId])
+}
+
+model VoucherRequest {
+  id             String        @id @default(cuid())
+  recipientId    String
+  requestedBy    String
+  amountKcrd     Decimal       @db.Decimal(20, 8)
+  description    String?       @db.Text
+  message        String?       @db.Text
+  expiresAt      DateTime?
+  status         RequestStatus @default(PENDING)
+  declinedReason String?       @db.Text
+  voucherCode    String?
+  reviewedBy     String?
+  reviewedAt     DateTime?
+  createdAt      DateTime      @default(now())
+
+  @@index([status])
+  @@index([recipientId])
+}
+
+// ─── File Attachments (Prompt B.3) ───────────────────────────────────────────
+
+model Attachment {
+  id         String               @id @default(cuid())
+  storageKey String
+  mimeType   String
+  sizeBytes  BigInt
+  name       String
+  entityType AttachmentEntityType
+  entityId   String
+  fieldName  String
+  uploadedBy String
+  createdAt  DateTime             @default(now())
+
+  @@index([entityType, entityId])
+  @@index([uploadedBy])
 }

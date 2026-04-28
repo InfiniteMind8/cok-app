@@ -2,23 +2,70 @@
 
 import { requireRole } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { sendEmail } from '@/lib/email/service'
 import { generateUniqueMemberId } from '@/lib/member-id'
 import { clerkClient } from '@clerk/nextjs/server'
-import { Role } from '@prisma/client'
+import { Role, AttachmentEntityType } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
+
+interface AttachmentInput {
+  storageKey: string
+  mimeType: string
+  sizeBytes: number
+  name: string
+  fieldName: string
+}
+
+interface ResidentFields {
+  preferredName?: string
+  gender?: string
+  nationalIdType?: string
+  nationalIdNumber?: string
+  emergencyContactName?: string
+  emergencyContactPhone?: string
+  householdSize?: number
+  vehiclePlates?: string[]
+  notes?: string
+}
+
+interface VisitorFields {
+  nationalIdType?: string
+  nationalIdNumber?: string
+  visitPurpose?: string
+  expectedArrival?: string
+  expectedDeparture?: string
+  hostId?: string
+}
+
+interface VendorFields {
+  businessName?: string
+  businessCategory?: string
+  payoutMethod?: string
+  kcrdWalletPreference?: boolean
+  notes?: string
+}
 
 interface CreateAccountInput {
   fullName: string
   email: string
   role: Role
+  preferredName?: string
+  phone?: string
+  gender?: string
+  // Legacy KYC fields kept for backwards compat
   dob?: string
   govId?: string
   country?: string
-  phone?: string
+  residentFields?: ResidentFields
+  visitorFields?: VisitorFields
+  vendorFields?: VendorFields
+  attachments?: AttachmentInput[]
 }
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+
 export async function createAccountAction(input: CreateAccountInput) {
-  await requireRole(['MASTER_ADMIN'])
+  const actor = await requireRole(['MASTER_ADMIN', 'ADMIN'])
 
   const memberId = await generateUniqueMemberId()
 
@@ -30,28 +77,107 @@ export async function createAccountAction(input: CreateAccountInput) {
         fullName: input.fullName,
         role: input.role,
         status: 'PENDING_KYC',
+        preferredName: input.preferredName?.trim() ?? null,
+        phone: input.phone?.trim() ?? null,
+        gender: input.gender?.trim() ?? null,
+        nationalIdType: input.residentFields?.nationalIdType ?? input.visitorFields?.nationalIdType ?? null,
+        nationalIdNumber: input.residentFields?.nationalIdNumber ?? input.visitorFields?.nationalIdNumber ?? null,
+        emergencyContactName: input.residentFields?.emergencyContactName ?? null,
+        emergencyContactPhone: input.residentFields?.emergencyContactPhone ?? null,
+        householdSize: input.residentFields?.householdSize ?? null,
+        vehiclePlates: input.residentFields?.vehiclePlates ?? [],
+        notes: input.residentFields?.notes ?? input.vendorFields?.notes ?? null,
         kyc: {
           dob: input.dob ?? null,
           govId: input.govId ?? null,
           country: input.country ?? null,
-          phone: input.phone ?? null,
         },
       },
     })
+
     await tx.wallet.create({ data: { userId: newUser.id } })
+
+    if (input.role === 'VISITOR' && input.visitorFields) {
+      await tx.visitorProfile.create({
+        data: {
+          userId: newUser.id,
+          visitPurpose: input.visitorFields.visitPurpose ?? null,
+          expectedArrival: input.visitorFields.expectedArrival
+            ? new Date(input.visitorFields.expectedArrival)
+            : null,
+          expectedDeparture: input.visitorFields.expectedDeparture
+            ? new Date(input.visitorFields.expectedDeparture)
+            : null,
+          hostId: input.visitorFields.hostId ?? null,
+        },
+      })
+    }
+
+    if (input.role === 'VENDOR' && input.vendorFields) {
+      await tx.vendorProfile.create({
+        data: {
+          userId: newUser.id,
+          businessName: input.vendorFields.businessName?.trim() ?? null,
+          businessCategory: input.vendorFields.businessCategory ?? null,
+          payoutMethod: input.vendorFields.payoutMethod ?? null,
+          kcrdWalletPreference: input.vendorFields.kcrdWalletPreference ?? false,
+        },
+      })
+    }
+
+    if (input.attachments && input.attachments.length > 0) {
+      for (const att of input.attachments) {
+        await tx.attachment.create({
+          data: {
+            storageKey: att.storageKey,
+            mimeType: att.mimeType,
+            sizeBytes: BigInt(att.sizeBytes),
+            name: att.name,
+            entityType: AttachmentEntityType.USER,
+            entityId: newUser.id,
+            fieldName: att.fieldName,
+            uploadedBy: actor.id,
+          },
+        })
+      }
+    }
+
+    await tx.auditLog.create({
+      data: {
+        action: 'CREATE_ACCOUNT',
+        entity: 'User',
+        entityId: newUser.id,
+        actorId: actor.id,
+        after: { memberId, role: input.role, email: input.email },
+      },
+    })
+
     return newUser
   })
 
   // Send Clerk invitation
   const clerk = await clerkClient()
-  const invitation = await clerk.invitations.createInvitation({
+  await clerk.invitations.createInvitation({
     emailAddress: input.email,
-    redirectUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/sign-up`,
+    redirectUrl: `${APP_URL}/sign-up`,
     ignoreExisting: true,
   })
 
-  revalidatePath('/accounts')
-  return { memberId: user.memberId, invitationId: invitation.id }
+  sendEmail({
+    to: input.email,
+    subject: 'Welcome to City of Karis',
+    template: 'welcome',
+    data: {
+      fullName: input.fullName,
+      memberId: user.memberId,
+      role: input.role,
+      loginUrl: `${APP_URL}/sign-in`,
+    },
+    idempotencyKey: `welcome:${user.id}`,
+  }).catch(() => {})
+
+  revalidatePath('/admin/accounts')
+  return { memberId: user.memberId }
 }
 
 export async function suspendAccountAction(userId: string, reason: string) {
@@ -62,7 +188,7 @@ export async function suspendAccountAction(userId: string, reason: string) {
     where: { id: userId },
     data: { status: 'SUSPENDED' },
   })
-  revalidatePath('/accounts')
+  revalidatePath('/admin/accounts')
 }
 
 export async function restoreAccountAction(userId: string) {
@@ -72,7 +198,7 @@ export async function restoreAccountAction(userId: string) {
     where: { id: userId },
     data: { status: 'ACTIVE' },
   })
-  revalidatePath('/accounts')
+  revalidatePath('/admin/accounts')
 }
 
 export async function upgradeRoleAction(userId: string, targetRole: Role) {
@@ -82,5 +208,5 @@ export async function upgradeRoleAction(userId: string, targetRole: Role) {
     where: { id: userId },
     data: { role: targetRole },
   })
-  revalidatePath('/accounts')
+  revalidatePath('/admin/accounts')
 }
