@@ -719,3 +719,52 @@ model Attachment {
   @@index([entityType, entityId])
   @@index([uploadedBy])
 }
+
+// ─── Bulk Import (Prompt D.1) ─────────────────────────────────────────────────
+
+enum ImportStatus {
+  UPLOADED
+  COMMITTED
+  CANCELLED
+}
+
+enum ImportRowStatus {
+  VALID
+  WARNING
+  ERROR
+}
+
+model ImportSession {
+  id             String        @id @default(cuid())
+  type           String
+  fileName       String
+  fileHash       String
+  totalRows      Int
+  validCount     Int
+  warningCount   Int
+  errorCount     Int
+  committedCount Int           @default(0)
+  skippedCount   Int           @default(0)
+  status         ImportStatus  @default(UPLOADED)
+  actorId        String
+  rows           ImportRecord[]
+  createdAt      DateTime      @default(now())
+  completedAt    DateTime?
+
+  @@index([actorId])
+  @@index([status, createdAt])
+}
+
+model ImportRecord {
+  id              String          @id @default(cuid())
+  sessionId       String
+  session         ImportSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  rowNumber       Int
+  rowData         Json
+  status          ImportRowStatus
+  messages        Json            @default("[]")
+  confirmedByAdmin Boolean        @default(false)
+  createdEntityId String?
+
+  @@index([sessionId, status])
+}
