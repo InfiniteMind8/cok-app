@@ -747,6 +747,7 @@ model ImportSession {
   skippedCount   Int           @default(0)
   status         ImportStatus  @default(UPLOADED)
   actorId        String
+  metadata       Json?
   rows           ImportRecord[]
   createdAt      DateTime      @default(now())
   completedAt    DateTime?

@@ -5,6 +5,8 @@ import { db } from '@/lib/db'
 import { sendEmail } from '@/lib/email/service'
 import { generateUniqueMemberId } from '@/lib/member-id'
 import { parseMembersSheet } from '@/lib/imports/members-parser'
+import { parsePropertiesSheet } from '@/lib/imports/properties-parser'
+import { createAttachment } from '@/lib/storage/attachments'
 import { clerkClient } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
@@ -263,4 +265,353 @@ export async function cancelImportAction(sessionId: string) {
   })
 
   redirect('/admin/imports/members')
+}
+
+// ─── Property import actions ──────────────────────────────────────────────────
+
+interface AttachmentMeta {
+  key: string
+  name: string
+  mimeType: string
+  sizeBytes: number
+  fieldName: string
+}
+
+type ZipAttachmentsMap = Record<string, AttachmentMeta[]>
+
+async function processCompanionZip(zipFile: File): Promise<ZipAttachmentsMap> {
+  const hasToken = !!process.env.UPLOADTHING_TOKEN
+  if (!hasToken) {
+    console.warn('[D.2] UPLOADTHING_TOKEN absent — companion zip skipped')
+    return {}
+  }
+
+  const JSZip = (await import('jszip')).default
+  const { UTApi } = await import('uploadthing/server')
+  const utapi = new UTApi()
+
+  const zipBuffer = await zipFile.arrayBuffer()
+  const zip = await JSZip.loadAsync(zipBuffer)
+
+  const ALLOWED_SUBFOLDERS = ['photos', 'title-deed', 'occupancy-permit', 'utility']
+  const attachmentsMap: ZipAttachmentsMap = {}
+
+  const uploadBatch: { externalRef: string; fieldName: string; name: string; file: File }[] = []
+
+  zip.forEach((relativePath, zipEntry) => {
+    if (zipEntry.dir) return
+    const parts = relativePath.replace(/\\/g, '/').split('/')
+    if (parts.length < 3) return // expect: externalRef/subfolder/filename
+    const [externalRef, subfolder, ...rest] = parts
+    if (!ALLOWED_SUBFOLDERS.includes(subfolder)) return
+    const fileName = rest.join('/')
+    if (!fileName) return
+
+    uploadBatch.push({ externalRef, fieldName: subfolder, name: fileName, file: null as unknown as File })
+    const entry = zipEntry
+    const idx = uploadBatch.length - 1
+    ;(async () => {
+      const buf = await entry.async('arraybuffer')
+      const mimeType = guessMimeType(fileName)
+      uploadBatch[idx].file = new File([buf], fileName, { type: mimeType })
+    })()
+  })
+
+  // Wait for all async file reads
+  await new Promise((r) => setTimeout(r, 100))
+
+  const validBatch = uploadBatch.filter((b) => b.file !== null)
+  if (validBatch.length === 0) return {}
+
+  const uploadResults = await utapi.uploadFiles(validBatch.map((b) => b.file))
+
+  for (let i = 0; i < validBatch.length; i++) {
+    const item = validBatch[i]
+    const result = uploadResults[i]
+    if (result.error || !result.data) continue
+    if (!attachmentsMap[item.externalRef]) attachmentsMap[item.externalRef] = []
+    attachmentsMap[item.externalRef].push({
+      key: result.data.key,
+      name: item.name,
+      mimeType: item.file.type,
+      sizeBytes: item.file.size,
+      fieldName: item.fieldName,
+    })
+  }
+
+  return attachmentsMap
+}
+
+function guessMimeType(fileName: string): string {
+  const ext = fileName.split('.').pop()?.toLowerCase() ?? ''
+  const map: Record<string, string> = {
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    webp: 'image/webp',
+    pdf: 'application/pdf',
+    gif: 'image/gif',
+  }
+  return map[ext] ?? 'application/octet-stream'
+}
+
+export async function parseAndStorePropertyImportAction(formData: FormData) {
+  const actor = await requireRole(['MASTER_ADMIN'])
+
+  const file = formData.get('file')
+  if (!file || !(file instanceof File)) {
+    throw new Error('No file uploaded. Please attach an .xlsx file.')
+  }
+  if (!file.name.endsWith('.xlsx')) {
+    throw new Error('Only .xlsx files are accepted.')
+  }
+
+  const zipFile = formData.get('zipFile')
+  const hasZip = zipFile instanceof File && zipFile.size > 0
+
+  if (hasZip && zipFile.size > 50 * 1024 * 1024) {
+    throw new Error('Companion zip must be under 50 MB.')
+  }
+
+  const buffer = await file.arrayBuffer()
+  const fileHash = await computeFileHash(buffer)
+
+  const existingCodeRows = await db.property.findMany({ select: { code: true } })
+  const existingCodes = new Set(existingCodeRows.map((p) => p.code))
+
+  const parsedRows = await parsePropertiesSheet(buffer, existingCodes)
+
+  if (parsedRows.length === 0) {
+    throw new Error('The spreadsheet has no data rows. Check that the file uses the correct template.')
+  }
+  if (parsedRows.length > MAX_IMPORT_ROWS) {
+    throw new Error(
+      `This file contains ${parsedRows.length} rows, which exceeds the limit of ${MAX_IMPORT_ROWS}. ` +
+        `Split the file and import in batches.`,
+    )
+  }
+
+  const validCount = parsedRows.filter((r) => r.status === 'VALID').length
+  const warningCount = parsedRows.filter((r) => r.status === 'WARNING').length
+  const errorCount = parsedRows.filter((r) => r.status === 'ERROR').length
+
+  // Process companion zip if provided
+  let zipAttachments: ZipAttachmentsMap = {}
+  if (hasZip) {
+    zipAttachments = await processCompanionZip(zipFile)
+  }
+
+  const session = await db.$transaction(async (tx) => {
+    const s = await tx.importSession.create({
+      data: {
+        type: 'properties',
+        fileName: file.name,
+        fileHash,
+        totalRows: parsedRows.length,
+        validCount,
+        warningCount,
+        errorCount,
+        actorId: actor.id,
+        status: 'UPLOADED',
+        metadata: hasZip ? { zip_attachments: zipAttachments } : undefined,
+      },
+    })
+
+    await tx.importRecord.createMany({
+      data: parsedRows.map((row) => ({
+        sessionId: s.id,
+        rowNumber: row.rowNumber,
+        rowData: row.rowData as object,
+        status: row.status,
+        messages: row.messages,
+      })),
+    })
+
+    await tx.auditLog.create({
+      data: {
+        action: 'IMPORT_UPLOAD',
+        entity: 'ImportSession',
+        entityId: s.id,
+        actorId: actor.id,
+        after: {
+          type: 'properties',
+          fileName: file.name,
+          fileHash,
+          totalRows: parsedRows.length,
+          validCount,
+          warningCount,
+          errorCount,
+          hasCompanionZip: hasZip,
+        },
+      },
+    })
+
+    return s
+  })
+
+  redirect(`/admin/imports/properties/${session.id}`)
+}
+
+export async function commitPropertyImportAction(sessionId: string, confirmedRowIds: string[]) {
+  const actor = await requireRole(['MASTER_ADMIN'])
+
+  const session = await db.importSession.findUnique({
+    where: { id: sessionId },
+    include: { rows: true },
+  })
+  if (!session) throw new Error('Import session not found.')
+  if (session.status !== 'UPLOADED') {
+    throw new Error(`This import session has already been ${session.status.toLowerCase()}.`)
+  }
+
+  const zipAttachments: ZipAttachmentsMap =
+    (session.metadata as { zip_attachments?: ZipAttachmentsMap } | null)?.zip_attachments ?? {}
+
+  const confirmedSet = new Set(confirmedRowIds)
+  const toProcess = session.rows.filter(
+    (r) => r.status === 'VALID' || (r.status === 'WARNING' && confirmedSet.has(r.id)),
+  )
+
+  let committedCount = 0
+  let skippedCount = 0
+
+  for (const record of toProcess) {
+    const rowData = record.rowData as Record<string, string>
+    try {
+      const code =
+        rowData.external_ref?.trim() ||
+        `IMP-${String(record.rowNumber - 1).padStart(4, '0')}`
+
+      const address = [rowData.address_line_1, rowData.address_line_2]
+        .filter(Boolean)
+        .join(', ')
+
+      const property = await db.$transaction(async (tx) => {
+        const prop = await tx.property.create({
+          data: {
+            code,
+            type: rowData.type as 'OWNERSHIP' | 'RENTAL' | 'ADMIN',
+            category: 'RESIDENTIAL',
+            address: address || null,
+            lotNumber: rowData.lot_number || null,
+            sizeSqm: rowData.size_sqm ? parseFloat(rowData.size_sqm) : null,
+            bedrooms: rowData.bedrooms ? parseInt(rowData.bedrooms, 10) : null,
+            bathrooms: rowData.bathrooms ? parseInt(rowData.bathrooms, 10) : null,
+            parkingSpots: rowData.parking_spots ? parseInt(rowData.parking_spots, 10) : null,
+            yearBuilt: rowData.year_built ? parseInt(rowData.year_built, 10) : null,
+            propertyStatus: (rowData.status as 'VACANT' | 'OCCUPIED' | 'UNDER_CONSTRUCTION') || 'VACANT',
+            totalPrice: rowData.purchase_price_kcrd ? parseFloat(rowData.purchase_price_kcrd) : null,
+            currentValuationKcrd: rowData.current_valuation_kcrd
+              ? parseFloat(rowData.current_valuation_kcrd)
+              : null,
+            notes: rowData.notes || null,
+            specifications: {
+              size_sqm: rowData.size_sqm || null,
+              bedrooms: rowData.bedrooms || null,
+              bathrooms: rowData.bathrooms || null,
+              parking_spots: rowData.parking_spots || null,
+              year_built: rowData.year_built || null,
+            },
+          },
+        })
+
+        await tx.auditLog.create({
+          data: {
+            action: 'IMPORT_CREATE_PROPERTY',
+            entity: 'Property',
+            entityId: prop.id,
+            actorId: actor.id,
+            after: {
+              code,
+              address,
+              importSessionId: sessionId,
+              importRowId: record.id,
+            },
+          },
+        })
+
+        return prop
+      })
+
+      await db.importRecord.update({
+        where: { id: record.id },
+        data: { createdEntityId: property.id },
+      })
+
+      // Create Attachment records for companion zip files
+      const attachmentKey = rowData.external_ref?.trim()
+      if (attachmentKey && zipAttachments[attachmentKey]) {
+        for (const att of zipAttachments[attachmentKey]) {
+          await createAttachment({
+            storageKey: att.key,
+            mimeType: att.mimeType,
+            sizeBytes: att.sizeBytes,
+            name: att.name,
+            entityType: 'PROPERTY',
+            entityId: property.id,
+            fieldName: att.fieldName,
+            uploadedBy: actor.id,
+          })
+        }
+      }
+
+      committedCount++
+    } catch {
+      skippedCount++
+    }
+  }
+
+  await db.importSession.update({
+    where: { id: sessionId },
+    data: {
+      status: 'COMMITTED',
+      committedCount,
+      skippedCount,
+      completedAt: new Date(),
+    },
+  })
+
+  await db.auditLog.create({
+    data: {
+      action: 'IMPORT_SESSION_COMMITTED',
+      entity: 'ImportSession',
+      entityId: sessionId,
+      actorId: actor.id,
+      after: {
+        type: 'properties',
+        fileName: session.fileName,
+        committedCount,
+        skippedCount,
+        totalProcessed: toProcess.length,
+      },
+    },
+  })
+
+  revalidatePath('/admin/properties')
+  return { committedCount, skippedCount }
+}
+
+export async function cancelPropertyImportAction(sessionId: string) {
+  const actor = await requireRole(['MASTER_ADMIN'])
+
+  const session = await db.importSession.findUnique({ where: { id: sessionId } })
+  if (!session) throw new Error('Import session not found.')
+  if (session.status !== 'UPLOADED') throw new Error('Only UPLOADED sessions can be cancelled.')
+
+  await db.importSession.update({
+    where: { id: sessionId },
+    data: { status: 'CANCELLED', completedAt: new Date() },
+  })
+
+  await db.auditLog.create({
+    data: {
+      action: 'IMPORT_SESSION_CANCELLED',
+      entity: 'ImportSession',
+      entityId: sessionId,
+      actorId: actor.id,
+      after: { type: 'properties', fileName: session.fileName },
+    },
+  })
+
+  redirect('/admin/imports/properties')
 }
