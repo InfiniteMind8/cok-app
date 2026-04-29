@@ -108,6 +108,18 @@ export async function getResidentProperty(userId: string) {
     include: {
       property: true,
       cyclePayments: { orderBy: { paidAt: 'desc' }, take: 5 },
+      rentalExtensionRequests: {
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: {
+          id: true,
+          requestedNewEndDate: true,
+          status: true,
+          reason: true,
+          decisionNote: true,
+          createdAt: true,
+        },
+      },
     },
   })
 

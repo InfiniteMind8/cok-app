@@ -111,14 +111,28 @@ export default async function PropertyPage() {
       {/* Tenancy: rental status card */}
       {property.kind === 'tenancy' && (
         <TenancyStatusCard
+          tenancyId={property.tenancy.id}
           cycle={property.tenancy.cycle}
+          cycleUnit={property.tenancy.cycleUnit}
           cyclePayment={property.tenancy.cyclePayment}
           contractDate={new Date(property.tenancy.contractDate)}
+          startDate={property.tenancy.startDate ? new Date(property.tenancy.startDate) : null}
+          endDate={property.tenancy.endDate ? new Date(property.tenancy.endDate) : null}
+          nextPaymentDue={property.tenancy.nextPaymentDue ? new Date(property.tenancy.nextPaymentDue) : null}
+          leaseStatus={property.tenancy.leaseStatus}
           cyclePayments={property.tenancy.cyclePayments.map((cp) => ({
             id: cp.id,
             cycleNumber: cp.cycleNumber,
             amount: new Prisma.Decimal(cp.amount),
             paidAt: new Date(cp.paidAt),
+          }))}
+          extensionRequests={property.tenancy.rentalExtensionRequests.map((r) => ({
+            id: r.id,
+            requestedNewEndDate: new Date(r.requestedNewEndDate),
+            status: r.status,
+            reason: r.reason,
+            decisionNote: r.decisionNote,
+            createdAt: new Date(r.createdAt),
           }))}
         />
       )}
