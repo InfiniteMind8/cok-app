@@ -78,3 +78,14 @@ For every `ACTIVE` or `ENDING_SOON` tenancy:
 2. Apply the same `Authorization: Bearer $CRON_SECRET` guard at the top.
 3. Add an entry to `vercel.json` `crons` array.
 4. Document the job here.
+
+---
+
+## Database backup
+
+Database backups are handled by **Supabase natively** (daily snapshots + PITR on Pro plan) — no cron endpoint is required. See [`docs/backup-and-restore.md`](backup-and-restore.md) for the full backup and restore runbook, including:
+
+- How to verify backups are running.
+- Manual `pg_dump` procedure for supplemental backups.
+- Step-by-step restore procedure.
+- Drill log.
