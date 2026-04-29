@@ -13,6 +13,7 @@ import { renderEmergencyBroadcast, type EmergencyBroadcastData } from './templat
 import { renderPropertyTransferDecision, type PropertyTransferDecisionData } from './templates/property-transfer-decision'
 import { renderMfaReset, type MfaResetData } from './templates/mfa-reset'
 import { renderTreasuryAlert, type TreasuryAlertData } from './templates/treasury-alert'
+import { renderLeaseEndingSoon, type LeaseEndingSoonData } from './templates/lease-ending-soon'
 
 let _resend: Resend | undefined
 function getResend(): Resend {
@@ -33,6 +34,7 @@ export type TemplateMap = {
   'property-transfer-decision': PropertyTransferDecisionData
   'mfa-reset': MfaResetData
   'treasury-alert': TreasuryAlertData
+  'lease-ending-soon': LeaseEndingSoonData
 }
 
 export type TemplateName = keyof TemplateMap
@@ -62,6 +64,8 @@ async function renderTemplate<T extends TemplateName>(
       return renderMfaReset(data as MfaResetData)
     case 'treasury-alert':
       return renderTreasuryAlert(data as TreasuryAlertData)
+    case 'lease-ending-soon':
+      return renderLeaseEndingSoon(data as LeaseEndingSoonData)
     default:
       throw new Error(`Unknown email template: ${String(template)}`)
   }

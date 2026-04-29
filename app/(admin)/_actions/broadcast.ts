@@ -75,6 +75,7 @@ export async function sendBroadcastAction(data: {
             headline: data.title.trim(),
             message: data.body.trim(),
             sentAt,
+            severity: data.severity,
           },
           idempotencyKey: `broadcast-${broadcast.id}-${user.id}`,
         })

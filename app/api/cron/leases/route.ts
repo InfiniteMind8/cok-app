@@ -69,16 +69,15 @@ export async function GET(req: NextRequest) {
       // Dynamic import avoids module-level evaluation of lib/env during build
       const { sendEmail } = await import('@/lib/email/service')
       await sendEmail({
-        template: 'rental-extension-decision',
+        template: 'lease-ending-soon',
         to: tenancy.user.email,
         subject: `Your lease for ${tenancy.property.code} is ending soon`,
         data: {
           residentName: tenancy.user.fullName,
           propertyCode: tenancy.property.code,
-          decision: 'approved',
-          newEndDate: endDateFormatted,
-          decisionNote: `Your lease is ending on ${endDateFormatted}. Log in to request an extension if needed.`,
-          leaseUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/property`,
+          endDate: endDateFormatted,
+          daysUntilEnd: 14,
+          propertyUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/property`,
         },
         idempotencyKey: `cron-ending-soon:${tenancy.id}:${today.toISOString().slice(0, 10)}`,
       }).catch(() => {})
