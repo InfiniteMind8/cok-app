@@ -12,6 +12,7 @@ import { ResidentSignOutButton } from './_components/sign-out-button'
 import { TourTriggerButton } from '@/components/shared/tour-trigger-button'
 import { DisplayCurrencySelector } from './_components/display-currency-selector'
 import { Wordmark } from '@/components/shared/wordmark'
+import { getStorage } from '@/lib/storage/driver'
 
 export const dynamic = 'force-dynamic'
 
@@ -51,6 +52,12 @@ export default async function ProfilePage() {
   if (!fullUser) redirect('/sign-in')
   const mfaEnabled = clerkUser?.twoFactorEnabled ?? false
 
+  // Resolve profile photo — sign if stored as a storageKey (no http prefix)
+  const profilePhotoDisplayUrl =
+    fullUser.profilePhotoUrl && !fullUser.profilePhotoUrl.startsWith('http')
+      ? await getStorage().getSignedUrl(fullUser.profilePhotoUrl, 300).catch(() => null)
+      : fullUser.profilePhotoUrl
+
   const kyc = fullUser.kyc as Record<string, string> | null
 
   return (
@@ -58,7 +65,7 @@ export default async function ProfilePage() {
       {/* Photo + identity */}
       <div className="bg-white border border-karis-stone-100 rounded-2xl shadow-sm p-6">
         <ProfilePhotoUpload
-          currentUrl={fullUser.profilePhotoUrl}
+          currentUrl={profilePhotoDisplayUrl}
           fullName={fullUser.fullName}
         />
 

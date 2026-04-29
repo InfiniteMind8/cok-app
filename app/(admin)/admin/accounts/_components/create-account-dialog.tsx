@@ -353,7 +353,7 @@ export function CreateAccountDialog({ visitorGroups = [] }: { visitorGroups?: Vi
                     </div>
 
                     <FileUpload
-                      endpoint="profileDocuments"
+                      endpoint={{ entityType: 'USER', fieldName: 'idScan', category: 'id_document' }}
                       label="ID document scan (PDF or image)"
                       value={idDocFiles}
                       onComplete={(files) => setIdDocFiles((prev) => [...prev, ...files])}
@@ -361,7 +361,7 @@ export function CreateAccountDialog({ visitorGroups = [] }: { visitorGroups?: Vi
                     />
 
                     <FileUpload
-                      endpoint="profileDocuments"
+                      endpoint={{ entityType: 'USER', fieldName: 'profilePhoto', category: 'profile_photo' }}
                       label="Profile photo (image)"
                       value={profilePhotoFiles}
                       onComplete={(files) => setProfilePhotoFiles((prev) => [...prev, ...files])}
@@ -420,7 +420,7 @@ export function CreateAccountDialog({ visitorGroups = [] }: { visitorGroups?: Vi
                     </div>
 
                     <FileUpload
-                      endpoint="profileDocuments"
+                      endpoint={{ entityType: 'USER', fieldName: 'idScan', category: 'id_document' }}
                       label="ID document scan (PDF or image)"
                       value={idDocFiles}
                       onComplete={(files) => setIdDocFiles((prev) => [...prev, ...files])}
@@ -502,7 +502,7 @@ export function CreateAccountDialog({ visitorGroups = [] }: { visitorGroups?: Vi
                     </div>
 
                     <FileUpload
-                      endpoint="vendorDocuments"
+                      endpoint={{ entityType: 'USER', fieldName: 'vendorDocs', category: 'business_license' }}
                       label="Business license (PDF) &amp; insurance certificate (PDF)"
                       value={vendorDocFiles}
                       onComplete={(files) => setVendorDocFiles((prev) => [...prev, ...files])}

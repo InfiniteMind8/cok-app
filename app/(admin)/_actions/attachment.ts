@@ -3,6 +3,7 @@
 import { requireRole } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
+import { getAttachmentUrl } from '@/lib/storage/attachments'
 
 export async function getAttachmentUrlAction(attachmentId: string): Promise<string> {
   const user = await requireRole(['MASTER_ADMIN', 'ADMIN', 'RESIDENT', 'VENDOR', 'VISITOR'])
@@ -35,7 +36,8 @@ export async function getAttachmentUrlAction(attachmentId: string): Promise<stri
     })
   }
 
-  return attachment.storageKey
+  // Return a short-lived signed URL (5 min TTL) — never expose raw storage keys
+  return getAttachmentUrl(attachment.id)
 }
 
 export async function deleteAttachmentAction(attachmentId: string): Promise<void> {

@@ -3,12 +3,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 vi.mock('server-only', () => ({}))
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 
+const SIGNED_URL = '/api/attachments/serve?token=mocked-signed-token'
+
 const mocks = vi.hoisted(() => ({
   requireRole: vi.fn(),
   findUniqueOrThrow: vi.fn(),
   createAuditLog: vi.fn(),
   deleteAttachment: vi.fn(),
   transaction: vi.fn(),
+  getSignedUrl: vi.fn(async () => SIGNED_URL),
 }))
 
 vi.mock('@/lib/auth', () => ({ requireRole: mocks.requireRole }))
@@ -24,11 +27,16 @@ vi.mock('@/lib/db', () => ({
   },
 }))
 
+// Mock the storage driver so getAttachmentUrl returns a predictable signed URL
+vi.mock('@/lib/storage/driver', () => ({
+  getStorage: () => ({ getSignedUrl: mocks.getSignedUrl }),
+}))
+
 import { getAttachmentUrlAction, deleteAttachmentAction } from '../attachment'
 
 const ATTACHMENT = {
   id: 'att-1',
-  storageKey: 'https://cdn.uploadthing.com/doc.pdf',
+  storageKey: 'user/user-1/idScan/abc123.pdf',
   uploadedBy: 'user-1',
   entityType: 'USER',
   entityId: 'user-1',
@@ -40,6 +48,7 @@ describe('getAttachmentUrlAction', () => {
     vi.clearAllMocks()
     mocks.findUniqueOrThrow.mockResolvedValue(ATTACHMENT)
     mocks.createAuditLog.mockResolvedValue({})
+    mocks.getSignedUrl.mockResolvedValue(SIGNED_URL)
   })
 
   it('rejects users without any recognised role', async () => {
@@ -47,17 +56,18 @@ describe('getAttachmentUrlAction', () => {
     await expect(getAttachmentUrlAction('att-1')).rejects.toThrow('Forbidden')
   })
 
-  it('returns the storageKey when the caller is the uploader', async () => {
+  it('returns a signed URL (not raw storageKey) when the caller is the uploader', async () => {
     mocks.requireRole.mockResolvedValue({ id: 'user-1', role: 'RESIDENT' })
     const url = await getAttachmentUrlAction('att-1')
-    expect(url).toBe(ATTACHMENT.storageKey)
+    expect(url).toBe(SIGNED_URL)
+    expect(url).not.toBe(ATTACHMENT.storageKey)
     expect(mocks.createAuditLog).not.toHaveBeenCalled()
   })
 
-  it('returns the storageKey when the caller is an admin accessing another user\'s doc', async () => {
+  it('returns a signed URL when the caller is an admin accessing another user\'s doc', async () => {
     mocks.requireRole.mockResolvedValue({ id: 'admin-1', role: 'MASTER_ADMIN' })
     const url = await getAttachmentUrlAction('att-1')
-    expect(url).toBe(ATTACHMENT.storageKey)
+    expect(url).toBe(SIGNED_URL)
   })
 
   it('writes an audit log when admin accesses another user\'s document', async () => {

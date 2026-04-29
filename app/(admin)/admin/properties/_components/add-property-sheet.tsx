@@ -269,7 +269,7 @@ export function AddPropertySheet() {
               <p className="text-xs font-body text-karis-stone-400 uppercase tracking-wider">Documents &amp; Photos</p>
 
               <FileUpload
-                endpoint="propertyPhotos"
+                endpoint={{ entityType: 'PROPERTY', fieldName: 'photos', category: 'photo' }}
                 label="Photos"
                 value={attachments.photos}
                 onComplete={(files) => appendFiles('photos', files)}
@@ -277,7 +277,7 @@ export function AddPropertySheet() {
               />
 
               <FileUpload
-                endpoint="propertyDocuments"
+                endpoint={{ entityType: 'PROPERTY', fieldName: 'titleDeed', category: 'title_deed' }}
                 label="Title deed (PDF)"
                 value={attachments.titleDeed}
                 onComplete={(files) => appendFiles('titleDeed', files)}
@@ -285,7 +285,7 @@ export function AddPropertySheet() {
               />
 
               <FileUpload
-                endpoint="propertyDocuments"
+                endpoint={{ entityType: 'PROPERTY', fieldName: 'occupancyPermit', category: 'occupancy_permit' }}
                 label="Occupancy permit (PDF)"
                 value={attachments.occupancyPermit}
                 onComplete={(files) => appendFiles('occupancyPermit', files)}
@@ -293,7 +293,7 @@ export function AddPropertySheet() {
               />
 
               <FileUpload
-                endpoint="propertyDocuments"
+                endpoint={{ entityType: 'PROPERTY', fieldName: 'utilityDocs', category: 'utility_document' }}
                 label="Utility hookup documents (PDF)"
                 value={attachments.utilityDocs}
                 onComplete={(files) => appendFiles('utilityDocs', files)}

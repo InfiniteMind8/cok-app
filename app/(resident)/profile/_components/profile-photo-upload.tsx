@@ -1,11 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import Image from 'next/image'
-import { User, Camera } from 'lucide-react'
-import { UploadButton } from '@/lib/uploadthing'
+import { User, Camera, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { updateProfilePhotoAction } from '@/app/(resident)/_actions/profile'
+import { uploadProfilePhotoAction } from '@/app/(resident)/_actions/profile'
 
 interface ProfilePhotoUploadProps {
   currentUrl: string | null
@@ -13,7 +12,39 @@ interface ProfilePhotoUploadProps {
 }
 
 export function ProfilePhotoUpload({ currentUrl, fullName }: ProfilePhotoUploadProps) {
+  const inputRef = useRef<HTMLInputElement>(null)
   const [photoUrl, setPhotoUrl] = useState<string | null>(currentUrl)
+  const [uploading, setUploading] = useState(false)
+
+  async function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('entityType', 'USER')
+      formData.append('fieldName', 'profilePhoto')
+      formData.append('category', 'profile_photo')
+
+      const res = await fetch('/api/attachments/upload', { method: 'POST', body: formData })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ error: 'Upload failed' }))
+        toast.error((body as { error?: string }).error ?? 'Upload failed')
+        return
+      }
+      const { storageKey } = (await res.json()) as { storageKey: string }
+      const { signedUrl } = await uploadProfilePhotoAction(storageKey)
+      setPhotoUrl(signedUrl)
+      toast.success('Profile photo updated')
+    } catch {
+      toast.error('Upload failed')
+    } finally {
+      setUploading(false)
+    }
+  }
 
   return (
     <div className="flex flex-col items-center gap-3">
@@ -34,30 +65,32 @@ export function ProfilePhotoUpload({ currentUrl, fullName }: ProfilePhotoUploadP
           )}
         </div>
         <div className="absolute bottom-0 right-0 w-7 h-7 bg-karis-green-900 rounded-full flex items-center justify-center border-2 border-white">
-          <Camera size={13} className="text-white" />
+          {uploading ? (
+            <Loader2 size={11} className="text-white animate-spin" />
+          ) : (
+            <Camera size={13} className="text-white" />
+          )}
         </div>
       </div>
 
-      <UploadButton
-        endpoint="proofOfPayment"
-        onClientUploadComplete={(res) => {
-          const url = res[0]?.ufsUrl ?? res[0]?.url
-          if (url) {
-            setPhotoUrl(url)
-            updateProfilePhotoAction(url).catch(() => {
-              toast.error('Failed to save photo')
-            })
-            toast.success('Profile photo updated')
-          }
-        }}
-        onUploadError={(error) => {
-          toast.error(`Upload failed: ${error.message}`)
-        }}
-        appearance={{
-          button: 'font-body text-xs bg-transparent text-karis-green-700 hover:text-karis-green-900 underline underline-offset-2 ut-readying:opacity-50',
-          allowedContent: 'hidden',
-        }}
+      <input
+        ref={inputRef}
+        type="file"
+        aria-label="Upload profile photo"
+        className="sr-only"
+        accept="image/*"
+        onChange={handleChange}
+        disabled={uploading}
       />
+
+      <button
+        type="button"
+        disabled={uploading}
+        onClick={() => inputRef.current?.click()}
+        className="font-body text-xs bg-transparent text-karis-green-700 hover:text-karis-green-900 underline underline-offset-2 disabled:opacity-50"
+      >
+        {uploading ? 'Uploading…' : 'Change photo'}
+      </button>
     </div>
   )
 }

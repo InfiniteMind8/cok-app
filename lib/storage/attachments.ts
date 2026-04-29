@@ -1,8 +1,19 @@
 import 'server-only'
 import { db } from '@/lib/db'
 import { AttachmentEntityType } from '@prisma/client'
+import { getStorage } from './driver'
 
 export type { AttachmentEntityType }
+
+// Returns a short-lived signed URL (5 min TTL) for the given attachment.
+// No authorization check — callers are responsible for auth before calling.
+export async function getAttachmentUrl(attachmentId: string): Promise<string> {
+  const attachment = await db.attachment.findUniqueOrThrow({
+    where: { id: attachmentId },
+    select: { storageKey: true },
+  })
+  return getStorage().getSignedUrl(attachment.storageKey, 300)
+}
 
 export interface CreateAttachmentInput {
   storageKey: string

@@ -57,8 +57,9 @@ async function seedTestFixtures(prisma: PrismaClient) {
           propertyId: propA12.id,
           fromUserId: devon.id,
           toUserId: aaliyah.id,
+          requestedBy: devon.id,
           status: 'PENDING',
-          message: 'E2E test transfer — D.10 fixture',
+          notes: 'E2E test transfer — D.10 fixture',
         },
       })
       console.log('[global-setup] Seeded pending property transfer request')
@@ -74,6 +75,7 @@ async function seedTestFixtures(prisma: PrismaClient) {
       await prisma.voucherRequest.create({
         data: {
           recipientId: aaliyah.id,
+          requestedBy: aaliyah.id,
           amountKcrd: 100,
           message: 'E2E test voucher — D.10 fixture',
           status: 'PENDING',

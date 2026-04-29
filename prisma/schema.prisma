@@ -724,11 +724,15 @@ model Attachment {
   storageKey String
   mimeType   String
   sizeBytes  BigInt
+  sha256     String               @default("")
   name       String
+  category   String               @default("")
   entityType AttachmentEntityType
   entityId   String
   fieldName  String
   uploadedBy String
+  encrypted  Boolean              @default(false)
+  iv         Bytes?
   createdAt  DateTime             @default(now())
 
   @@index([entityType, entityId])

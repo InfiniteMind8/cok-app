@@ -277,7 +277,7 @@ export function RaiseIssueFab() {
               </div>
 
               <FileUpload
-                endpoint="issueMedia"
+                endpoint={{ entityType: 'ISSUE', fieldName: 'media', category: 'photo' }}
                 label="Photos or video (optional — max 5 photos, 1 video up to 50 MB)"
                 value={mediaFiles}
                 onComplete={(files) => setMediaFiles((prev) => [...prev, ...files])}

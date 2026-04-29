@@ -319,7 +319,7 @@ export function AssignTenantDialog({ propertyId, users }: { propertyId: string; 
               </div>
 
               <FileUpload
-                endpoint="leaseDocuments"
+                endpoint={{ entityType: 'LEASE', entityId: propertyId, fieldName: 'leaseAgreement', category: 'lease_agreement' }}
                 label="Lease agreement PDF"
                 value={leaseFiles}
                 onComplete={(files) => setLeaseFiles(files.slice(0, 1))}

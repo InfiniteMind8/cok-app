@@ -163,7 +163,7 @@ export function CreateVoucherSheet({ users }: CreateVoucherSheetProps) {
             </div>
 
             <FileUpload
-              endpoint="voucherAttachments"
+              endpoint={{ entityType: 'VOUCHER_REQUEST', fieldName: 'attachment', category: 'voucher' }}
               label="Attachment (PDF, optional — max 5 MB)"
               value={attachmentFiles}
               onComplete={(files) => setAttachmentFiles(files.slice(0, 1))}

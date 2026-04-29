@@ -125,6 +125,119 @@ The affected user will be redirected to `/account/mfa-enroll` on their next sign
 
 ---
 
-## D.11 Note
+---
 
-This document will be extended by Prompt D.11 (storage architecture), which will define the full file lifecycle, signed-URL expiry, and PII retention timelines.
+## Storage Architecture
+
+All uploaded files are stored in a structured layout under a single storage root, organised by entity type:
+
+```
+storage/
+  property/
+    {entity_id}/
+      photos/           {file_id}.jpg
+      titledeed/        {file_id}.pdf
+      occupancypermit/  {file_id}.pdf
+      utilitydocs/      {file_id}.pdf
+  user/
+    {entity_id}/
+      idscan/           {file_id}.pdf
+      profilephoto/     {file_id}.jpg
+      vendordocs/       {file_id}.pdf
+  issue/
+    {entity_id}/
+      media/            {file_id}.jpg | .mp4
+  lease/
+    {entity_id}/
+      leaseagreement/   {file_id}.pdf
+  voucher_request/
+    {entity_id}/
+      attachment/       {file_id}.pdf
+```
+
+In production, the same key layout is used in an S3-compatible object store (Backblaze B2 recommended; Cloudflare R2 or AWS S3 are supported).
+
+The storage driver is selected via `STORAGE_DRIVER=local|s3` in the environment. All other storage configuration is in `.env.example`.
+
+---
+
+## Encryption at Rest
+
+**Local driver (`STORAGE_DRIVER=local`):**
+- Every file is encrypted with AES-256-GCM before writing to disk.
+- A random 12-byte IV is generated per file.
+- The on-disk format is: `[12-byte IV][16-byte GCM auth tag][ciphertext]`.
+- The key is derived from `STORAGE_ENCRYPTION_KEY` (64 hex chars / 32 bytes). Generate with `openssl rand -hex 32`.
+- GCM auth tag verification ensures tampered or corrupt files are rejected at read time.
+
+**S3 driver (`STORAGE_DRIVER=s3`):**
+- Server-side encryption is enabled on every `PutObject` call with `ServerSideEncryption: 'AES256'` (SSE-S3).
+- The bucket should also have a bucket policy enforcing `aws:SecureTransport` (deny HTTP).
+
+---
+
+## Encryption in Transit
+
+- All traffic is served over HTTPS only. HTTP is not accepted in production.
+- Pre-signed S3 URLs are HTTPS-only; the query-string signature covers the URL path and expiry.
+- Local serve tokens are HMAC-SHA256 signed and validated before the file is decrypted and streamed.
+- A `Strict-Transport-Security` header should be set at the CDN/load-balancer layer.
+
+---
+
+## Access Controls & Signed URLs
+
+Files are **never served by direct URL or raw storage path**. All access goes through a short-lived signed URL:
+
+| Driver | Signed URL mechanism | TTL |
+|---|---|---|
+| local | HMAC-SHA256 token → `GET /api/attachments/serve?token=…` | 5 min |
+| s3 | AWS `getSignedUrl` (GetObjectCommand) | ≤ 5 min |
+
+**Authorization rule (enforced in `getAttachmentUrlAction`):**
+A user may retrieve a signed URL only if they are:
+1. The `uploadedBy` user for the attachment, OR
+2. A `MASTER_ADMIN` or `ADMIN` role (retrieval is then audit-logged).
+
+All other callers receive a `Forbidden` error. There are no anonymous reads. Server Actions enforce this before generating any URL.
+
+---
+
+## Retention Policy
+
+- Attachment records and files are retained indefinitely unless explicitly deleted.
+- On user **deactivation**: a background process (not yet implemented; target: D.12 scope) should purge attachments 90 days after `deactivatedAt`, unless a legal-hold flag is set on the user record.
+- Audit log entries referencing the attachment are append-only and are not deleted.
+- `deleteAttachmentAction` removes the DB record and the file from the storage backend. It is audit-logged.
+
+---
+
+## Backup Posture
+
+See `docs/backup-and-restore.md` (produced by D.12) for the full runbook.
+
+**Summary:**
+- **Local driver**: The `storage/` directory must be included in nightly server backups. Backups should themselves be encrypted with the same `STORAGE_ENCRYPTION_KEY`.
+- **S3 driver**: Enable bucket versioning to protect against accidental deletes. Cross-region replication is recommended (not required) for Phase 1+.
+
+---
+
+## Incident Response Sketch
+
+**Key compromise (STORAGE_ENCRYPTION_KEY rotated):**
+1. Generate a new key with `openssl rand -hex 32`.
+2. For the local driver: re-encrypt all existing files (read → decrypt with old key → encrypt with new key → write). A migration script should be prepared before rotating.
+3. Update `STORAGE_ENCRYPTION_KEY` in the environment and restart all instances.
+4. Old signed URLs become invalid immediately (they depend on the HMAC key).
+
+**S3 access key compromise:**
+1. Immediately rotate `STORAGE_S3_ACCESS_KEY` / `STORAGE_S3_SECRET_KEY` in the S3 console.
+2. Update environment variables and restart instances.
+3. Any outstanding pre-signed URLs become invalid (they are signed with the old access key).
+4. Review S3 access logs for unauthorised reads.
+
+**Unauthorised file access detected:**
+1. Identify the attachment ID and requestor from the audit log (`RETRIEVE_ATTACHMENT` entries).
+2. If the file contained PII, notify the affected data subject per the applicable privacy regulation.
+3. Revoke the user's session if access was via a compromised account.
+4. Preserve the audit log entries — do not delete them.
