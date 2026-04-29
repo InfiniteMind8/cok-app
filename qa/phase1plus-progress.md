@@ -23,7 +23,7 @@
 | D.10 — Playwright E2E coverage | Not Started | — | — | — | — | — |
 | D.11 — File storage strategy | Not Started | — | — | — | — | — |
 | D.12 — Backup & restore runbook | Not Started | — | — | — | — | — |
-| D.13 — Webhook handler Clerk events | Not Started | — | — | — | — | — |
+| D.13 — Webhook handler Clerk events | Done | Yes | (pending git commit) | 354/354 pass, typecheck clean | `app/api/webhooks/clerk/__tests__/route.test.ts`, `qa/evidence-index.md` | Migration `20260429160000_d13_webhook_events` requires `prisma migrate deploy` — see R-D13-01 |
 | D.14 — System wallet floor protection | Not Started | — | — | — | — | — |
 | D.15 — Full email template suite | Not Started | — | — | — | — | — |
 | E.1 — Technical function test sweep | Not Started | — | — | — | — | — |

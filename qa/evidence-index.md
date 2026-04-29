@@ -64,3 +64,11 @@
 | C.3 | e2e-stub | `tests/e2e/c3-rental-extensions.spec.ts` | 4 scenarios documented as `describe.skip` TODOs; deferred to D.10 per D-022 |
 | C.3 | cron | `app/api/cron/leases/route.ts` | GET handler; Bearer `CRON_SECRET` guard; per-tenancy: advance `nextPaymentDue`, compute `leaseStatus`, email ENDING_SOON residents |
 | C.3 | cron-doc | `docs/cron.md` | Setup guide: vercel.json schedule, CRON_SECRET env var, manual trigger, response format, error handling |
+| D.13 | schema | `prisma/schema.prisma` | `deactivatedAt`/`deactivationReason` added to User; `WebhookEvent` model added |
+| D.13 | migration | `prisma/migrations/20260429160000_d13_webhook_events/migration.sql` | Migration committed; requires `prisma migrate deploy` on connected DB (R-D13-01) |
+| D.13 | test | `app/api/webhooks/clerk/__tests__/route.test.ts` | 7 tests: user.created (new user), user.created (existing email upsert), user.updated (sync fields), user.deleted (soft-delete deactivatedAt+deactivationReason), replay idempotency (200 no-op), bad signature (401), missing headers (400) — all pass |
+| D.13 | test-total | `pnpm test --run` | 354/354 pass — 7 new tests above baseline of 347 |
+| D.13 | typecheck | `pnpm typecheck` | Exit 0, zero errors — route, test file, and 3 pre-existing E2E spec type errors (D.10/D.11 era) fixed |
+| D.13 | build | `pnpm build` | Build clean, same route count |
+| D.13 | schema-validate | `pnpm exec prisma validate` | Schema valid 🚀 |
+| D.13 | decision | D-D13-01 | Route reads headers from `request.headers` (standard Route Handler pattern) instead of `next/headers` — enables unit testing without Next.js request context |

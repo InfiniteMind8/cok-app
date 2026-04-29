@@ -15,7 +15,7 @@
 import { test } from '@playwright/test'
 
 test.describe('Ledger — resident-to-resident KCRD transfer', () => {
-  test.skip('No resident-to-resident transfer UI — TODO(phase1+/D.10)')
+  test.skip(true, 'No resident-to-resident transfer UI — TODO(phase1+/D.10)')
   test('resident A transfers 100 KCRD to resident B; both balances update', async () => {
     // Steps once UI is built:
     // 1. signInAs(page, 'Devon')

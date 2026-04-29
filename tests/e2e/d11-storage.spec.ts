@@ -1,9 +1,9 @@
-import { test, describe } from '@playwright/test'
+import { test } from '@playwright/test'
 
 // TODO(phase1+/D.11): Full E2E — upload via property form → file persists in
 // storage → admin views via Data Directory → URL is signed and expires after 5 min.
 // Activate once STORAGE_DRIVER=local is set in .env.test and serve endpoint is reachable.
-describe.skip('D.11 storage', () => {
+test.describe.skip('D.11 storage', () => {
   test('upload via property form persists encrypted file', async () => {
     // 1. Sign in as MASTER_ADMIN
     // 2. Navigate to /admin/properties and open add-property sheet

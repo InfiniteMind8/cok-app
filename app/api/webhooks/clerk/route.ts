@@ -1,4 +1,3 @@
-import { headers } from 'next/headers'
 import { Webhook } from 'svix'
 import { db } from '@/lib/db'
 import { generateUniqueMemberId } from '@/lib/member-id'
@@ -27,7 +26,18 @@ type ClerkUserUpdatedEvent = {
   }
 }
 
-type ClerkWebhookEvent = ClerkUserCreatedEvent | ClerkUserUpdatedEvent
+type ClerkUserDeletedEvent = {
+  type: 'user.deleted'
+  data: {
+    id: string
+    deleted: boolean
+  }
+}
+
+type ClerkWebhookEvent =
+  | ClerkUserCreatedEvent
+  | ClerkUserUpdatedEvent
+  | ClerkUserDeletedEvent
 
 function getPrimaryEmail(data: ClerkUserCreatedEvent['data']): string {
   const primary = data.email_addresses.find(
@@ -48,10 +58,9 @@ export async function POST(request: Request) {
     return new Response('Missing CLERK_WEBHOOK_SECRET', { status: 500 })
   }
 
-  const headerPayload = await headers()
-  const svixId = headerPayload.get('svix-id')
-  const svixTimestamp = headerPayload.get('svix-timestamp')
-  const svixSignature = headerPayload.get('svix-signature')
+  const svixId = request.headers.get('svix-id')
+  const svixTimestamp = request.headers.get('svix-timestamp')
+  const svixSignature = request.headers.get('svix-signature')
 
   if (!svixId || !svixTimestamp || !svixSignature) {
     return new Response('Missing svix headers', { status: 400 })
@@ -68,59 +77,92 @@ export async function POST(request: Request) {
       'svix-signature': svixSignature,
     }) as ClerkWebhookEvent
   } catch {
-    return new Response('Invalid webhook signature', { status: 400 })
+    return new Response('Invalid webhook signature', { status: 401 })
   }
 
-  if (event.type === 'user.created') {
-    const { data } = event
-    const email = getPrimaryEmail(data)
-    const fullName = getFullName(data)
+  // Idempotency: if we've already processed this event id, return 200 immediately.
+  const existing = await db.webhookEvent.findUnique({ where: { id: svixId } })
+  if (existing) {
+    return new Response('Already processed', { status: 200 })
+  }
 
-    // If admin pre-created the user record, just link the Clerk ID
-    const existing = await db.user.findUnique({ where: { email } })
-    if (existing) {
-      await db.user.update({
-        where: { email },
-        data: { clerkId: data.id, profilePhotoUrl: data.image_url ?? existing.profilePhotoUrl },
-      })
-      return new Response('OK', { status: 200 })
-    }
+  try {
+    if (event.type === 'user.created') {
+      const { data } = event
+      const email = getPrimaryEmail(data)
+      const fullName = getFullName(data)
 
-    const memberId = await generateUniqueMemberId()
+      const existingUser = await db.user.findUnique({ where: { email } })
+      if (existingUser) {
+        await db.user.update({
+          where: { email },
+          data: {
+            clerkId: data.id,
+            profilePhotoUrl: data.image_url ?? existingUser.profilePhotoUrl,
+          },
+        })
+      } else {
+        const memberId = await generateUniqueMemberId()
 
-    await db.$transaction(async (tx) => {
-      const user = await tx.user.create({
+        await db.$transaction(async (tx) => {
+          const user = await tx.user.create({
+            data: {
+              clerkId: data.id,
+              memberId,
+              email,
+              fullName,
+              role: 'VISITOR',
+              status: 'PENDING_KYC',
+              profilePhotoUrl: data.image_url,
+            },
+          })
+
+          await tx.wallet.create({
+            data: { userId: user.id },
+          })
+        })
+      }
+    } else if (event.type === 'user.updated') {
+      const { data } = event
+      const email = getPrimaryEmail(data)
+      const fullName = getFullName(data)
+
+      await db.user.updateMany({
+        where: { clerkId: data.id },
         data: {
-          clerkId: data.id,
-          memberId,
           email,
           fullName,
-          role: 'VISITOR',
-          status: 'PENDING_KYC',
           profilePhotoUrl: data.image_url,
         },
       })
-
-      await tx.wallet.create({
-        data: { userId: user.id },
+    } else if (event.type === 'user.deleted') {
+      // Soft-delete: preserve the row for audit log FK integrity.
+      await db.user.updateMany({
+        where: { clerkId: event.data.id },
+        data: {
+          deactivatedAt: new Date(),
+          deactivationReason: 'clerk_deleted',
+        },
       })
-    })
+    }
+  } catch (err) {
+    // Do NOT persist the WebhookEvent on failure so Clerk can retry (same svix-id).
+    const errorMessage = err instanceof Error ? err.message : String(err)
+    console.error(`[webhook] handler error for ${event.type} (${svixId}):`, errorMessage)
+    return new Response('Handler error', { status: 500 })
   }
 
-  if (event.type === 'user.updated') {
-    const { data } = event
-    const email = getPrimaryEmail(data)
-    const fullName = getFullName(data)
-
-    await db.user.updateMany({
-      where: { clerkId: data.id },
-      data: {
-        email,
-        fullName,
-        profilePhotoUrl: data.image_url,
-      },
-    })
-  }
+  await db.webhookEvent.create({
+    data: {
+      id: svixId,
+      source: 'clerk',
+      type: event.type,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      payload: JSON.parse(payload),
+      signatureValid: true,
+      processedAt: new Date(),
+    },
+  })
 
   return new Response('OK', { status: 200 })
 }

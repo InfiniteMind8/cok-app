@@ -19,7 +19,7 @@
 import { test } from '@playwright/test'
 
 test.describe('Rental extension — request and approve', () => {
-  test.skip('C.3 not implemented — TODO(phase1+/C.3)')
+  test.skip(true, 'C.3 not implemented — TODO(phase1+/C.3)')
   test('resident requests extension; admin approves; end date updates', async () => {
     // Implementation deferred to C.3
   })
