@@ -4,6 +4,7 @@ import { requireRole } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { sendEmail } from '@/lib/email/service'
 import { generateUniqueMemberId } from '@/lib/member-id'
+import { withSentryAction } from '@/lib/sentry'
 import { clerkClient } from '@clerk/nextjs/server'
 import { Role, AttachmentEntityType } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
@@ -66,7 +67,8 @@ interface CreateAccountInput {
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 
-export async function createAccountAction(input: CreateAccountInput) {
+// Canonical withSentryAction pattern — apply to other actions the same way
+async function _createAccountAction(input: CreateAccountInput) {
   const actor = await requireRole(['MASTER_ADMIN', 'ADMIN'])
 
   const memberId = await generateUniqueMemberId()
@@ -192,6 +194,8 @@ export async function createAccountAction(input: CreateAccountInput) {
   revalidatePath('/admin/accounts')
   return { memberId: user.memberId }
 }
+
+export const createAccountAction = withSentryAction(_createAccountAction, 'createAccountAction')
 
 export async function suspendAccountAction(userId: string, reason: string) {
   await requireRole(['MASTER_ADMIN'])
