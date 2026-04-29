@@ -2,6 +2,7 @@ import { requireRole } from '@/lib/auth'
 import { requireMfaEnrolled } from '@/lib/mfa'
 import { AdminSidebar } from '@/components/shared/admin-sidebar'
 import { ReconciliationAlertBanner } from '@/components/admin/reconciliation-alert-banner'
+import { EmergencyBroadcastBanner } from '@/components/shared/emergency-broadcast-banner'
 
 export default async function AdminLayout({
   children,
@@ -15,6 +16,7 @@ export default async function AdminLayout({
     <div className="flex min-h-screen">
       <AdminSidebar userName={user.fullName} userPhoto={user.profilePhotoUrl} />
       <div className="flex-1 flex flex-col bg-karis-stone-50 overflow-y-auto">
+        <EmergencyBroadcastBanner userId={user.id} />
         <ReconciliationAlertBanner />
         <main className="flex-1">{children}</main>
       </div>

@@ -108,6 +108,12 @@ enum AnnouncementTargetType {
   SPECIFIC_USERS
 }
 
+enum AnnouncementSeverity {
+  INFO
+  URGENT
+  CRITICAL
+}
+
 enum RequestStatus {
   PENDING
   APPROVED
@@ -452,11 +458,15 @@ model CommunityUpdate {
   targetGroupId String?
   targetGroup   VisitorGroup?          @relation(fields: [targetGroupId], references: [id])
   targetUserIds String[]               @default([])
+  // D.6: emergency broadcast fields
+  severity      AnnouncementSeverity   @default(INFO)
+  isEmergency   Boolean                @default(false)
 
   acknowledgements UpdateAcknowledgement[]
 
   @@index([targetType])
   @@index([targetGroupId])
+  @@index([isEmergency])
 }
 
 model UpdateAcknowledgement {

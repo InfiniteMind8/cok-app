@@ -4,6 +4,7 @@ import { getUnreadNotificationCount } from '@/lib/queries/community'
 import { BrandLogo } from '@/components/shared/brand-logo'
 import { Wordmark } from '@/components/shared/wordmark'
 import { ResidentTabBar } from '@/components/shared/resident-tab-bar'
+import { EmergencyBroadcastBanner } from '@/components/shared/emergency-broadcast-banner'
 
 export default async function ResidentLayout({
   children,
@@ -33,6 +34,9 @@ export default async function ResidentLayout({
         <BrandLogo size={40} priority />
         <Wordmark size="sm" className="hidden sm:block" />
       </header>
+
+      {/* Emergency broadcast banner — z-50 sits above sticky header */}
+      <EmergencyBroadcastBanner userId={user.id} />
 
       {/* Main content — scrollable, padded for tab bar */}
       <main className="flex-1 overflow-y-auto pb-16">{children}</main>
