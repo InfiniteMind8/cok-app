@@ -10,7 +10,7 @@
 | B.3 — Intake form completion | Done | Yes | (pending git commit) | 141/141 pass, typecheck clean, build 32 routes | `app/(admin)/_actions/__tests__/`, `lib/storage/__tests__/`, `qa/evidence-index.md` | Migration `20260428000004_b3_intake_forms` requires connected DB — see R-008; UploadThing size literals capped at closest power-of-2 — see D-015; Playwright deferred to D.10 — see D-016 |
 | C.1 — Multi-currency display | Done | Yes | 2d6ec95 | 165/165 pass, typecheck clean | `lib/ledger/__tests__/currency.test.ts`, `qa/evidence-index.md` | None |
 | C.2 — Visitor Groups system | Done | Yes | 76c273b | 181/181 pass, typecheck clean | `lib/visitor-groups/__tests__/groups.test.ts`, `lib/queries/__tests__/community-feed-filter.test.ts`, `qa/evidence-index.md` | Migration `20260428215229_add_visitor_groups` requires `prisma migrate deploy` on connected DB — see R-C2-03 |
-| C.3 — Rental cycle + extension | Not Started | — | — | — | — | — |
+| C.3 — Rental cycle + extension | Done | Yes | `4df41fc`, `7a477d2` | 218/218 pass, 7 skip (E2E stubs), typecheck clean, build 23 routes | `lib/lease/__tests__/cycle.test.ts`, `app/(admin)/_actions/__tests__/rental-extensions.test.ts`, `app/api/cron/leases/__tests__/route.test.ts`, `qa/evidence-index.md` | Migration `20260429000001_c3_rental_cycle` requires `prisma migrate deploy` on connected DB — see R-C3-02 |
 | D.1 — Bulk Excel import (members) | Not Started | — | — | — | — | — |
 | D.2 — Bulk Excel import (properties) | Not Started | — | — | — | — | — |
 | D.3 — MFA enforcement staff roles | Not Started | — | — | — | — | — |

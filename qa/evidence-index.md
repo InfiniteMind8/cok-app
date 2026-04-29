@@ -51,3 +51,16 @@
 | C.2 | auth-guard | `denyIfVisitor()` | Applied to: `castVoteAction`, `requestSettlementAction`, `cancelSettlementRequestAction`; visitor role blocked at Server Action layer |
 | C.2 | feed-filter | `getUpdatesWithAcknowledgements` | OR-filter: COMMUNITY_WIDE + ROLE(userRole) + VISITOR_GROUP(in groupIds) + SPECIFIC_USERS(has userId); admins bypass filter |
 | C.2 | audit-log | visitor-groups actions | AuditLog entries written for: GROUP_CREATE, GROUP_EDIT, GROUP_ARCHIVE, GROUP_UNARCHIVE, ASSIGN_MEMBER, REMOVE_MEMBER, PUBLISH_UPDATE |
+| C.3 | schema | `prisma/schema.prisma` | `CycleUnit` + `LeaseStatus` enums; `PropertyTenancy` extended with `cycleUnit`, `leaseStatus`, `nextPaymentDue`; `RentalExtensionRequest` model + indexes |
+| C.3 | migration | `prisma/migrations/20260429000001_c3_rental_cycle/migration.sql` | Migration committed; requires `prisma migrate deploy` on connected DB (R-C3-02) |
+| C.3 | test | `lib/lease/__tests__/cycle.test.ts` | 15 tests: `addOneCycle` (DAILY/WEEKLY/MONTHLY/ANNUAL), `computeNextPaymentDue` (5 scenarios), `computeLeaseStatus` (6 edge cases) — all pass |
+| C.3 | test | `app/(admin)/_actions/__tests__/rental-extensions.test.ts` | 16 tests: `requestExtensionAction` (creates PENDING, audit log, forbidden, date validation, notify), `approveExtensionAction` (MASTER_ADMIN guard, transaction, audit, email, not-pending guard), `declineExtensionAction` (MASTER_ADMIN guard, required note, audit, email, not-pending guard) — all pass |
+| C.3 | test | `app/api/cron/leases/__tests__/route.test.ts` | 6 tests: 401 missing/wrong secret, 200 empty DB, advances nextPaymentDue, flips ACTIVE→ENDING_SOON, emails on ENDING_SOON — all pass |
+| C.3 | test-total | `pnpm test --run` | 218 pass / 7 skip (E2E stubs for C.2+C.3) — 37 new tests above baseline of 181 |
+| C.3 | typecheck | `pnpm typecheck` | Exit 0, zero errors — all new files + modified files clean |
+| C.3 | build | `pnpm build` | Compiled + 23 static pages generated, no Turbopack errors |
+| C.3 | commit | `4df41fc` | feat(lease): C.3 schema — CycleUnit, LeaseStatus enums, RentalExtensionRequest model |
+| C.3 | commit | `7a477d2` | feat(lease): C.3 rental cycle indication and extension request workflow |
+| C.3 | e2e-stub | `tests/e2e/c3-rental-extensions.spec.ts` | 4 scenarios documented as `describe.skip` TODOs; deferred to D.10 per D-022 |
+| C.3 | cron | `app/api/cron/leases/route.ts` | GET handler; Bearer `CRON_SECRET` guard; per-tenancy: advance `nextPaymentDue`, compute `leaseStatus`, email ENDING_SOON residents |
+| C.3 | cron-doc | `docs/cron.md` | Setup guide: vercel.json schedule, CRON_SECRET env var, manual trigger, response format, error handling |
