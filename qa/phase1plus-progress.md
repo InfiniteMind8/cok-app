@@ -16,10 +16,10 @@
 | D.3 — MFA enforcement staff roles | Done | Yes | `802fe1f` | 276/292 pass, 16 skip (E2E stubs), typecheck clean | `lib/mfa/`, `app/(account)/account/mfa-enroll`, `qa/evidence-index.md` | Clerk TOTP_OR_BACKUP_CODE dashboard setup required (R-D3-02) |
 | D.4 — Audit log viewer + data directory | Done | Yes | `ac0ce41` | 283/304 pass, 21 skip (E2E stubs), typecheck clean | `lib/audit/index.ts`, `lib/queries/audit-log.ts`, `app/(admin)/admin/audit-log`, `qa/evidence-index.md` | None |
 | D.5 — Treasury reconciliation auto-alerts | Done | Yes | `2750ec0` | 291/314 pass, 23 skip (E2E stubs), typecheck clean | `lib/ledger/reconciliation-report.ts`, `app/api/cron/reconciliation/route.ts`, `components/admin/reconciliation-alert-banner.tsx`, `app/(admin)/admin/treasury/reconciliation`, `qa/evidence-index.md` | Migration requires `prisma migrate deploy` on connected DB (R-D5-01) |
-| D.6 — Emergency broadcast | Not Started | — | — | — | — | — |
-| D.7 — Onboarding tour | Not Started | — | — | — | — | — |
-| D.8 — Sentry monitoring | Not Started | — | — | — | — | — |
-| D.9 — Rate limiting on Server Actions | Not Started | — | — | — | — | — |
+| D.6 — Emergency broadcast | Done | Yes | `7c489b0` | 297/323 pass | `lib/queries/broadcast.ts`, `app/(admin)/admin/broadcast`, `components/shared/emergency-broadcast-banner.tsx`, `qa/evidence-index.md` | None |
+| D.7 — Onboarding tour | Done | Yes | `b8313cb` | 314/342 pass | `lib/tour/steps.ts`, `components/shared/onboarding-tour.tsx`, `app/(admin)/layout.tsx`, `app/(resident)/layout.tsx`, `qa/evidence-index.md` | VENDOR/ADMIN tour deferred (no dedicated layout) |
+| D.8 — Sentry monitoring | Done | Yes | `fdf8ad5` | 314/342 pass | `sentry.*.config.ts`, `instrumentation.ts`, `lib/sentry.ts`, error boundaries, `/api/sentry-test`, `qa/evidence-index.md` | pnpm approve-builds for @sentry/cli required in CI (R-D8-01) |
+| D.9 — Rate limiting on Server Actions | Done | Yes | `a6d2f98` | 326/356 pass | `lib/rate-limit/index.ts`, `proxy.ts`, `imports.ts`, `broadcast.ts`, `accounts.ts`, `qa/evidence-index.md` | Redis required for reliable auth rate limiting in production (R-D9-01) |
 | D.10 — Playwright E2E coverage | Not Started | — | — | — | — | — |
 | D.11 — File storage strategy | Not Started | — | — | — | — | — |
 | D.12 — Backup & restore runbook | Not Started | — | — | — | — | — |
