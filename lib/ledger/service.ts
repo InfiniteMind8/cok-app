@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
 import { getActiveFeeSchedule, calculateFee } from './fee-engine'
 import { reconcileTreasury } from './reconciliation'
+import { FloorBreachError } from './types'
 import type { TransferRequest, TransferResult, FeeScheduleRules } from './types'
 
 export async function transferCredits(req: TransferRequest): Promise<TransferResult> {
@@ -17,8 +18,11 @@ export async function transferCredits(req: TransferRequest): Promise<TransferRes
 
   const transactionId = await db.$transaction(async (tx) => {
     const [fromWallet, toWallet] = await Promise.all([
-      tx.wallet.findUnique({ where: { id: req.fromWalletId } }),
-      tx.wallet.findUnique({ where: { id: req.toWalletId } }),
+      tx.wallet.findUnique({
+        where: { id: req.fromWalletId },
+        select: { id: true, isSystem: true, systemKey: true, floor_kcrd: true },
+      }),
+      tx.wallet.findUnique({ where: { id: req.toWalletId }, select: { id: true } }),
     ])
     if (!fromWallet) throw new Error(`Wallet not found: ${req.fromWalletId}`)
     if (!toWallet) throw new Error(`Wallet not found: ${req.toWalletId}`)
@@ -33,6 +37,21 @@ export async function transferCredits(req: TransferRequest): Promise<TransferRes
       throw new Error(
         `Insufficient balance: wallet ${req.fromWalletId} has ${senderBalance}, needs ${req.amount}`
       )
+    }
+
+    // Floor protection: abort if this system wallet would drop below its configured floor
+    if (fromWallet.isSystem && fromWallet.floor_kcrd !== null) {
+      const floor = new Prisma.Decimal(fromWallet.floor_kcrd)
+      const postTransferBalance = senderBalance.sub(req.amount)
+      if (postTransferBalance.lt(floor)) {
+        const headroom = postTransferBalance.sub(floor)
+        throw new FloorBreachError(
+          fromWallet.systemKey ?? fromWallet.id,
+          postTransferBalance,
+          floor,
+          headroom,
+        )
+      }
     }
 
     // Get system wallet IDs

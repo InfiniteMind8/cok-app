@@ -50,7 +50,7 @@ const systemWallets = [
 
 function setupSuccessfulTransfer(senderBalance = '200') {
   txWalletFindUnique
-    .mockResolvedValueOnce({ id: 'from-wallet' })
+    .mockResolvedValueOnce({ id: 'from-wallet', isSystem: false, systemKey: null, floor_kcrd: null })
     .mockResolvedValueOnce({ id: 'to-wallet' })
   txLedgerEntryAggregate.mockResolvedValueOnce({
     _sum: { amount: new Prisma.Decimal(senderBalance) },
@@ -68,7 +68,7 @@ describe('transferCredits', () => {
     let capturedData: { entries: { createMany: { data: Array<{ walletId: string; amount: Prisma.Decimal }> } } } | undefined
 
     txWalletFindUnique
-      .mockResolvedValueOnce({ id: 'from-wallet' })
+      .mockResolvedValueOnce({ id: 'from-wallet', isSystem: false, systemKey: null, floor_kcrd: null })
       .mockResolvedValueOnce({ id: 'to-wallet' })
     txLedgerEntryAggregate.mockResolvedValueOnce({
       _sum: { amount: new Prisma.Decimal('200') },
@@ -101,7 +101,7 @@ describe('transferCredits', () => {
     let capturedData: any
 
     txWalletFindUnique
-      .mockResolvedValueOnce({ id: 'from-wallet' })
+      .mockResolvedValueOnce({ id: 'from-wallet', isSystem: false, systemKey: null, floor_kcrd: null })
       .mockResolvedValueOnce({ id: 'to-wallet' })
     txLedgerEntryAggregate.mockResolvedValueOnce({
       _sum: { amount: new Prisma.Decimal('200') },
@@ -155,7 +155,7 @@ describe('transferCredits', () => {
 
   it('throws on insufficient balance', async () => {
     txWalletFindUnique
-      .mockResolvedValueOnce({ id: 'from-wallet' })
+      .mockResolvedValueOnce({ id: 'from-wallet', isSystem: false, systemKey: null, floor_kcrd: null })
       .mockResolvedValueOnce({ id: 'to-wallet' })
     txLedgerEntryAggregate.mockResolvedValueOnce({
       _sum: { amount: new Prisma.Decimal('10') }, // balance = 10, need 100
@@ -195,7 +195,7 @@ describe('transferCredits', () => {
 
     let capturedData: any
     txWalletFindUnique
-      .mockResolvedValueOnce({ id: 'from-wallet' })
+      .mockResolvedValueOnce({ id: 'from-wallet', isSystem: false, systemKey: null, floor_kcrd: null })
       .mockResolvedValueOnce({ id: 'to-wallet' })
     txLedgerEntryAggregate.mockResolvedValueOnce({
       _sum: { amount: new Prisma.Decimal('200') },
@@ -216,5 +216,61 @@ describe('transferCredits', () => {
 
     expect(capturedData.entries.createMany.data).toHaveLength(2)
     expect(capturedData.feeScheduleId).toBeNull()
+  })
+
+  it('floor breach: throws FloorBreachError when post-transfer balance < floor', async () => {
+    // Sender: system wallet, balance 60, floor 50 → transfer 20 → post = 40 < 50 → breach
+    txWalletFindUnique
+      .mockResolvedValueOnce({
+        id: 'sys-treasury',
+        isSystem: true,
+        systemKey: 'treasury_reserve',
+        floor_kcrd: new Prisma.Decimal('50'),
+      })
+      .mockResolvedValueOnce({ id: 'to-wallet' })
+    txLedgerEntryAggregate.mockResolvedValueOnce({
+      _sum: { amount: new Prisma.Decimal('60') },
+    })
+
+    const { FloorBreachError } = await import('../types')
+    await expect(
+      transferCredits({
+        fromWalletId: 'sys-treasury',
+        toWalletId: 'to-wallet',
+        amount: new Prisma.Decimal('20'),
+        type: 'TRANSFER',
+        description: 'Floor breach test',
+      })
+    ).rejects.toThrow(FloorBreachError)
+
+    // Transaction.create must NOT have been called (ledger unchanged)
+    expect(txTransactionCreate).not.toHaveBeenCalled()
+  })
+
+  it('floor=null: transfer succeeds even when balance is minimal', async () => {
+    // Sender: system wallet, balance 5, floor=null (unlimited) → transfer 5 → ok
+    txWalletFindUnique
+      .mockResolvedValueOnce({
+        id: 'sys-treasury',
+        isSystem: true,
+        systemKey: 'treasury_reserve',
+        floor_kcrd: null,
+      })
+      .mockResolvedValueOnce({ id: 'to-wallet' })
+    txLedgerEntryAggregate.mockResolvedValueOnce({
+      _sum: { amount: new Prisma.Decimal('5') },
+    })
+    txWalletFindMany.mockResolvedValueOnce(systemWallets)
+    txTransactionCreate.mockResolvedValueOnce({ id: 'tx-unlimited' })
+
+    const result = await transferCredits({
+      fromWalletId: 'sys-treasury',
+      toWalletId: 'to-wallet',
+      amount: new Prisma.Decimal('5'),
+      type: 'TRANSFER',
+      description: 'Unlimited floor test',
+    })
+
+    expect(result.transactionId).toBe('tx-unlimited')
   })
 })

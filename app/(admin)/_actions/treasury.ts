@@ -2,6 +2,8 @@
 
 import { requireRole } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { createAuditEntry } from '@/lib/audit'
+import { Prisma } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 
 export async function recordTreasuryAdjustmentAction(input: {
@@ -27,4 +29,42 @@ export async function recordTreasuryAdjustmentAction(input: {
   revalidatePath('/treasury')
   revalidatePath('/dashboard')
   revalidatePath('/settings')
+}
+
+export async function updateWalletFloorAction(input: {
+  walletId: string
+  floor: string | null
+}) {
+  const admin = await requireRole(['MASTER_ADMIN'])
+
+  if (input.floor !== null) {
+    const parsed = new Prisma.Decimal(input.floor)
+    if (parsed.lt(0)) throw new Error('Floor must be zero or a positive value, or null for unlimited.')
+  }
+
+  const wallet = await db.wallet.findUnique({
+    where: { id: input.walletId },
+    select: { id: true, isSystem: true, systemKey: true, floor_kcrd: true },
+  })
+  if (!wallet) throw new Error(`Wallet not found: ${input.walletId}`)
+  if (!wallet.isSystem) throw new Error('Floor protection applies to system wallets only.')
+
+  const newFloor = input.floor !== null ? new Prisma.Decimal(input.floor) : null
+
+  await db.wallet.update({
+    where: { id: input.walletId },
+    data: { floor_kcrd: newFloor },
+  })
+
+  await createAuditEntry({
+    action: 'wallet.floor.updated',
+    entity: 'Wallet',
+    entityId: input.walletId,
+    actorId: admin.id,
+    before: { floor_kcrd: wallet.floor_kcrd?.toString() ?? null },
+    after: { floor_kcrd: newFloor?.toString() ?? null, systemKey: wallet.systemKey },
+  })
+
+  revalidatePath('/admin/treasury')
+  revalidatePath('/admin/settings')
 }

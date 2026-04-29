@@ -238,6 +238,7 @@ model Wallet {
   user      User?         @relation(fields: [userId], references: [id])
   isSystem  Boolean       @default(false)
   systemKey String?       @unique
+  floor_kcrd Decimal?     @db.Decimal(20, 8)
   entries   LedgerEntry[]
   createdAt DateTime      @default(now())
 

@@ -2,6 +2,28 @@ import { Prisma, TransactionType } from '@prisma/client'
 
 export type { TransactionType }
 
+export class FloorBreachError extends Error {
+  readonly name = 'FloorBreachError'
+  constructor(
+    public readonly walletKey: string,
+    public readonly postTransferBalance: Prisma.Decimal,
+    public readonly floor: Prisma.Decimal,
+    public readonly headroom: Prisma.Decimal,
+  ) {
+    super(
+      `System wallet "${walletKey}" floor breach: post-transfer balance ${postTransferBalance.toFixed(8)} < floor ${floor.toFixed(8)}`,
+    )
+  }
+}
+
+export interface SystemWalletFloor {
+  walletId: string
+  key: string
+  balance: Prisma.Decimal
+  floor: Prisma.Decimal | null
+  headroom: Prisma.Decimal | null
+}
+
 export interface FeeRuleEntry {
   totalPct: number
   communityFundPct: number

@@ -15,16 +15,26 @@ export async function getCommunityFundBalance(): Promise<Prisma.Decimal> {
   return getWalletBalance(wallet.id)
 }
 
-export async function getSystemWalletSummary(): Promise<{ key: string; balance: Prisma.Decimal }[]> {
+export interface SystemWalletSummaryRow {
+  walletId: string
+  key: string
+  balance: Prisma.Decimal
+  floor: Prisma.Decimal | null
+  headroom: Prisma.Decimal | null
+}
+
+export async function getSystemWalletSummary(): Promise<SystemWalletSummaryRow[]> {
   const wallets = await db.wallet.findMany({
     where: { isSystem: true, systemKey: { not: null } },
     orderBy: { createdAt: 'asc' },
   })
   return Promise.all(
-    wallets.map(async (w) => ({
-      key: w.systemKey!,
-      balance: await getWalletBalance(w.id),
-    })),
+    wallets.map(async (w) => {
+      const balance = await getWalletBalance(w.id)
+      const floor = w.floor_kcrd !== null ? new Prisma.Decimal(w.floor_kcrd) : null
+      const headroom = floor !== null ? balance.sub(floor) : null
+      return { walletId: w.id, key: w.systemKey!, balance, floor, headroom }
+    }),
   )
 }
 

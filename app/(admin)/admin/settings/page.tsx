@@ -1,7 +1,7 @@
 import 'server-only'
 import Link from 'next/link'
 import { format } from 'date-fns'
-import { Wallet, Activity, DollarSign, Tag, ChevronRight } from 'lucide-react'
+import { Wallet, Activity, DollarSign, Tag, ChevronRight, ShieldCheck } from 'lucide-react'
 import { PageHeader } from '@/components/admin/page-header'
 import { KAmount } from '@/components/admin/k-amount'
 import {
@@ -109,6 +109,20 @@ export default async function SettingsPage() {
             <div className="flex-1 min-w-0">
               <div className="font-body text-sm font-medium text-karis-stone-900">Promotions</div>
               <div className="font-body text-xs text-karis-stone-500">Bonus K Credit incentives on conversions</div>
+            </div>
+            <ChevronRight size={15} className="text-karis-stone-400 group-hover:text-karis-green-600 shrink-0" />
+          </Link>
+
+          <Link
+            href="/admin/treasury"
+            className="flex items-center gap-4 bg-white border border-karis-stone-100 rounded-xl shadow-sm px-5 py-4 hover:border-karis-green-300 hover:shadow-md transition-all group"
+          >
+            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-karis-green-50 text-karis-green-700">
+              <ShieldCheck size={16} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-body text-sm font-medium text-karis-stone-900">System Wallet Floors</div>
+              <div className="font-body text-xs text-karis-stone-500">Configure minimum balance floors per system wallet</div>
             </div>
             <ChevronRight size={15} className="text-karis-stone-400 group-hover:text-karis-green-600 shrink-0" />
           </Link>

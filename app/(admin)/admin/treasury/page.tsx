@@ -11,12 +11,13 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { db } from '@/lib/db'
-import { getTreasuryReserveBalance } from '@/lib/queries/dashboard'
+import { getTreasuryReserveBalance, getSystemWalletSummary } from '@/lib/queries/dashboard'
 import { Prisma } from '@prisma/client'
 import { format } from 'date-fns'
 import { DepositSheet } from './_components/deposit-sheet'
 import { TreasuryAdjustmentDialog } from './_components/treasury-adjustment-dialog'
 import { ExecuteSettlementSheet } from './_components/execute-settlement-sheet'
+import { WalletFloorCard } from './_components/wallet-floor-card'
 
 export default async function TreasuryPage({
   searchParams,
@@ -28,9 +29,10 @@ export default async function TreasuryPage({
   const pageSize = 20
   const skip = (page - 1) * pageSize
 
-  const [treasuryBalance, allUsers, deposits, depositTotal, approvedSettlements] =
+  const [treasuryBalance, systemWallets, allUsers, deposits, depositTotal, approvedSettlements] =
     await Promise.all([
       getTreasuryReserveBalance(),
+      getSystemWalletSummary(),
       db.user.findMany({
         where: { status: 'ACTIVE' },
         select: { id: true, fullName: true, email: true, memberId: true },
@@ -125,6 +127,30 @@ export default async function TreasuryPage({
           Reconciliation debug
         </Link>
       </div>
+
+      {/* System wallet floors */}
+      {systemWallets.length > 0 && (
+        <section>
+          <div className="mb-4">
+            <h2 className="font-heading text-base text-karis-green-900">System Wallet Floors</h2>
+            <p className="font-body text-xs text-karis-stone-500 mt-0.5">
+              Configure minimum balance floors per system wallet. Transfers that would breach a floor are blocked.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {systemWallets.map((w) => (
+              <WalletFloorCard
+                key={w.walletId}
+                walletId={w.walletId}
+                walletKey={w.key}
+                balance={w.balance}
+                floor={w.floor}
+                headroom={w.headroom}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Recent deposits */}
       <div className="bg-white border border-karis-stone-100 rounded-xl shadow-sm overflow-hidden">
