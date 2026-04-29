@@ -3,6 +3,7 @@
 import { requireRole } from '@/lib/auth'
 import { getCurrentUser } from '@/lib/auth'
 import { createAuditEntry } from '@/lib/audit'
+import { checkRateLimit, RateLimitError } from '@/lib/rate-limit'
 import { sendEmail } from '@/lib/email/service'
 import { db } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
@@ -22,6 +23,16 @@ export async function sendBroadcastAction(data: {
   severity: AnnouncementSeverity
 }): Promise<{ ok: boolean; broadcastId?: string; sent?: number; failed?: number; error?: string }> {
   const actor = await requireRole('MASTER_ADMIN')
+
+  try {
+    await checkRateLimit({ identifier: actor.id, scope: 'email-send' })
+  } catch (e) {
+    if (e instanceof RateLimitError) {
+      await createAuditEntry({ action: 'rate_limit_exceeded', entity: 'SYSTEM', actorId: actor.id, after: { scope: 'email-send', actionName: 'sendBroadcastAction' } })
+      return { ok: false, error: e.message }
+    }
+    throw e
+  }
 
   if (!data.title?.trim() || data.title.length > 80) {
     return { ok: false, error: 'Title is required and must be 80 characters or fewer.' }

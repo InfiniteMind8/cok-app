@@ -5,6 +5,8 @@ import { db } from '@/lib/db'
 import { sendEmail } from '@/lib/email/service'
 import { generateUniqueMemberId } from '@/lib/member-id'
 import { withSentryAction } from '@/lib/sentry'
+import { createAuditEntry } from '@/lib/audit'
+import { checkRateLimit, RateLimitError } from '@/lib/rate-limit'
 import { clerkClient } from '@clerk/nextjs/server'
 import { Role, AttachmentEntityType } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
@@ -67,9 +69,18 @@ interface CreateAccountInput {
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 
-// Canonical withSentryAction pattern — apply to other actions the same way
+// Canonical withSentryAction + rate-limit pattern — apply to other mutation actions the same way
 async function _createAccountAction(input: CreateAccountInput) {
   const actor = await requireRole(['MASTER_ADMIN', 'ADMIN'])
+
+  try {
+    await checkRateLimit({ identifier: actor.id, scope: 'mutation' })
+  } catch (e) {
+    if (e instanceof RateLimitError) {
+      await createAuditEntry({ action: 'rate_limit_exceeded', entity: 'SYSTEM', actorId: actor.id, after: { scope: 'mutation', actionName: 'createAccountAction' } })
+    }
+    throw e
+  }
 
   const memberId = await generateUniqueMemberId()
 

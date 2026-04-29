@@ -1,4 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
+import { NextResponse } from 'next/server'
+import { checkRateLimit, RateLimitError } from '@/lib/rate-limit'
 
 const isPublicRoute = createRouteMatcher([
   '/',
@@ -13,7 +15,51 @@ const isPublicRoute = createRouteMatcher([
   '/api/auth/token',
 ])
 
+const isAuthRoute = createRouteMatcher(['/sign-in(.*)', '/sign-up(.*)'])
+const isMfaRoute = createRouteMatcher(['/account/mfa-enroll(.*)'])
+
+function getClientIp(request: Request): string {
+  const forwarded = request.headers.get('x-forwarded-for')
+  return forwarded?.split(',')[0]?.trim() ?? request.headers.get('x-real-ip') ?? 'unknown'
+}
+
 export default clerkMiddleware(async (auth, request) => {
+  const ip = getClientIp(request)
+
+  // Auth routes: 5 requests per 15 minutes per IP (brute-force protection)
+  if (isAuthRoute(request)) {
+    try {
+      await checkRateLimit({ identifier: ip, scope: 'auth' })
+    } catch (e) {
+      if (e instanceof RateLimitError) {
+        return new NextResponse('Too many requests. Try again later.', {
+          status: 429,
+          headers: {
+            'Retry-After': String(e.retryAfterSeconds),
+            'Content-Type': 'text/plain',
+          },
+        })
+      }
+    }
+  }
+
+  // MFA enrollment: 10 requests per 15 minutes per IP
+  if (isMfaRoute(request)) {
+    try {
+      await checkRateLimit({ identifier: ip, scope: 'mfa' })
+    } catch (e) {
+      if (e instanceof RateLimitError) {
+        return new NextResponse('Too many requests. Try again later.', {
+          status: 429,
+          headers: {
+            'Retry-After': String(e.retryAfterSeconds),
+            'Content-Type': 'text/plain',
+          },
+        })
+      }
+    }
+  }
+
   if (!isPublicRoute(request)) {
     await auth.protect()
   }

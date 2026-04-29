@@ -7,6 +7,8 @@ import { generateUniqueMemberId } from '@/lib/member-id'
 import { parseMembersSheet } from '@/lib/imports/members-parser'
 import { parsePropertiesSheet } from '@/lib/imports/properties-parser'
 import { createAttachment } from '@/lib/storage/attachments'
+import { createAuditEntry } from '@/lib/audit'
+import { checkRateLimit, RateLimitError } from '@/lib/rate-limit'
 import { clerkClient } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
@@ -23,6 +25,15 @@ async function computeFileHash(buffer: ArrayBuffer): Promise<string> {
 
 export async function parseAndStoreImportAction(formData: FormData) {
   const actor = await requireRole(['MASTER_ADMIN'])
+
+  try {
+    await checkRateLimit({ identifier: actor.id, scope: 'bulk-import' })
+  } catch (e) {
+    if (e instanceof RateLimitError) {
+      await createAuditEntry({ action: 'rate_limit_exceeded', entity: 'SYSTEM', actorId: actor.id, after: { scope: 'bulk-import', actionName: 'parseAndStoreImportAction' } })
+    }
+    throw e
+  }
 
   const file = formData.get('file')
   if (!file || !(file instanceof File)) {
@@ -358,6 +369,15 @@ function guessMimeType(fileName: string): string {
 export async function parseAndStorePropertyImportAction(formData: FormData) {
   const actor = await requireRole(['MASTER_ADMIN'])
 
+  try {
+    await checkRateLimit({ identifier: actor.id, scope: 'bulk-import' })
+  } catch (e) {
+    if (e instanceof RateLimitError) {
+      await createAuditEntry({ action: 'rate_limit_exceeded', entity: 'SYSTEM', actorId: actor.id, after: { scope: 'bulk-import', actionName: 'parseAndStorePropertyImportAction' } })
+    }
+    throw e
+  }
+
   const file = formData.get('file')
   if (!file || !(file instanceof File)) {
     throw new Error('No file uploaded. Please attach an .xlsx file.')
@@ -413,7 +433,7 @@ export async function parseAndStorePropertyImportAction(formData: FormData) {
         errorCount,
         actorId: actor.id,
         status: 'UPLOADED',
-        metadata: hasZip ? { zip_attachments: zipAttachments } : undefined,
+        metadata: hasZip ? ({ zip_attachments: zipAttachments } as object) : undefined,
       },
     })
 
