@@ -123,6 +123,21 @@ enum AttachmentEntityType {
   VOUCHER_REQUEST
 }
 
+// Prompt C.3: rental cycle enums
+enum CycleUnit {
+  DAILY
+  WEEKLY
+  MONTHLY
+  ANNUAL
+}
+
+enum LeaseStatus {
+  ACTIVE
+  ENDING_SOON
+  EXPIRED
+  CANCELLED
+}
+
 // ─── Core Identity ────────────────────────────────────────────────────────────
 
 model User {
@@ -167,6 +182,9 @@ model User {
   createdGroups    VisitorGroup[]           @relation("VisitorGroupCreator")
   groupMemberships VisitorGroupMembership[] @relation("VisitorGroupMember")
   groupsAssigned   VisitorGroupMembership[] @relation("VisitorGroupAssigner")
+  // C.3: rental extension relations
+  extensionRequests  RentalExtensionRequest[] @relation("ExtensionRequester")
+  extensionReviews   RentalExtensionRequest[] @relation("ExtensionReviewer")
 
   @@index([email])
   @@index([role])
@@ -394,10 +412,15 @@ model PropertyTenancy {
   startDate     DateTime?
   endDate       DateTime?
   depositAmount Decimal?  @db.Decimal(20, 2)
+  // C.3: rental cycle tracking
+  cycleUnit      CycleUnit  @default(MONTHLY)
+  leaseStatus    LeaseStatus @default(ACTIVE)
+  nextPaymentDue DateTime?
 
-  property      Property             @relation(fields: [propertyId], references: [id])
-  user          User                 @relation(fields: [userId], references: [id])
-  cyclePayments TenancyCyclePayment[]
+  property                 Property                 @relation(fields: [propertyId], references: [id])
+  user                     User                     @relation(fields: [userId], references: [id])
+  cyclePayments            TenancyCyclePayment[]
+  rentalExtensionRequests  RentalExtensionRequest[]
 }
 
 model TenancyCyclePayment {
@@ -621,6 +644,29 @@ model VoucherRequest {
 
   @@index([status])
   @@index([recipientId])
+}
+
+// ─── Rental Extension (Prompt C.3) ───────────────────────────────────────────
+
+model RentalExtensionRequest {
+  id                  String        @id @default(cuid())
+  tenancyId           String
+  requestedById       String
+  requestedNewEndDate DateTime
+  reason              String?       @db.Text
+  status              RequestStatus @default(PENDING)
+  reviewedById        String?
+  reviewedAt          DateTime?
+  decisionNote        String?       @db.Text
+  createdAt           DateTime      @default(now())
+
+  tenancy     PropertyTenancy @relation(fields: [tenancyId], references: [id])
+  requestedBy User            @relation("ExtensionRequester", fields: [requestedById], references: [id])
+  reviewedBy  User?           @relation("ExtensionReviewer", fields: [reviewedById], references: [id])
+
+  @@index([tenancyId])
+  @@index([status])
+  @@index([requestedById])
 }
 
 // ─── Currency (Prompt C.1) ───────────────────────────────────────────────────
