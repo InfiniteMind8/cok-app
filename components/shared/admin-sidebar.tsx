@@ -10,21 +10,26 @@ import {
   Building2,
   MessagesSquare,
   Settings,
+  Mail,
+  ScrollText,
 } from 'lucide-react'
 import { SignOutButton } from '@clerk/nextjs'
 import { cn } from '@/lib/utils'
 import { BrandLogo } from '@/components/shared/brand-logo'
 import { Wordmark } from '@/components/shared/wordmark'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { TourTriggerButton } from '@/components/shared/tour-trigger-button'
 
 const navItems = [
-  { label: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
-  { label: 'Approvals', href: '/admin/approvals', icon: CheckSquare },
-  { label: 'Treasury', href: '/admin/treasury', icon: Vault },
-  { label: 'Accounts', href: '/admin/accounts', icon: Users },
-  { label: 'Properties', href: '/admin/properties', icon: Building2 },
-  { label: 'Community', href: '/admin/community', icon: MessagesSquare },
-  { label: 'Settings', href: '/admin/settings', icon: Settings },
+  { label: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard, tourId: 'tour-dashboard' },
+  { label: 'Approvals', href: '/admin/approvals', icon: CheckSquare, tourId: 'tour-approvals' },
+  { label: 'Treasury', href: '/admin/treasury', icon: Vault, tourId: 'tour-treasury' },
+  { label: 'Accounts', href: '/admin/accounts', icon: Users, tourId: 'tour-accounts' },
+  { label: 'Properties', href: '/admin/properties', icon: Building2, tourId: undefined },
+  { label: 'Community', href: '/admin/community', icon: MessagesSquare, tourId: 'tour-community' },
+  { label: 'Audit Log', href: '/admin/audit-log', icon: ScrollText, tourId: 'tour-audit-log' },
+  { label: 'Email Log', href: '/admin/email-log', icon: Mail, tourId: undefined },
+  { label: 'Settings', href: '/admin/settings', icon: Settings, tourId: 'tour-settings' },
 ]
 
 interface AdminSidebarProps {
@@ -64,6 +69,7 @@ export function AdminSidebar({ userName, userPhoto }: AdminSidebarProps) {
             <Link
               key={item.href}
               href={item.href}
+              {...(item.tourId ? { 'data-tour-id': item.tourId } : {})}
               className={cn(
                 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-body transition-colors min-h-[44px]',
                 isActive
@@ -79,7 +85,7 @@ export function AdminSidebar({ userName, userPhoto }: AdminSidebarProps) {
       </nav>
 
       {/* User footer */}
-      <div className="p-4 border-t border-karis-stone-900/50">
+      <div data-tour-id="tour-account-menu" className="p-4 border-t border-karis-stone-900/50">
         <div className="flex items-center gap-3 mb-3">
           <Avatar className="h-9 w-9">
             {userPhoto && <AvatarImage src={userPhoto} alt={userName} />}
@@ -92,8 +98,9 @@ export function AdminSidebar({ userName, userPhoto }: AdminSidebarProps) {
             <p className="text-xs text-karis-stone-500 font-body">Master Admin</p>
           </div>
         </div>
+        <TourTriggerButton />
         <SignOutButton>
-          <button className="w-full text-xs text-karis-stone-500 hover:text-karis-stone-300 font-body py-1.5 text-left transition-colors">
+          <button type="button" className="w-full text-xs text-karis-stone-500 hover:text-karis-stone-300 font-body py-1.5 text-left transition-colors">
             Sign out
           </button>
         </SignOutButton>

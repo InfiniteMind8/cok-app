@@ -5,6 +5,9 @@ import { BrandLogo } from '@/components/shared/brand-logo'
 import { Wordmark } from '@/components/shared/wordmark'
 import { ResidentTabBar } from '@/components/shared/resident-tab-bar'
 import { EmergencyBroadcastBanner } from '@/components/shared/emergency-broadcast-banner'
+import { TourProvider } from '@/components/shared/tour-provider'
+import { getTourStatus } from '@/lib/queries/tour'
+import { getTourSteps } from '@/lib/tour/steps'
 
 export default async function ResidentLayout({
   children,
@@ -25,24 +28,29 @@ export default async function ResidentLayout({
     redirect('/')
   }
 
-  const unreadCount = await getUnreadNotificationCount(user.id)
+  const [unreadCount, { shouldShow }] = await Promise.all([
+    getUnreadNotificationCount(user.id),
+    getTourStatus(user.id),
+  ])
 
   return (
-    <div className="flex flex-col min-h-screen bg-karis-stone-50">
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-karis-stone-50 border-b border-karis-stone-100 px-4 h-14 flex items-center gap-3">
-        <BrandLogo size={40} priority />
-        <Wordmark size="sm" className="hidden sm:block" />
-      </header>
+    <TourProvider initialShow={shouldShow} steps={getTourSteps(user.role)}>
+      <div className="flex flex-col min-h-screen bg-karis-stone-50">
+        {/* Header */}
+        <header className="sticky top-0 z-40 bg-karis-stone-50 border-b border-karis-stone-100 px-4 h-14 flex items-center gap-3">
+          <BrandLogo size={40} priority />
+          <Wordmark size="sm" className="hidden sm:block" />
+        </header>
 
-      {/* Emergency broadcast banner — z-50 sits above sticky header */}
-      <EmergencyBroadcastBanner userId={user.id} />
+        {/* Emergency broadcast banner — z-50 sits above sticky header */}
+        <EmergencyBroadcastBanner userId={user.id} />
 
-      {/* Main content — scrollable, padded for tab bar */}
-      <main className="flex-1 overflow-y-auto pb-16">{children}</main>
+        {/* Main content — scrollable, padded for tab bar */}
+        <main className="flex-1 overflow-y-auto pb-16">{children}</main>
 
-      {/* Bottom tab bar */}
-      <ResidentTabBar role={user.role} unreadCount={unreadCount} />
-    </div>
+        {/* Bottom tab bar */}
+        <ResidentTabBar role={user.role} unreadCount={unreadCount} />
+      </div>
+    </TourProvider>
   )
 }

@@ -12,10 +12,10 @@ interface TabBarProps {
 }
 
 const tabs = [
-  { label: 'Wallet', href: '/wallet', icon: Wallet },
-  { label: 'Property', href: '/property', icon: Home, residentOnly: true },
-  { label: 'Community', href: '/community', icon: Users, showBadge: true },
-  { label: 'Profile', href: '/profile', icon: User },
+  { label: 'Wallet', href: '/wallet', icon: Wallet, tourId: 'tour-wallet-tab' },
+  { label: 'Property', href: '/property', icon: Home, residentOnly: true, tourId: 'tour-tenancy-tab' },
+  { label: 'Community', href: '/community', icon: Users, showBadge: true, tourId: 'tour-community-tab' },
+  { label: 'Profile', href: '/profile', icon: User, tourId: 'tour-profile-tab' },
 ]
 
 export function ResidentTabBar({ role, unreadCount = 0 }: TabBarProps) {
@@ -35,6 +35,7 @@ export function ResidentTabBar({ role, unreadCount = 0 }: TabBarProps) {
           <Link
             key={tab.href}
             href={tab.href}
+            {...(tab.tourId ? { 'data-tour-id': tab.tourId } : {})}
             className={cn(
               'flex flex-col items-center justify-center flex-1 h-full gap-1 min-h-[44px] transition-colors relative',
               isActive

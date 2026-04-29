@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { format } from 'date-fns'
-import { Shield, Bell, Info, ChevronRight, Lock } from 'lucide-react'
+import { Shield, Bell, Info, ChevronRight, Lock, Map } from 'lucide-react'
 import { getCurrentUser } from '@/lib/auth'
 import { clerkClient } from '@clerk/nextjs/server'
 import { db } from '@/lib/db'
@@ -9,6 +9,7 @@ import { Separator } from '@/components/ui/separator'
 import { MemberQrCard } from './_components/member-qr-card'
 import { ProfilePhotoUpload } from './_components/profile-photo-upload'
 import { ResidentSignOutButton } from './_components/sign-out-button'
+import { TourTriggerButton } from '@/components/shared/tour-trigger-button'
 import { DisplayCurrencySelector } from './_components/display-currency-selector'
 import { Wordmark } from '@/components/shared/wordmark'
 
@@ -154,6 +155,10 @@ export default async function ProfilePage() {
             <p className="font-body text-sm text-karis-stone-700">My issues</p>
             <ChevronRight size={14} className="text-karis-stone-400" />
           </Link>
+
+          <Separator className="bg-karis-stone-100" />
+
+          <TourTriggerButton className="flex items-center gap-2 w-full py-2 min-h-[44px] font-body text-sm text-karis-stone-700 hover:text-karis-green-900 transition-colors" />
 
           <Separator className="bg-karis-stone-100" />
 
