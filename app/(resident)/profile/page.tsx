@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { format } from 'date-fns'
-import { Shield, Bell, Info, ChevronRight } from 'lucide-react'
+import { Shield, Bell, Info, ChevronRight, Lock } from 'lucide-react'
 import { getCurrentUser } from '@/lib/auth'
+import { clerkClient } from '@clerk/nextjs/server'
 import { db } from '@/lib/db'
 import { Separator } from '@/components/ui/separator'
 import { MemberQrCard } from './_components/member-qr-card'
@@ -25,25 +26,29 @@ export default async function ProfilePage() {
   const user = await getCurrentUser()
   if (!user) redirect('/sign-in')
 
-  const fullUser = await db.user.findUnique({
-    where: { id: user.id },
-    select: {
-      id: true,
-      fullName: true,
-      memberId: true,
-      role: true,
-      status: true,
-      profilePhotoUrl: true,
-      introduction: true,
-      kyc: true,
-      createdAt: true,
-      displayCurrency: true,
-    },
-  })
+  const [fullUser, clerkUser] = await Promise.all([
+    db.user.findUnique({
+      where: { id: user.id },
+      select: {
+        id: true,
+        fullName: true,
+        memberId: true,
+        role: true,
+        status: true,
+        profilePhotoUrl: true,
+        introduction: true,
+        kyc: true,
+        createdAt: true,
+        displayCurrency: true,
+      },
+    }),
+    clerkClient().then((c) => c.users.getUser(user.clerkId)),
+  ])
 
   if (!fullUser) redirect('/sign-in')
 
   const kyc = fullUser.kyc as Record<string, string> | null
+  const mfaEnabled = clerkUser.twoFactorEnabled
 
   return (
     <div className="px-4 py-5 max-w-lg mx-auto space-y-5 pb-8">
@@ -118,6 +123,25 @@ export default async function ProfilePage() {
             <p className="font-body text-sm text-karis-stone-700">Notification preferences</p>
             <span className="font-body text-xs text-karis-stone-400">More options are on the way</span>
           </div>
+
+          <Separator className="bg-karis-stone-100" />
+
+          <Link
+            href="/account/mfa-enroll"
+            className="flex items-center justify-between py-2 min-h-[44px]"
+          >
+            <div className="flex items-center gap-2">
+              <Lock size={14} className="text-karis-green-700" />
+              <p className="font-body text-sm text-karis-stone-700">Two-factor authentication</p>
+            </div>
+            {mfaEnabled ? (
+              <span className="font-body text-[10px] bg-karis-green-900/10 text-karis-green-900 px-2 py-0.5 rounded-full">
+                Enabled
+              </span>
+            ) : (
+              <ChevronRight size={14} className="text-karis-stone-400" />
+            )}
+          </Link>
 
           <Separator className="bg-karis-stone-100" />
 

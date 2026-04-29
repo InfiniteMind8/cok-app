@@ -1,4 +1,5 @@
 import { requireRole } from '@/lib/auth'
+import { requireMfaEnrolled } from '@/lib/mfa'
 import { AdminSidebar } from '@/components/shared/admin-sidebar'
 
 export default async function AdminLayout({
@@ -7,6 +8,7 @@ export default async function AdminLayout({
   children: React.ReactNode
 }) {
   const user = await requireRole('MASTER_ADMIN')
+  await requireMfaEnrolled(user)
 
   return (
     <div className="flex min-h-screen">
