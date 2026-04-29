@@ -42,13 +42,15 @@ export default async function ProfilePage() {
         displayCurrency: true,
       },
     }),
-    clerkClient().then((c) => c.users.getUser(user.clerkId)),
+    user.clerkId
+      ? clerkClient().then((c) => c.users.getUser(user.clerkId!))
+      : Promise.resolve(null),
   ])
 
   if (!fullUser) redirect('/sign-in')
+  const mfaEnabled = clerkUser?.twoFactorEnabled ?? false
 
   const kyc = fullUser.kyc as Record<string, string> | null
-  const mfaEnabled = clerkUser.twoFactorEnabled
 
   return (
     <div className="px-4 py-5 max-w-lg mx-auto space-y-5 pb-8">

@@ -12,8 +12,13 @@ import { renderRentalExtensionDecision, type RentalExtensionDecisionData } from 
 import { renderEmergencyBroadcast, type EmergencyBroadcastData } from './templates/emergency-broadcast'
 import { renderPropertyTransferDecision, type PropertyTransferDecisionData } from './templates/property-transfer-decision'
 import { renderMfaReset, type MfaResetData } from './templates/mfa-reset'
+import { renderTreasuryAlert, type TreasuryAlertData } from './templates/treasury-alert'
 
-const resend = new Resend(env.RESEND_API_KEY)
+let _resend: Resend | undefined
+function getResend(): Resend {
+  if (!_resend) _resend = new Resend(env.RESEND_API_KEY)
+  return _resend
+}
 
 // ─── Template registry ────────────────────────────────────────────────────────
 
@@ -27,6 +32,7 @@ export type TemplateMap = {
   'emergency-broadcast': EmergencyBroadcastData
   'property-transfer-decision': PropertyTransferDecisionData
   'mfa-reset': MfaResetData
+  'treasury-alert': TreasuryAlertData
 }
 
 export type TemplateName = keyof TemplateMap
@@ -54,6 +60,8 @@ async function renderTemplate<T extends TemplateName>(
       return renderPropertyTransferDecision(data as PropertyTransferDecisionData)
     case 'mfa-reset':
       return renderMfaReset(data as MfaResetData)
+    case 'treasury-alert':
+      return renderTreasuryAlert(data as TreasuryAlertData)
     default:
       throw new Error(`Unknown email template: ${String(template)}`)
   }
@@ -154,7 +162,7 @@ async function dispatchEmail(opts: {
   const { logId, to, subject, html } = opts
 
   try {
-    const result = await resend.emails.send({
+    const result = await getResend().emails.send({
       from: `${env.RESEND_FROM_NAME} <${env.RESEND_FROM_EMAIL}>`,
       to,
       subject,

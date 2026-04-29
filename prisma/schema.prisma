@@ -185,6 +185,8 @@ model User {
   // C.3: rental extension relations
   extensionRequests  RentalExtensionRequest[] @relation("ExtensionRequester")
   extensionReviews   RentalExtensionRequest[] @relation("ExtensionReviewer")
+  // D.5: reconciliation acknowledgements
+  reconciliationAcknowledgements ReconciliationReport[]
 
   @@index([email])
   @@index([role])
@@ -718,6 +720,27 @@ model Attachment {
 
   @@index([entityType, entityId])
   @@index([uploadedBy])
+}
+
+// ─── Reconciliation (Prompt D.5) ─────────────────────────────────────────────
+
+enum ReconciliationStatus {
+  OK
+  WARNING
+  MISMATCH
+}
+
+model ReconciliationReport {
+  id               String               @id @default(cuid())
+  runAt            DateTime             @default(now())
+  status           ReconciliationStatus
+  details          Json
+  acknowledgedById String?
+  acknowledgedBy   User?                @relation(fields: [acknowledgedById], references: [id])
+  acknowledgedAt   DateTime?
+
+  @@index([status, acknowledgedAt])
+  @@index([runAt])
 }
 
 // ─── Bulk Import (Prompt D.1) ─────────────────────────────────────────────────

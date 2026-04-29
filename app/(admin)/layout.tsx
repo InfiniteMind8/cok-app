@@ -1,6 +1,7 @@
 import { requireRole } from '@/lib/auth'
 import { requireMfaEnrolled } from '@/lib/mfa'
 import { AdminSidebar } from '@/components/shared/admin-sidebar'
+import { ReconciliationAlertBanner } from '@/components/admin/reconciliation-alert-banner'
 
 export default async function AdminLayout({
   children,
@@ -13,7 +14,10 @@ export default async function AdminLayout({
   return (
     <div className="flex min-h-screen">
       <AdminSidebar userName={user.fullName} userPhoto={user.profilePhotoUrl} />
-      <main className="flex-1 bg-karis-stone-50 overflow-y-auto">{children}</main>
+      <div className="flex-1 flex flex-col bg-karis-stone-50 overflow-y-auto">
+        <ReconciliationAlertBanner />
+        <main className="flex-1">{children}</main>
+      </div>
     </div>
   )
 }

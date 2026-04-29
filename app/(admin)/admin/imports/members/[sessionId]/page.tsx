@@ -3,6 +3,8 @@ import { db } from '@/lib/db'
 import { requireRole } from '@/lib/auth'
 import { PageHeader } from '@/components/admin/page-header'
 import { PreviewTable } from './_components/preview-table'
+
+export const dynamic = 'force-dynamic'
 import { commitImportAction, cancelImportAction } from '@/app/(admin)/_actions/imports'
 import Link from 'next/link'
 

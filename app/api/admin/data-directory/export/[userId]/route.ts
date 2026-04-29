@@ -116,7 +116,7 @@ export async function GET(
 
   const filename = `user-export-${user.memberId}-${new Date().toISOString().slice(0, 10)}.zip`
 
-  return new Response(zipBuffer, {
+  return new Response(new Uint8Array(zipBuffer), {
     headers: {
       'Content-Type': 'application/zip',
       'Content-Disposition': `attachment; filename="${filename}"`,

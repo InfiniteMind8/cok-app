@@ -10,6 +10,8 @@ export default async function MfaEnrollPage() {
   const dbUser = await getCurrentUser()
   if (!dbUser) redirect('/sign-in')
 
+  if (!dbUser.clerkId) redirect('/sign-in')
+
   const client = await clerkClient()
   const clerkUser = await client.users.getUser(dbUser.clerkId)
 

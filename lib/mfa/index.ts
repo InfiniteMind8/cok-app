@@ -10,10 +10,11 @@ export function isStaffRole(role: Role): boolean {
 }
 
 export async function requireMfaEnrolled(user: {
-  clerkId: string
+  clerkId: string | null
   role: Role
 }): Promise<void> {
   if (!isStaffRole(user.role)) return
+  if (!user.clerkId) redirect('/account/mfa-enroll')
 
   const client = await clerkClient()
   const clerkUser = await client.users.getUser(user.clerkId)

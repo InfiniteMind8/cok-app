@@ -2,6 +2,8 @@ import { PageHeader } from '@/components/admin/page-header'
 import { UploadForm } from './_components/upload-form'
 import { parseAndStorePropertyImportAction } from '@/app/(admin)/_actions/imports'
 
+export const dynamic = 'force-dynamic'
+
 const MAX_IMPORT_ROWS = parseInt(process.env.IMPORT_MAX_ROWS ?? '1000', 10)
 
 export default function PropertyImportPage() {

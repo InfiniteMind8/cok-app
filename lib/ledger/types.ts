@@ -60,3 +60,11 @@ export interface ReconciliationResult {
   sumAllEntries: Prisma.Decimal
   discrepancy: Prisma.Decimal
 }
+
+export interface ReconciliationReportDetails {
+  netSum: string
+  totalCredits: string
+  totalDebits: string
+  walletCount: number
+  discrepancy: string
+}
