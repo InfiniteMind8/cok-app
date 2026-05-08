@@ -1,18 +1,15 @@
 'use server'
 
-import { requireRole } from '@/lib/auth'
+import { withAdminAction, type AuthUser } from '@/lib/action'
 import { db } from '@/lib/db'
 import { createAuditEntry } from '@/lib/audit'
 import { Prisma } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 
-export async function recordTreasuryAdjustmentAction(input: {
-  amount: string
-  currency: string
-  reason: string
-}) {
-  const admin = await requireRole(['MASTER_ADMIN'])
-
+async function _recordTreasuryAdjustmentAction(
+  admin: AuthUser,
+  input: { amount: string; currency: string; reason: string },
+) {
   if (!input.reason.trim()) throw new Error('Reason is required')
   const amount = parseFloat(input.amount)
   if (isNaN(amount) || amount === 0) throw new Error('Amount must be a non-zero number')
@@ -31,12 +28,14 @@ export async function recordTreasuryAdjustmentAction(input: {
   revalidatePath('/settings')
 }
 
-export async function updateWalletFloorAction(input: {
-  walletId: string
-  floor: string | null
-}) {
-  const admin = await requireRole(['MASTER_ADMIN'])
+export const recordTreasuryAdjustmentAction = withAdminAction(_recordTreasuryAdjustmentAction, {
+  roles: ['MASTER_ADMIN'],
+})
 
+async function _updateWalletFloorAction(
+  admin: AuthUser,
+  input: { walletId: string; floor: string | null },
+) {
   if (input.floor !== null) {
     const parsed = new Prisma.Decimal(input.floor)
     if (parsed.lt(0)) throw new Error('Floor must be zero or a positive value, or null for unlimited.')
@@ -68,3 +67,7 @@ export async function updateWalletFloorAction(input: {
   revalidatePath('/admin/treasury')
   revalidatePath('/admin/settings')
 }
+
+export const updateWalletFloorAction = withAdminAction(_updateWalletFloorAction, {
+  roles: ['MASTER_ADMIN'],
+})

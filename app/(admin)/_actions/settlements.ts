@@ -1,6 +1,6 @@
 'use server'
 
-import { requireRole } from '@/lib/auth'
+import { withAdminAction, type AuthUser } from '@/lib/action'
 import { db } from '@/lib/db'
 import { sendEmail } from '@/lib/email/service'
 import {
@@ -13,9 +13,7 @@ import { revalidatePath } from 'next/cache'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 
-export async function approveSettlementAction(settlementId: string) {
-  const admin = await requireRole(['MASTER_ADMIN', 'ADMIN'])
-
+async function _approveSettlementAction(admin: AuthUser, settlementId: string) {
   const settlement = await approveSettlement({ settlementId, approvedBy: admin.id })
 
   const user = await db.user.findUnique({
@@ -58,9 +56,11 @@ export async function approveSettlementAction(settlementId: string) {
   revalidatePath('/treasury')
 }
 
-export async function declineSettlementAction(settlementId: string, reason: string) {
-  await requireRole(['MASTER_ADMIN', 'ADMIN'])
+export const approveSettlementAction = withAdminAction(_approveSettlementAction, {
+  roles: ['MASTER_ADMIN', 'ADMIN'],
+})
 
+async function _declineSettlementAction(_admin: AuthUser, settlementId: string, reason: string) {
   if (!reason.trim()) throw new Error('Decline reason is required')
 
   const settlement = await db.settlementRequest.findUniqueOrThrow({
@@ -97,9 +97,11 @@ export async function declineSettlementAction(settlementId: string, reason: stri
   revalidatePath('/approvals')
 }
 
-export async function executeSettlementAction(settlementId: string, proofUrl?: string) {
-  const admin = await requireRole(['MASTER_ADMIN'])
+export const declineSettlementAction = withAdminAction(_declineSettlementAction, {
+  roles: ['MASTER_ADMIN', 'ADMIN'],
+})
 
+async function _executeSettlementAction(admin: AuthUser, settlementId: string, proofUrl?: string) {
   const { userId, amount } = await db.settlementRequest.findUniqueOrThrow({
     where: { id: settlementId },
     select: { userId: true, amount: true },
@@ -148,3 +150,7 @@ export async function executeSettlementAction(settlementId: string, proofUrl?: s
   revalidatePath('/treasury')
   revalidatePath('/approvals')
 }
+
+export const executeSettlementAction = withAdminAction(_executeSettlementAction, {
+  roles: ['MASTER_ADMIN'],
+})

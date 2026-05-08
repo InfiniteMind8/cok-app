@@ -2,7 +2,7 @@
 import 'server-only'
 import { z } from 'zod/v4'
 import { revalidatePath } from 'next/cache'
-import { requireRole } from '@/lib/auth'
+import { withAdminAction, type AuthUser } from '@/lib/action'
 import { db } from '@/lib/db'
 import { PromotionDirection, PromotionEligibility } from '@prisma/client'
 
@@ -17,8 +17,7 @@ const CreatePromotionSchema = z.object({
   endsAt: z.string().min(1),
 })
 
-export async function createPromotionAction(input: unknown) {
-  const user = await requireRole(['MASTER_ADMIN'])
+async function _createPromotionAction(user: AuthUser, input: unknown) {
   const parsed = CreatePromotionSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: 'Invalid input.' }
 
@@ -69,9 +68,11 @@ export async function createPromotionAction(input: unknown) {
   return { ok: true }
 }
 
-export async function archivePromotionAction(id: string) {
-  const user = await requireRole(['MASTER_ADMIN'])
+export const createPromotionAction = withAdminAction(_createPromotionAction, {
+  roles: ['MASTER_ADMIN'],
+})
 
+async function _archivePromotionAction(user: AuthUser, id: string) {
   await db.$transaction(async (tx) => {
     await tx.conversionPromotion.update({
       where: { id },
@@ -90,3 +91,7 @@ export async function archivePromotionAction(id: string) {
   revalidatePath('/admin/settings/promotions')
   return { ok: true }
 }
+
+export const archivePromotionAction = withAdminAction(_archivePromotionAction, {
+  roles: ['MASTER_ADMIN'],
+})

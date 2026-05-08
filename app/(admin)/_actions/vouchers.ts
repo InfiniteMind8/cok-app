@@ -1,6 +1,6 @@
 'use server'
 
-import { requireRole } from '@/lib/auth'
+import { withAdminAction, type AuthUser } from '@/lib/action'
 import { db } from '@/lib/db'
 import { AttachmentEntityType } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
@@ -19,9 +19,7 @@ const createVoucherSchema = z.object({
 
 export type CreateVoucherInput = z.infer<typeof createVoucherSchema>
 
-export async function createVoucherAction(input: CreateVoucherInput) {
-  const actor = await requireRole(['MASTER_ADMIN'])
-
+async function _createVoucherAction(actor: AuthUser, input: CreateVoucherInput) {
   const parsed = createVoucherSchema.parse(input)
 
   if (isNaN(parseFloat(parsed.amountKcrd)) || parseFloat(parsed.amountKcrd) <= 0) {
@@ -74,3 +72,5 @@ export async function createVoucherAction(input: CreateVoucherInput) {
   revalidatePath('/admin/approvals')
   return { voucherRequestId: result.id }
 }
+
+export const createVoucherAction = withAdminAction(_createVoucherAction, { roles: ['MASTER_ADMIN'] })

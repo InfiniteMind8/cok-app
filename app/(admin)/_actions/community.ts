@@ -1,23 +1,24 @@
 'use server'
 
-import { requireRole } from '@/lib/auth'
+import { withAdminAction, type AuthUser } from '@/lib/action'
 import { db } from '@/lib/db'
 import { AnnouncementTargetType, IssueStatus, Role } from '@prisma/client'
 import { notify, notifyAllOfRole } from '@/lib/notifications/service'
 import { revalidatePath } from 'next/cache'
 
-export async function publishUpdateAction(input: {
-  headline: string
-  category: string
-  message: string
-  photoUrl?: string
-  targetType?: AnnouncementTargetType
-  targetRole?: Role
-  targetGroupId?: string
-  targetUserIds?: string[]
-}) {
-  const admin = await requireRole(['MASTER_ADMIN', 'ADMIN'])
-
+async function _publishUpdateAction(
+  admin: AuthUser,
+  input: {
+    headline: string
+    category: string
+    message: string
+    photoUrl?: string
+    targetType?: AnnouncementTargetType
+    targetRole?: Role
+    targetGroupId?: string
+    targetUserIds?: string[]
+  },
+) {
   if (!input.headline.trim()) throw new Error('Headline is required')
   if (!input.message.trim()) throw new Error('Message is required')
 
@@ -97,13 +98,18 @@ export async function publishUpdateAction(input: {
   revalidatePath('/admin/visitors/groups')
 }
 
-export async function createVoteAction(input: {
-  headline: string
-  description: string
-  options: { label: string; description: string }[]
-}) {
-  const admin = await requireRole(['MASTER_ADMIN', 'ADMIN'])
+export const publishUpdateAction = withAdminAction(_publishUpdateAction, {
+  roles: ['MASTER_ADMIN', 'ADMIN'],
+})
 
+async function _createVoteAction(
+  admin: AuthUser,
+  input: {
+    headline: string
+    description: string
+    options: { label: string; description: string }[]
+  },
+) {
   if (!input.headline.trim()) throw new Error('Headline is required')
   if (input.options.length < 2) throw new Error('At least 2 options are required')
 
@@ -138,9 +144,11 @@ export async function createVoteAction(input: {
   revalidatePath('/community')
 }
 
-export async function closeVoteAction(voteId: string) {
-  await requireRole(['MASTER_ADMIN', 'ADMIN'])
+export const createVoteAction = withAdminAction(_createVoteAction, {
+  roles: ['MASTER_ADMIN', 'ADMIN'],
+})
 
+async function _closeVoteAction(_admin: AuthUser, voteId: string) {
   await db.vote.update({
     where: { id: voteId },
     data: { isOpen: false, closedAt: new Date() },
@@ -149,9 +157,11 @@ export async function closeVoteAction(voteId: string) {
   revalidatePath('/community')
 }
 
-export async function replyToIssueAction(issueId: string, message: string) {
-  const admin = await requireRole(['MASTER_ADMIN', 'ADMIN'])
+export const closeVoteAction = withAdminAction(_closeVoteAction, {
+  roles: ['MASTER_ADMIN', 'ADMIN'],
+})
 
+async function _replyToIssueAction(admin: AuthUser, issueId: string, message: string) {
   if (!message.trim()) throw new Error('Reply message is required')
 
   const issue = await db.issue.findUnique({
@@ -185,9 +195,11 @@ export async function replyToIssueAction(issueId: string, message: string) {
   revalidatePath('/community')
 }
 
-export async function updateIssueStatusAction(issueId: string, status: IssueStatus) {
-  await requireRole(['MASTER_ADMIN', 'ADMIN'])
+export const replyToIssueAction = withAdminAction(_replyToIssueAction, {
+  roles: ['MASTER_ADMIN', 'ADMIN'],
+})
 
+async function _updateIssueStatusAction(_admin: AuthUser, issueId: string, status: IssueStatus) {
   await db.issue.update({
     where: { id: issueId },
     data: { status },
@@ -196,9 +208,11 @@ export async function updateIssueStatusAction(issueId: string, status: IssueStat
   revalidatePath('/community')
 }
 
-export async function assignIssueAction(issueId: string) {
-  const admin = await requireRole(['MASTER_ADMIN', 'ADMIN'])
+export const updateIssueStatusAction = withAdminAction(_updateIssueStatusAction, {
+  roles: ['MASTER_ADMIN', 'ADMIN'],
+})
 
+async function _assignIssueAction(admin: AuthUser, issueId: string) {
   await db.issue.update({
     where: { id: issueId },
     data: { assigneeId: admin.id },
@@ -206,3 +220,7 @@ export async function assignIssueAction(issueId: string) {
 
   revalidatePath('/community')
 }
+
+export const assignIssueAction = withAdminAction(_assignIssueAction, {
+  roles: ['MASTER_ADMIN', 'ADMIN'],
+})

@@ -1,13 +1,11 @@
 'use server'
 
-import { requireRole } from '@/lib/auth'
+import { withAdminAction, type AuthUser } from '@/lib/action'
 import { db } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
 import { getAttachmentUrl } from '@/lib/storage/attachments'
 
-export async function getAttachmentUrlAction(attachmentId: string): Promise<string> {
-  const user = await requireRole(['MASTER_ADMIN', 'ADMIN', 'RESIDENT', 'VENDOR', 'VISITOR'])
-
+async function _getAttachmentUrlAction(user: AuthUser, attachmentId: string): Promise<string> {
   const attachment = await db.attachment.findUniqueOrThrow({
     where: { id: attachmentId },
   })
@@ -19,7 +17,6 @@ export async function getAttachmentUrlAction(attachmentId: string): Promise<stri
     throw new Error('Forbidden: you do not have access to this attachment')
   }
 
-  // Audit personal-document retrievals by admin staff
   if (isAdmin && !isUploader) {
     await db.auditLog.create({
       data: {
@@ -36,13 +33,14 @@ export async function getAttachmentUrlAction(attachmentId: string): Promise<stri
     })
   }
 
-  // Return a short-lived signed URL (5 min TTL) — never expose raw storage keys
   return getAttachmentUrl(attachment.id)
 }
 
-export async function deleteAttachmentAction(attachmentId: string): Promise<void> {
-  const user = await requireRole(['MASTER_ADMIN', 'ADMIN'])
+export const getAttachmentUrlAction = withAdminAction(_getAttachmentUrlAction, {
+  roles: ['MASTER_ADMIN', 'ADMIN', 'RESIDENT', 'VENDOR', 'VISITOR'],
+})
 
+async function _deleteAttachmentAction(user: AuthUser, attachmentId: string): Promise<void> {
   const attachment = await db.attachment.findUniqueOrThrow({
     where: { id: attachmentId },
   })
@@ -67,3 +65,7 @@ export async function deleteAttachmentAction(attachmentId: string): Promise<void
 
   revalidatePath('/')
 }
+
+export const deleteAttachmentAction = withAdminAction(_deleteAttachmentAction, {
+  roles: ['MASTER_ADMIN', 'ADMIN'],
+})

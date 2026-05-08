@@ -1,7 +1,7 @@
 'use server'
 
 import { randomBytes } from 'crypto'
-import { requireRole } from '@/lib/auth'
+import { withAdminAction, type AuthUser } from '@/lib/action'
 import { db } from '@/lib/db'
 import { sendEmail } from '@/lib/email/service'
 import { notify } from '@/lib/notifications/service'
@@ -13,9 +13,7 @@ function generateVoucherCode(): string {
   return `KCRD-${randomBytes(4).toString('hex').toUpperCase()}`
 }
 
-export async function approveVoucherRequestAction(requestId: string) {
-  const admin = await requireRole(['MASTER_ADMIN'])
-
+async function _approveVoucherRequestAction(admin: AuthUser, requestId: string) {
   const voucherCode = generateVoucherCode()
 
   const req = await db.$transaction(async (tx) => {
@@ -90,9 +88,11 @@ export async function approveVoucherRequestAction(requestId: string) {
   revalidatePath('/admin/approvals')
 }
 
-export async function declineVoucherRequestAction(requestId: string, reason: string) {
-  const admin = await requireRole(['MASTER_ADMIN', 'ADMIN'])
+export const approveVoucherRequestAction = withAdminAction(_approveVoucherRequestAction, {
+  roles: ['MASTER_ADMIN'],
+})
 
+async function _declineVoucherRequestAction(admin: AuthUser, requestId: string, reason: string) {
   if (!reason.trim()) throw new Error('Decline reason is required')
 
   const req = await db.$transaction(async (tx) => {
@@ -144,3 +144,7 @@ export async function declineVoucherRequestAction(requestId: string, reason: str
 
   revalidatePath('/admin/approvals')
 }
+
+export const declineVoucherRequestAction = withAdminAction(_declineVoucherRequestAction, {
+  roles: ['MASTER_ADMIN', 'ADMIN'],
+})

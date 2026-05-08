@@ -1,14 +1,12 @@
 'use server'
 
-import { requireRole, denyIfVisitor } from '@/lib/auth'
+import { withResidentAction, type AuthUser } from '@/lib/action'
 import { db } from '@/lib/db'
 import { IssueLevel, AttachmentEntityType } from '@prisma/client'
 import { notifyAllOfRole } from '@/lib/notifications/service'
 import { revalidatePath } from 'next/cache'
 
-export async function acknowledgeUpdateAction(updateId: string) {
-  const user = await requireRole(['RESIDENT', 'VISITOR', 'ADMIN', 'MASTER_ADMIN'])
-
+async function _acknowledgeUpdateAction(user: AuthUser, updateId: string) {
   await db.updateAcknowledgement.upsert({
     where: { updateId_userId: { updateId, userId: user.id } },
     update: {},
@@ -18,10 +16,11 @@ export async function acknowledgeUpdateAction(updateId: string) {
   revalidatePath('/community')
 }
 
-export async function castVoteAction(voteId: string, optionId: string) {
-  await denyIfVisitor()
-  const user = await requireRole(['RESIDENT'])
+export const acknowledgeUpdateAction = withResidentAction(_acknowledgeUpdateAction, {
+  roles: ['RESIDENT', 'VISITOR', 'ADMIN', 'MASTER_ADMIN'],
+})
 
+async function _castVoteAction(user: AuthUser, voteId: string, optionId: string) {
   await db.$transaction(async (tx) => {
     const option = await tx.voteOption.findUnique({
       where: { id: optionId },
@@ -43,6 +42,10 @@ export async function castVoteAction(voteId: string, optionId: string) {
   revalidatePath('/community')
 }
 
+export const castVoteAction = withResidentAction(_castVoteAction, {
+  roles: ['RESIDENT'],
+})
+
 interface IssueAttachment {
   storageKey: string
   mimeType: string
@@ -51,19 +54,20 @@ interface IssueAttachment {
   fieldName: string
 }
 
-export async function raiseIssueAction(input: {
-  seriousness: IssueLevel
-  urgency: IssueLevel
-  category: string
-  message: string
-  title?: string
-  location?: string
-  propertyId?: string
-  contactPreference?: string
-  attachments?: IssueAttachment[]
-}) {
-  const user = await requireRole(['RESIDENT', 'VISITOR'])
-
+async function _raiseIssueAction(
+  user: AuthUser,
+  input: {
+    seriousness: IssueLevel
+    urgency: IssueLevel
+    category: string
+    message: string
+    title?: string
+    location?: string
+    propertyId?: string
+    contactPreference?: string
+    attachments?: IssueAttachment[]
+  },
+) {
   if (!input.message.trim()) throw new Error('Message is required')
   if (!input.category.trim()) throw new Error('Category is required')
 
@@ -129,9 +133,11 @@ export async function raiseIssueAction(input: {
   revalidatePath('/community')
 }
 
-export async function markAllNotificationsReadAction() {
-  const user = await requireRole(['RESIDENT', 'VISITOR'])
+export const raiseIssueAction = withResidentAction(_raiseIssueAction, {
+  roles: ['RESIDENT', 'VISITOR'],
+})
 
+async function _markAllNotificationsReadAction(user: AuthUser) {
   await db.notification.updateMany({
     where: { userId: user.id, readAt: null },
     data: { readAt: new Date() },
@@ -139,3 +145,5 @@ export async function markAllNotificationsReadAction() {
 
   revalidatePath('/community')
 }
+
+export const markAllNotificationsReadAction = withResidentAction(_markAllNotificationsReadAction)

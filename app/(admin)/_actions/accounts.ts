@@ -1,12 +1,9 @@
 'use server'
 
-import { requireRole } from '@/lib/auth'
+import { withAdminAction, type AuthUser } from '@/lib/action'
 import { db } from '@/lib/db'
 import { sendEmail } from '@/lib/email/service'
 import { generateUniqueMemberId } from '@/lib/member-id'
-import { withSentryAction } from '@/lib/sentry'
-import { createAuditEntry } from '@/lib/audit'
-import { checkRateLimit, RateLimitError } from '@/lib/rate-limit'
 import { clerkClient } from '@clerk/nextjs/server'
 import { Role, AttachmentEntityType } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
@@ -55,7 +52,6 @@ interface CreateAccountInput {
   preferredName?: string
   phone?: string
   gender?: string
-  // Legacy KYC fields kept for backwards compat
   dob?: string
   govId?: string
   country?: string
@@ -63,25 +59,12 @@ interface CreateAccountInput {
   visitorFields?: VisitorFields
   vendorFields?: VendorFields
   attachments?: AttachmentInput[]
-  // C.2: visitor group assignments
   groupIds?: string[]
 }
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 
-// Canonical withSentryAction + rate-limit pattern — apply to other mutation actions the same way
-async function _createAccountAction(input: CreateAccountInput) {
-  const actor = await requireRole(['MASTER_ADMIN', 'ADMIN'])
-
-  try {
-    await checkRateLimit({ identifier: actor.id, scope: 'mutation' })
-  } catch (e) {
-    if (e instanceof RateLimitError) {
-      await createAuditEntry({ action: 'rate_limit_exceeded', entity: 'SYSTEM', actorId: actor.id, after: { scope: 'mutation', actionName: 'createAccountAction' } })
-    }
-    throw e
-  }
-
+async function _createAccountAction(actor: AuthUser, input: CreateAccountInput) {
   const memberId = await generateUniqueMemberId()
 
   const user = await db.$transaction(async (tx) => {
@@ -157,7 +140,6 @@ async function _createAccountAction(input: CreateAccountInput) {
       }
     }
 
-    // C.2: assign visitor groups if specified
     if (input.role === 'VISITOR' && input.groupIds && input.groupIds.length > 0) {
       await tx.visitorGroupMembership.createMany({
         data: input.groupIds.map((groupId) => ({
@@ -181,7 +163,6 @@ async function _createAccountAction(input: CreateAccountInput) {
     return newUser
   })
 
-  // Send Clerk invitation
   const clerk = await clerkClient()
   await clerk.invitations.createInvitation({
     emailAddress: input.email,
@@ -206,10 +187,11 @@ async function _createAccountAction(input: CreateAccountInput) {
   return { memberId: user.memberId }
 }
 
-export const createAccountAction = withSentryAction(_createAccountAction, 'createAccountAction')
+export const createAccountAction = withAdminAction(_createAccountAction, {
+  roles: ['MASTER_ADMIN', 'ADMIN'],
+})
 
-export async function suspendAccountAction(userId: string, reason: string) {
-  await requireRole(['MASTER_ADMIN'])
+async function _suspendAccountAction(_actor: AuthUser, userId: string, reason: string) {
   if (!reason.trim()) throw new Error('Suspension reason is required')
 
   const targetUser = await db.user.update({
@@ -228,9 +210,11 @@ export async function suspendAccountAction(userId: string, reason: string) {
   revalidatePath('/admin/accounts')
 }
 
-export async function restoreAccountAction(userId: string) {
-  await requireRole(['MASTER_ADMIN'])
+export const suspendAccountAction = withAdminAction(_suspendAccountAction, {
+  roles: ['MASTER_ADMIN'],
+})
 
+async function _restoreAccountAction(_actor: AuthUser, userId: string) {
   await db.user.update({
     where: { id: userId },
     data: { status: 'ACTIVE' },
@@ -238,12 +222,18 @@ export async function restoreAccountAction(userId: string) {
   revalidatePath('/admin/accounts')
 }
 
-export async function upgradeRoleAction(userId: string, targetRole: Role) {
-  await requireRole(['MASTER_ADMIN'])
+export const restoreAccountAction = withAdminAction(_restoreAccountAction, {
+  roles: ['MASTER_ADMIN'],
+})
 
+async function _upgradeRoleAction(_actor: AuthUser, userId: string, targetRole: Role) {
   await db.user.update({
     where: { id: userId },
     data: { role: targetRole },
   })
   revalidatePath('/admin/accounts')
 }
+
+export const upgradeRoleAction = withAdminAction(_upgradeRoleAction, {
+  roles: ['MASTER_ADMIN'],
+})

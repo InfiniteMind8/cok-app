@@ -1,6 +1,6 @@
 'use server'
 
-import { requireRole } from '@/lib/auth'
+import { withAdminAction, type AuthUser } from '@/lib/action'
 import { db } from '@/lib/db'
 import { sendEmail } from '@/lib/email/service'
 import { generateUniqueMemberId } from '@/lib/member-id'
@@ -8,7 +8,6 @@ import { parseMembersSheet } from '@/lib/imports/members-parser'
 import { parsePropertiesSheet } from '@/lib/imports/properties-parser'
 import { createAttachment } from '@/lib/storage/attachments'
 import { createAuditEntry } from '@/lib/audit'
-import { checkRateLimit, RateLimitError } from '@/lib/rate-limit'
 import { clerkClient } from '@clerk/nextjs/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
@@ -23,18 +22,7 @@ async function computeFileHash(buffer: ArrayBuffer): Promise<string> {
     .join('')
 }
 
-export async function parseAndStoreImportAction(formData: FormData) {
-  const actor = await requireRole(['MASTER_ADMIN'])
-
-  try {
-    await checkRateLimit({ identifier: actor.id, scope: 'bulk-import' })
-  } catch (e) {
-    if (e instanceof RateLimitError) {
-      await createAuditEntry({ action: 'rate_limit_exceeded', entity: 'SYSTEM', actorId: actor.id, after: { scope: 'bulk-import', actionName: 'parseAndStoreImportAction' } })
-    }
-    throw e
-  }
-
+async function _parseAndStoreImportAction(actor: AuthUser, formData: FormData) {
   const file = formData.get('file')
   if (!file || !(file instanceof File)) {
     throw new Error('No file uploaded. Please attach an .xlsx file.')
@@ -46,8 +34,6 @@ export async function parseAndStoreImportAction(formData: FormData) {
   const buffer = await file.arrayBuffer()
   const fileHash = await computeFileHash(buffer)
 
-  // Parse first to count rows before storing
-  // Fetch existing emails for duplicate detection
   const existingEmailRows = await db.user.findMany({ select: { email: true } })
   const existingEmails = new Set(existingEmailRows.map((u) => u.email))
 
@@ -115,9 +101,12 @@ export async function parseAndStoreImportAction(formData: FormData) {
   redirect(`/admin/imports/members/${session.id}`)
 }
 
-export async function commitImportAction(sessionId: string, confirmedRowIds: string[]) {
-  const actor = await requireRole(['MASTER_ADMIN'])
+export const parseAndStoreImportAction = withAdminAction(_parseAndStoreImportAction, {
+  roles: ['MASTER_ADMIN'],
+  scope: 'bulk-import',
+})
 
+async function _commitImportAction(actor: AuthUser, sessionId: string, confirmedRowIds: string[]) {
   const session = await db.importSession.findUnique({
     where: { id: sessionId },
     include: { rows: true },
@@ -253,9 +242,12 @@ export async function commitImportAction(sessionId: string, confirmedRowIds: str
   return { committedCount, skippedCount }
 }
 
-export async function cancelImportAction(sessionId: string) {
-  const actor = await requireRole(['MASTER_ADMIN'])
+export const commitImportAction = withAdminAction(_commitImportAction, {
+  roles: ['MASTER_ADMIN'],
+  scope: 'bulk-import',
+})
 
+async function _cancelImportAction(actor: AuthUser, sessionId: string) {
   const session = await db.importSession.findUnique({ where: { id: sessionId } })
   if (!session) throw new Error('Import session not found.')
   if (session.status !== 'UPLOADED') throw new Error('Only UPLOADED sessions can be cancelled.')
@@ -277,6 +269,11 @@ export async function cancelImportAction(sessionId: string) {
 
   redirect('/admin/imports/members')
 }
+
+export const cancelImportAction = withAdminAction(_cancelImportAction, {
+  roles: ['MASTER_ADMIN'],
+  scope: 'bulk-import',
+})
 
 // ─── Property import actions ──────────────────────────────────────────────────
 
@@ -312,7 +309,7 @@ async function processCompanionZip(zipFile: File): Promise<ZipAttachmentsMap> {
   zip.forEach((relativePath, zipEntry) => {
     if (zipEntry.dir) return
     const parts = relativePath.replace(/\\/g, '/').split('/')
-    if (parts.length < 3) return // expect: externalRef/subfolder/filename
+    if (parts.length < 3) return
     const [externalRef, subfolder, ...rest] = parts
     if (!ALLOWED_SUBFOLDERS.includes(subfolder)) return
     const fileName = rest.join('/')
@@ -328,7 +325,6 @@ async function processCompanionZip(zipFile: File): Promise<ZipAttachmentsMap> {
     })()
   })
 
-  // Wait for all async file reads
   await new Promise((r) => setTimeout(r, 100))
 
   const validBatch = uploadBatch.filter((b) => b.file !== null)
@@ -366,18 +362,7 @@ function guessMimeType(fileName: string): string {
   return map[ext] ?? 'application/octet-stream'
 }
 
-export async function parseAndStorePropertyImportAction(formData: FormData) {
-  const actor = await requireRole(['MASTER_ADMIN'])
-
-  try {
-    await checkRateLimit({ identifier: actor.id, scope: 'bulk-import' })
-  } catch (e) {
-    if (e instanceof RateLimitError) {
-      await createAuditEntry({ action: 'rate_limit_exceeded', entity: 'SYSTEM', actorId: actor.id, after: { scope: 'bulk-import', actionName: 'parseAndStorePropertyImportAction' } })
-    }
-    throw e
-  }
-
+async function _parseAndStorePropertyImportAction(actor: AuthUser, formData: FormData) {
   const file = formData.get('file')
   if (!file || !(file instanceof File)) {
     throw new Error('No file uploaded. Please attach an .xlsx file.')
@@ -415,7 +400,6 @@ export async function parseAndStorePropertyImportAction(formData: FormData) {
   const warningCount = parsedRows.filter((r) => r.status === 'WARNING').length
   const errorCount = parsedRows.filter((r) => r.status === 'ERROR').length
 
-  // Process companion zip if provided
   let zipAttachments: ZipAttachmentsMap = {}
   if (hasZip) {
     zipAttachments = await processCompanionZip(zipFile)
@@ -472,9 +456,12 @@ export async function parseAndStorePropertyImportAction(formData: FormData) {
   redirect(`/admin/imports/properties/${session.id}`)
 }
 
-export async function commitPropertyImportAction(sessionId: string, confirmedRowIds: string[]) {
-  const actor = await requireRole(['MASTER_ADMIN'])
+export const parseAndStorePropertyImportAction = withAdminAction(_parseAndStorePropertyImportAction, {
+  roles: ['MASTER_ADMIN'],
+  scope: 'bulk-import',
+})
 
+async function _commitPropertyImportAction(actor: AuthUser, sessionId: string, confirmedRowIds: string[]) {
   const session = await db.importSession.findUnique({
     where: { id: sessionId },
     include: { rows: true },
@@ -558,7 +545,6 @@ export async function commitPropertyImportAction(sessionId: string, confirmedRow
         data: { createdEntityId: property.id },
       })
 
-      // Create Attachment records for companion zip files
       const attachmentKey = rowData.external_ref?.trim()
       if (attachmentKey && zipAttachments[attachmentKey]) {
         for (const att of zipAttachments[attachmentKey]) {
@@ -611,9 +597,12 @@ export async function commitPropertyImportAction(sessionId: string, confirmedRow
   return { committedCount, skippedCount }
 }
 
-export async function cancelPropertyImportAction(sessionId: string) {
-  const actor = await requireRole(['MASTER_ADMIN'])
+export const commitPropertyImportAction = withAdminAction(_commitPropertyImportAction, {
+  roles: ['MASTER_ADMIN'],
+  scope: 'bulk-import',
+})
 
+async function _cancelPropertyImportAction(actor: AuthUser, sessionId: string) {
   const session = await db.importSession.findUnique({ where: { id: sessionId } })
   if (!session) throw new Error('Import session not found.')
   if (session.status !== 'UPLOADED') throw new Error('Only UPLOADED sessions can be cancelled.')
@@ -635,3 +624,8 @@ export async function cancelPropertyImportAction(sessionId: string) {
 
   redirect('/admin/imports/properties')
 }
+
+export const cancelPropertyImportAction = withAdminAction(_cancelPropertyImportAction, {
+  roles: ['MASTER_ADMIN'],
+  scope: 'bulk-import',
+})

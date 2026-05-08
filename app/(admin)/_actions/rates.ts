@@ -2,7 +2,7 @@
 import 'server-only'
 import { z } from 'zod/v4'
 import { revalidatePath } from 'next/cache'
-import { requireRole } from '@/lib/auth'
+import { withAdminAction, type AuthUser } from '@/lib/action'
 import { db } from '@/lib/db'
 import { DisplayCurrency } from '@prisma/client'
 
@@ -12,8 +12,7 @@ const SetRateSchema = z.object({
   rate: z.string().min(1),
 })
 
-export async function setConversionRateAction(input: unknown) {
-  const user = await requireRole(['MASTER_ADMIN'])
+async function _setConversionRateAction(user: AuthUser, input: unknown) {
   const parsed = SetRateSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: 'Invalid input.' }
 
@@ -35,12 +34,10 @@ export async function setConversionRateAction(input: unknown) {
   const now = new Date()
 
   await db.$transaction(async (tx) => {
-    // Close the current active row
     await tx.conversionRate.updateMany({
       where: { baseCurrency: baseCurrency as DisplayCurrency, quoteCurrency: quoteCurrency as DisplayCurrency, effectiveTo: null },
       data: { effectiveTo: now },
     })
-    // Insert new row
     await tx.conversionRate.create({
       data: {
         baseCurrency: baseCurrency as DisplayCurrency,
@@ -63,6 +60,10 @@ export async function setConversionRateAction(input: unknown) {
   revalidatePath('/admin/settings/currency')
   return { ok: true }
 }
+
+export const setConversionRateAction = withAdminAction(_setConversionRateAction, {
+  roles: ['MASTER_ADMIN'],
+})
 
 export async function getRateHistory(baseCurrency: string, quoteCurrency: string) {
   return db.conversionRate.findMany({

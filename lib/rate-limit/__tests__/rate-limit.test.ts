@@ -1,4 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+
+// This file tests the real rate-limit implementation; undo the global setup mock.
+vi.unmock('@/lib/rate-limit')
+
 import { InMemoryRatelimit, RateLimitError, checkRateLimit, createLimiter } from '../index'
 
 vi.mock('@sentry/nextjs', () => ({

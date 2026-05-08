@@ -1,6 +1,6 @@
 'use server'
 
-import { requireRole } from '@/lib/auth'
+import { withAdminAction, type AuthUser } from '@/lib/action'
 import { db } from '@/lib/db'
 import { sendEmail } from '@/lib/email/service'
 import { notify } from '@/lib/notifications/service'
@@ -8,9 +8,7 @@ import { revalidatePath } from 'next/cache'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 
-export async function approveTransferAction(requestId: string) {
-  const admin = await requireRole(['MASTER_ADMIN'])
-
+async function _approveTransferAction(admin: AuthUser, requestId: string) {
   const req = await db.$transaction(async (tx) => {
     const updated = await tx.propertyTransferRequest.updateMany({
       where: { id: requestId, status: 'PENDING' },
@@ -31,7 +29,6 @@ export async function approveTransferAction(requestId: string) {
       include: { property: { select: { code: true, address: true } } },
     })
 
-    // Transfer ownership: reassign the fromUser's ownership row to toUser
     const ownershipUpdated = await tx.propertyOwnership.updateMany({
       where: { propertyId: approvedRequest.propertyId, userId: approvedRequest.fromUserId },
       data: { userId: approvedRequest.toUserId },
@@ -54,7 +51,6 @@ export async function approveTransferAction(requestId: string) {
     return approvedRequest
   })
 
-  // Fetch recipient names for notifications
   const [fromUser, toUser] = await Promise.all([
     db.user.findUnique({ where: { id: req.fromUserId }, select: { email: true, fullName: true } }),
     db.user.findUnique({ where: { id: req.toUserId }, select: { email: true, fullName: true } }),
@@ -117,9 +113,11 @@ export async function approveTransferAction(requestId: string) {
   revalidatePath('/admin/properties')
 }
 
-export async function declineTransferAction(requestId: string, reason: string) {
-  const admin = await requireRole(['MASTER_ADMIN', 'ADMIN'])
+export const approveTransferAction = withAdminAction(_approveTransferAction, {
+  roles: ['MASTER_ADMIN'],
+})
 
+async function _declineTransferAction(admin: AuthUser, requestId: string, reason: string) {
   if (!reason.trim()) throw new Error('Decline reason is required')
 
   const req = await db.$transaction(async (tx) => {
@@ -199,3 +197,7 @@ export async function declineTransferAction(requestId: string, reason: string) {
 
   revalidatePath('/admin/approvals')
 }
+
+export const declineTransferAction = withAdminAction(_declineTransferAction, {
+  roles: ['MASTER_ADMIN', 'ADMIN'],
+})

@@ -1,14 +1,12 @@
 'use server'
 
-import { requireRole } from '@/lib/auth'
+import { withAdminAction, type AuthUser } from '@/lib/action'
 import { createAuditEntry } from '@/lib/audit'
 import { db } from '@/lib/db'
 import { runAndSaveReconciliation } from '@/lib/ledger/reconciliation-report'
 import { revalidatePath } from 'next/cache'
 
-export async function runNowAction(): Promise<{ ok: boolean; reportId?: string; error?: string }> {
-  const actor = await requireRole('MASTER_ADMIN')
-
+async function _runNowAction(actor: AuthUser): Promise<{ ok: boolean; reportId?: string; error?: string }> {
   try {
     const report = await runAndSaveReconciliation()
 
@@ -29,11 +27,12 @@ export async function runNowAction(): Promise<{ ok: boolean; reportId?: string; 
   }
 }
 
-export async function acknowledgeAlertAction(
+export const runNowAction = withAdminAction(_runNowAction, { roles: ['MASTER_ADMIN'] })
+
+async function _acknowledgeAlertAction(
+  actor: AuthUser,
   reportId: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  const actor = await requireRole('MASTER_ADMIN')
-
   const report = await db.reconciliationReport.findUnique({ where: { id: reportId } })
   if (!report) return { ok: false, error: 'Report not found.' }
   if (report.acknowledgedAt) return { ok: false, error: 'Already acknowledged.' }
@@ -57,3 +56,5 @@ export async function acknowledgeAlertAction(
 
   return { ok: true }
 }
+
+export const acknowledgeAlertAction = withAdminAction(_acknowledgeAlertAction, { roles: ['MASTER_ADMIN'] })

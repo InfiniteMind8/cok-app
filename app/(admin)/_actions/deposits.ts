@@ -1,6 +1,6 @@
 'use server'
 
-import { requireRole } from '@/lib/auth'
+import { withAdminAction, type AuthUser } from '@/lib/action'
 import { recordDeposit } from '@/lib/ledger/deposits'
 import { revalidatePath } from 'next/cache'
 
@@ -13,9 +13,7 @@ interface RecordDepositInput {
   notes?: string
 }
 
-export async function recordDepositAction(input: RecordDepositInput) {
-  const admin = await requireRole(['MASTER_ADMIN'])
-
+async function _recordDepositAction(admin: AuthUser, input: RecordDepositInput) {
   const result = await recordDeposit({
     userId: input.userId,
     fiatAmount: input.fiatAmount,
@@ -29,3 +27,5 @@ export async function recordDepositAction(input: RecordDepositInput) {
   revalidatePath('/dashboard')
   return { transactionId: result.transactionId, kAmount: result.kAmount.toFixed(2) }
 }
+
+export const recordDepositAction = withAdminAction(_recordDepositAction, { roles: ['MASTER_ADMIN'] })

@@ -1,16 +1,13 @@
 'use server'
 
-import { requireRole, denyIfVisitor } from '@/lib/auth'
+import { withResidentAction, type AuthUser } from '@/lib/action'
 import { requestSettlement } from '@/lib/ledger/settlements'
 import { getWalletBalance } from '@/lib/ledger/balance'
 import { db } from '@/lib/db'
 import { Prisma } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 
-export async function requestSettlementAction(amount: string, purpose: string) {
-  await denyIfVisitor()
-  const user = await requireRole(['RESIDENT'])
-
+async function _requestSettlementAction(user: AuthUser, amount: string, purpose: string) {
   const parsedAmount = new Prisma.Decimal(amount)
   if (parsedAmount.lte(0)) throw new Error('Amount must be greater than zero')
 
@@ -26,10 +23,11 @@ export async function requestSettlementAction(amount: string, purpose: string) {
   revalidatePath('/wallet/settlements')
 }
 
-export async function cancelSettlementRequestAction(requestId: string) {
-  await denyIfVisitor()
-  const user = await requireRole(['RESIDENT'])
+export const requestSettlementAction = withResidentAction(_requestSettlementAction, {
+  roles: ['RESIDENT'],
+})
 
+async function _cancelSettlementRequestAction(user: AuthUser, requestId: string) {
   const request = await db.settlementRequest.findUnique({ where: { id: requestId } })
   if (!request) throw new Error('Settlement request not found')
   if (request.userId !== user.id) throw new Error('Not authorised')
@@ -43,12 +41,18 @@ export async function cancelSettlementRequestAction(requestId: string) {
   revalidatePath('/wallet/settlements')
 }
 
-export async function loadMoreTransactionsAction(walletId: string, cursor: string) {
-  const user = await requireRole(['RESIDENT', 'VISITOR'])
+export const cancelSettlementRequestAction = withResidentAction(_cancelSettlementRequestAction, {
+  roles: ['RESIDENT'],
+})
 
+async function _loadMoreTransactionsAction(user: AuthUser, walletId: string, cursor: string) {
   const wallet = await db.wallet.findUnique({ where: { id: walletId } })
   if (!wallet || wallet.userId !== user.id) throw new Error('Not authorised')
 
   const { getTransactionPage } = await import('@/lib/queries/wallet')
   return getTransactionPage(walletId, cursor)
 }
+
+export const loadMoreTransactionsAction = withResidentAction(_loadMoreTransactionsAction, {
+  roles: ['RESIDENT', 'VISITOR'],
+})

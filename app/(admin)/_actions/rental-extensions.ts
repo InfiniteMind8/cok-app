@@ -3,7 +3,7 @@ import 'server-only'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { db } from '@/lib/db'
-import { requireRole } from '@/lib/auth'
+import { withAdminAction, withResidentAction, type AuthUser } from '@/lib/action'
 import { sendEmail } from '@/lib/email/service'
 import { notifyAllOfRole } from '@/lib/notifications/service'
 import { computeNextPaymentDue } from '@/lib/lease/cycle'
@@ -16,8 +16,7 @@ const requestSchema = z.object({
   reason: z.string().optional(),
 })
 
-export async function requestExtensionAction(input: unknown) {
-  const user = await requireRole('RESIDENT')
+async function _requestExtensionAction(user: AuthUser, input: unknown) {
   const { tenancyId, requestedNewEndDate, reason } = requestSchema.parse(input)
 
   const newEnd = new Date(requestedNewEndDate)
@@ -74,6 +73,10 @@ export async function requestExtensionAction(input: unknown) {
   return { ok: true, requestId: request.id }
 }
 
+export const requestExtensionAction = withResidentAction(_requestExtensionAction, {
+  roles: ['RESIDENT'],
+})
+
 // ─── Approve extension (Master Admin) ────────────────────────────────────────
 
 const approveSchema = z.object({
@@ -81,8 +84,7 @@ const approveSchema = z.object({
   note: z.string().optional(),
 })
 
-export async function approveExtensionAction(input: unknown) {
-  const admin = await requireRole(['MASTER_ADMIN'])
+async function _approveExtensionAction(admin: AuthUser, input: unknown) {
   const { requestId, note } = approveSchema.parse(input)
 
   const today = new Date()
@@ -181,6 +183,10 @@ export async function approveExtensionAction(input: unknown) {
   return { ok: true }
 }
 
+export const approveExtensionAction = withAdminAction(_approveExtensionAction, {
+  roles: ['MASTER_ADMIN'],
+})
+
 // ─── Decline extension (Master Admin) ────────────────────────────────────────
 
 const declineSchema = z.object({
@@ -188,8 +194,7 @@ const declineSchema = z.object({
   note: z.string().min(1, 'A reason is required when declining'),
 })
 
-export async function declineExtensionAction(input: unknown) {
-  const admin = await requireRole(['MASTER_ADMIN'])
+async function _declineExtensionAction(admin: AuthUser, input: unknown) {
   const { requestId, note } = declineSchema.parse(input)
 
   const today = new Date()
@@ -251,3 +256,7 @@ export async function declineExtensionAction(input: unknown) {
   revalidatePath('/admin/approvals')
   return { ok: true }
 }
+
+export const declineExtensionAction = withAdminAction(_declineExtensionAction, {
+  roles: ['MASTER_ADMIN'],
+})

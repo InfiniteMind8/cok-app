@@ -15,7 +15,7 @@ export function AccessCallbackClient() {
 
     async function run() {
       try {
-        const { error: ticketErr } = await signIn.ticket({ ticket })
+        const { error: ticketErr } = await signIn.ticket({ ticket: ticket! })
         if (ticketErr) throw new Error(ticketErr.message ?? 'Ticket rejected by Clerk')
         const { error: finalErr } = await signIn.finalize()
         if (finalErr) throw new Error(finalErr.message ?? 'Session activation failed')

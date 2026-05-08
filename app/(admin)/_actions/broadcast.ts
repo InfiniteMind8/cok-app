@@ -1,9 +1,8 @@
 'use server'
 
-import { requireRole } from '@/lib/auth'
+import { withAdminAction, type AuthUser } from '@/lib/action'
 import { getCurrentUser } from '@/lib/auth'
 import { createAuditEntry } from '@/lib/audit'
-import { checkRateLimit, RateLimitError } from '@/lib/rate-limit'
 import { sendEmail } from '@/lib/email/service'
 import { db } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
@@ -17,23 +16,10 @@ function subjectPrefix(severity: AnnouncementSeverity): string {
   return '[INFO] '
 }
 
-export async function sendBroadcastAction(data: {
-  title: string
-  body: string
-  severity: AnnouncementSeverity
-}): Promise<{ ok: boolean; broadcastId?: string; sent?: number; failed?: number; error?: string }> {
-  const actor = await requireRole('MASTER_ADMIN')
-
-  try {
-    await checkRateLimit({ identifier: actor.id, scope: 'email-send' })
-  } catch (e) {
-    if (e instanceof RateLimitError) {
-      await createAuditEntry({ action: 'rate_limit_exceeded', entity: 'SYSTEM', actorId: actor.id, after: { scope: 'email-send', actionName: 'sendBroadcastAction' } })
-      return { ok: false, error: e.message }
-    }
-    throw e
-  }
-
+async function _sendBroadcastAction(
+  actor: AuthUser,
+  data: { title: string; body: string; severity: AnnouncementSeverity },
+): Promise<{ ok: boolean; broadcastId?: string; sent?: number; failed?: number; error?: string }> {
   if (!data.title?.trim() || data.title.length > 80) {
     return { ok: false, error: 'Title is required and must be 80 characters or fewer.' }
   }
@@ -86,7 +72,6 @@ export async function sendBroadcastAction(data: {
         }
       }),
     )
-    // yield to event loop between chunks
     if (i + CHUNK_SIZE < recipients.length) {
       await new Promise((r) => setTimeout(r, 20))
     }
@@ -105,6 +90,13 @@ export async function sendBroadcastAction(data: {
   return { ok: true, broadcastId: broadcast.id, sent, failed }
 }
 
+export const sendBroadcastAction = withAdminAction(_sendBroadcastAction, {
+  roles: ['MASTER_ADMIN'],
+  scope: 'email-send',
+})
+
+// acknowledgeEmergencyBroadcastAction intentionally uses getCurrentUser (not requireRole)
+// because it must work for any authenticated user regardless of role, including VISITOR.
 export async function acknowledgeEmergencyBroadcastAction(
   broadcastId: string,
 ): Promise<{ ok: boolean; error?: string }> {

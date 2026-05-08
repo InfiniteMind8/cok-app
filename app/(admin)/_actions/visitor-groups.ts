@@ -1,6 +1,6 @@
 'use server'
 
-import { requireRole } from '@/lib/auth'
+import { withAdminAction, type AuthUser } from '@/lib/action'
 import { db } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
 
@@ -17,13 +17,10 @@ async function writeAuditLog(
   })
 }
 
-export async function createGroupAction(input: {
-  name: string
-  theme?: string
-  description: string
-}) {
-  const admin = await requireRole(['MASTER_ADMIN', 'ADMIN'])
-
+async function _createGroupAction(
+  admin: AuthUser,
+  input: { name: string; theme?: string; description: string },
+) {
   if (!input.name.trim()) throw new Error('Group name is required')
   if (!input.description.trim()) throw new Error('Description is required')
 
@@ -48,12 +45,15 @@ export async function createGroupAction(input: {
   return group
 }
 
-export async function editGroupAction(
+export const createGroupAction = withAdminAction(_createGroupAction, {
+  roles: ['MASTER_ADMIN', 'ADMIN'],
+})
+
+async function _editGroupAction(
+  admin: AuthUser,
   id: string,
   input: { name: string; theme?: string; description: string },
 ) {
-  const admin = await requireRole(['MASTER_ADMIN', 'ADMIN'])
-
   const existing = await db.visitorGroup.findUnique({ where: { id } })
   if (!existing) throw new Error('Group not found')
 
@@ -80,9 +80,11 @@ export async function editGroupAction(
   return updated
 }
 
-export async function archiveGroupAction(id: string) {
-  const admin = await requireRole(['MASTER_ADMIN', 'ADMIN'])
+export const editGroupAction = withAdminAction(_editGroupAction, {
+  roles: ['MASTER_ADMIN', 'ADMIN'],
+})
 
+async function _archiveGroupAction(admin: AuthUser, id: string) {
   const group = await db.visitorGroup.findUnique({ where: { id } })
   if (!group) throw new Error('Group not found')
 
@@ -93,9 +95,11 @@ export async function archiveGroupAction(id: string) {
   revalidatePath('/admin/visitors/groups')
 }
 
-export async function unarchiveGroupAction(id: string) {
-  const admin = await requireRole(['MASTER_ADMIN', 'ADMIN'])
+export const archiveGroupAction = withAdminAction(_archiveGroupAction, {
+  roles: ['MASTER_ADMIN', 'ADMIN'],
+})
 
+async function _unarchiveGroupAction(admin: AuthUser, id: string) {
   await db.visitorGroup.update({ where: { id }, data: { archived: false } })
 
   await writeAuditLog(admin.id, 'UNARCHIVE', 'VisitorGroup', id, { archived: true }, { archived: false })
@@ -103,9 +107,11 @@ export async function unarchiveGroupAction(id: string) {
   revalidatePath('/admin/visitors/groups')
 }
 
-export async function assignMemberAction(groupId: string, userId: string) {
-  const admin = await requireRole(['MASTER_ADMIN', 'ADMIN'])
+export const unarchiveGroupAction = withAdminAction(_unarchiveGroupAction, {
+  roles: ['MASTER_ADMIN', 'ADMIN'],
+})
 
+async function _assignMemberAction(admin: AuthUser, groupId: string, userId: string) {
   const group = await db.visitorGroup.findUnique({ where: { id: groupId } })
   if (!group) throw new Error('Group not found')
   if (group.archived) throw new Error('Cannot assign members to an archived group')
@@ -114,7 +120,6 @@ export async function assignMemberAction(groupId: string, userId: string) {
   if (!user) throw new Error('User not found')
   if (user.role !== 'VISITOR') throw new Error('Only visitors can be assigned to visitor groups')
 
-  // Check for existing active membership
   const existing = await db.visitorGroupMembership.findFirst({
     where: { groupId, userId, removedAt: null },
   })
@@ -133,9 +138,11 @@ export async function assignMemberAction(groupId: string, userId: string) {
   revalidatePath('/admin/accounts')
 }
 
-export async function removeMemberAction(membershipId: string) {
-  const admin = await requireRole(['MASTER_ADMIN', 'ADMIN'])
+export const assignMemberAction = withAdminAction(_assignMemberAction, {
+  roles: ['MASTER_ADMIN', 'ADMIN'],
+})
 
+async function _removeMemberAction(admin: AuthUser, membershipId: string) {
   const membership = await db.visitorGroupMembership.findUnique({ where: { id: membershipId } })
   if (!membership) throw new Error('Membership not found')
   if (membership.removedAt) throw new Error('Membership already removed')
@@ -153,3 +160,7 @@ export async function removeMemberAction(membershipId: string) {
 
   revalidatePath(`/admin/visitors/groups/${membership.groupId}`)
 }
+
+export const removeMemberAction = withAdminAction(_removeMemberAction, {
+  roles: ['MASTER_ADMIN', 'ADMIN'],
+})

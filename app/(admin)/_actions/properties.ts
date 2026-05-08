@@ -1,6 +1,6 @@
 'use server'
 
-import { requireRole } from '@/lib/auth'
+import { withAdminAction, type AuthUser } from '@/lib/action'
 import { db } from '@/lib/db'
 import { PropertyType, PropertyCategory, PropertyStatus, AttachmentEntityType } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
@@ -13,28 +13,29 @@ interface AttachmentInput {
   fieldName: string
 }
 
-export async function createPropertyAction(input: {
-  code: string
-  type: PropertyType
-  category: PropertyCategory
-  address?: string
-  addressLine2?: string
-  lotNumber?: string
-  totalPrice?: string
-  currentValuationKcrd?: string
-  sizeSqm?: string
-  bedrooms?: string
-  bathrooms?: string
-  parkingSpots?: string
-  yearBuilt?: string
-  propertyStatus?: PropertyStatus
-  notes?: string
-  specifications?: Record<string, string>
-  photos?: string[]
-  attachments?: AttachmentInput[]
-}) {
-  const user = await requireRole(['MASTER_ADMIN'])
-
+async function _createPropertyAction(
+  user: AuthUser,
+  input: {
+    code: string
+    type: PropertyType
+    category: PropertyCategory
+    address?: string
+    addressLine2?: string
+    lotNumber?: string
+    totalPrice?: string
+    currentValuationKcrd?: string
+    sizeSqm?: string
+    bedrooms?: string
+    bathrooms?: string
+    parkingSpots?: string
+    yearBuilt?: string
+    propertyStatus?: PropertyStatus
+    notes?: string
+    specifications?: Record<string, string>
+    photos?: string[]
+    attachments?: AttachmentInput[]
+  },
+) {
   const property = await db.$transaction(async (tx) => {
     const prop = await tx.property.create({
       data: {
@@ -57,7 +58,6 @@ export async function createPropertyAction(input: {
       },
     })
 
-    // Create Attachment rows for each uploaded file
     if (input.attachments && input.attachments.length > 0) {
       for (const att of input.attachments) {
         await tx.attachment.create({
@@ -92,15 +92,14 @@ export async function createPropertyAction(input: {
   return { propertyId: property.id }
 }
 
-export async function addInstallmentAction(input: {
-  propertyId: string
-  number: number
-  dueDate: string
-  amount: string
-  progressNote?: string
-}) {
-  await requireRole(['MASTER_ADMIN'])
+export const createPropertyAction = withAdminAction(_createPropertyAction, {
+  roles: ['MASTER_ADMIN'],
+})
 
+async function _addInstallmentAction(
+  _user: AuthUser,
+  input: { propertyId: string; number: number; dueDate: string; amount: string; progressNote?: string },
+) {
   await db.propertyInstallment.create({
     data: {
       propertyId: input.propertyId,
@@ -114,15 +113,20 @@ export async function addInstallmentAction(input: {
   revalidatePath(`/admin/properties/${input.propertyId}`)
 }
 
-export async function assignOwnerAction(input: {
-  propertyId: string
-  userId: string
-  ownershipPct: number
-  contractDate: string
-  contractUrl?: string
-}) {
-  await requireRole(['MASTER_ADMIN'])
+export const addInstallmentAction = withAdminAction(_addInstallmentAction, {
+  roles: ['MASTER_ADMIN'],
+})
 
+async function _assignOwnerAction(
+  _user: AuthUser,
+  input: {
+    propertyId: string
+    userId: string
+    ownershipPct: number
+    contractDate: string
+    contractUrl?: string
+  },
+) {
   await db.propertyOwnership.create({
     data: {
       propertyId: input.propertyId,
@@ -136,23 +140,28 @@ export async function assignOwnerAction(input: {
   revalidatePath(`/admin/properties/${input.propertyId}`)
 }
 
-export async function assignTenantAction(input: {
-  propertyId: string
-  userId: string
-  cycle: string
-  cyclePayment: string
-  contractDate: string
-  contractUrl?: string
-  startDate?: string
-  endDate?: string
-  depositAmount?: string
-  leaseAgreementKey?: string
-  leaseAgreementName?: string
-  leaseAgreementSize?: number
-  leaseAgreementMime?: string
-}) {
-  const user = await requireRole(['MASTER_ADMIN'])
+export const assignOwnerAction = withAdminAction(_assignOwnerAction, {
+  roles: ['MASTER_ADMIN'],
+})
 
+async function _assignTenantAction(
+  user: AuthUser,
+  input: {
+    propertyId: string
+    userId: string
+    cycle: string
+    cyclePayment: string
+    contractDate: string
+    contractUrl?: string
+    startDate?: string
+    endDate?: string
+    depositAmount?: string
+    leaseAgreementKey?: string
+    leaseAgreementName?: string
+    leaseAgreementSize?: number
+    leaseAgreementMime?: string
+  },
+) {
   await db.$transaction(async (tx) => {
     const tenancy = await tx.propertyTenancy.create({
       data: {
@@ -201,15 +210,14 @@ export async function assignTenantAction(input: {
   revalidatePath(`/admin/properties/${input.propertyId}`)
 }
 
-export async function addPropertyPaymentAction(input: {
-  installmentId: string
-  ownershipId: string
-  amount: string
-  paidAt: string
-  proofUrl?: string
-}) {
-  await requireRole(['MASTER_ADMIN'])
+export const assignTenantAction = withAdminAction(_assignTenantAction, {
+  roles: ['MASTER_ADMIN'],
+})
 
+async function _addPropertyPaymentAction(
+  _user: AuthUser,
+  input: { installmentId: string; ownershipId: string; amount: string; paidAt: string; proofUrl?: string },
+) {
   await db.propertyPayment.create({
     data: {
       installmentId: input.installmentId,
@@ -226,3 +234,7 @@ export async function addPropertyPaymentAction(input: {
   })
   if (installment) revalidatePath(`/admin/properties/${installment.propertyId}`)
 }
+
+export const addPropertyPaymentAction = withAdminAction(_addPropertyPaymentAction, {
+  roles: ['MASTER_ADMIN'],
+})

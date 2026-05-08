@@ -1,6 +1,6 @@
 'use server'
 
-import { requireRole } from '@/lib/auth'
+import { withAdminAction, type AuthUser } from '@/lib/action'
 import { db } from '@/lib/db'
 import { sendEmail } from '@/lib/email/service'
 import { clerkClient } from '@clerk/nextjs/server'
@@ -9,9 +9,10 @@ import { revalidatePath } from 'next/cache'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 
-export async function resetUserMfaAction(targetUserId: string): Promise<{ ok: boolean; error?: string }> {
-  const actor = await requireRole('MASTER_ADMIN')
-
+async function _resetUserMfaAction(
+  actor: AuthUser,
+  targetUserId: string,
+): Promise<{ ok: boolean; error?: string }> {
   const targetUser = await db.user.findUnique({
     where: { id: targetUserId },
     select: { id: true, clerkId: true, fullName: true, email: true, role: true },
@@ -66,3 +67,5 @@ export async function resetUserMfaAction(targetUserId: string): Promise<{ ok: bo
   revalidatePath('/admin/data-directory')
   return { ok: true }
 }
+
+export const resetUserMfaAction = withAdminAction(_resetUserMfaAction, { roles: ['MASTER_ADMIN'] })
