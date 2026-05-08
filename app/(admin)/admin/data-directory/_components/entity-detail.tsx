@@ -101,7 +101,7 @@ function AuditTab({ entries }: { entries: Array<{ id: string; action: string; en
           <button
             onClick={() => setExpanded((prev) => {
               const next = new Set(prev)
-              next.has(e.id) ? next.delete(e.id) : next.add(e.id)
+              if (next.has(e.id)) { next.delete(e.id) } else { next.add(e.id) }
               return next
             })}
             className="w-full flex items-center gap-3 px-3 py-2 hover:bg-karis-stone-50 transition-colors text-left"

@@ -26,22 +26,6 @@ export interface MemberRowData {
   notes: string
 }
 
-const REQUIRED_COLUMNS = [
-  'full_name',
-  'preferred_name',
-  'dob',
-  'gender',
-  'email',
-  'phone_e164',
-  'national_id_type',
-  'national_id_number',
-  'emergency_contact_name',
-  'emergency_contact_phone',
-  'household_size',
-  'vehicle_plates',
-  'notes',
-] as const
-
 const GENDER_VALUES = ['MALE', 'FEMALE', 'OTHER', 'PREFER_NOT_TO_SAY'] as const
 
 function normalizeString(val: unknown): string {
@@ -106,7 +90,7 @@ export function normalizeDate(val: unknown): string | null {
 export function normalizePhone(val: unknown): { phone: string; isWarning: boolean } | null {
   if (val === null || val === undefined || val === '') return null
 
-  let s = String(val).trim().replace(/[\s\-().]/g, '')
+  const s = String(val).trim().replace(/[\s\-().]/g, '')
 
   // Already E.164
   if (/^\+[1-9]\d{6,14}$/.test(s)) {

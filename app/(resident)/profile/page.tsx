@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { format } from 'date-fns'
-import { Shield, Bell, Info, ChevronRight, Lock, Map } from 'lucide-react'
+import { Shield, Bell, Info, ChevronRight, Lock } from 'lucide-react'
 import { getCurrentUser } from '@/lib/auth'
 import { clerkClient } from '@clerk/nextjs/server'
 import { db } from '@/lib/db'

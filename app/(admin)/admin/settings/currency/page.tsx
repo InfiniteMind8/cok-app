@@ -8,7 +8,7 @@ import { RateEditor } from './_components/rate-editor'
 export const dynamic = 'force-dynamic'
 
 export default async function CurrencySettingsPage() {
-  const [activeRates, allRates] = await Promise.all([
+  const [, allRates] = await Promise.all([
     getAllActiveRates(),
     db.conversionRate.findMany({ orderBy: [{ baseCurrency: 'asc' }, { effectiveFrom: 'desc' }] }),
   ])

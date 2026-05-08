@@ -132,7 +132,7 @@ describe('GET /api/cron/leases', () => {
     mocks.findMany.mockResolvedValue([
       { ...BASE_TENANCY, endDate, leaseStatus: 'ENDING_SOON' },
     ])
-    const res = await GET(makeRequest('test-secret'))
+    await GET(makeRequest('test-secret'))
     expect(mocks.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ leaseStatus: 'EXPIRED' }),

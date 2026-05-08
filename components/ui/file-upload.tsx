@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { X, FileText, Image, Video, Paperclip, UploadCloud, Loader2 } from 'lucide-react'
+import { X, FileText, Image as ImageIcon, Video, Paperclip, UploadCloud, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export interface UploadedFile {
@@ -31,7 +31,7 @@ interface FileUploadProps {
 }
 
 function fileIcon(type: string) {
-  if (type.startsWith('image/')) return <Image size={14} className="shrink-0" />
+  if (type.startsWith('image/')) return <ImageIcon size={14} className="shrink-0" aria-hidden="true" />
   if (type.startsWith('video/')) return <Video size={14} className="shrink-0" />
   if (type === 'application/pdf') return <FileText size={14} className="shrink-0" />
   return <Paperclip size={14} className="shrink-0" />

@@ -70,7 +70,7 @@ export class LocalStorageDriver implements StorageDriver {
     this.baseUrl = baseUrl ?? ''
   }
 
-  async put(key: string, body: Buffer, mime: string): Promise<PutResult> {
+  async put(key: string, body: Buffer, _mime: string): Promise<PutResult> {
     const iv = crypto.randomBytes(IV_SIZE)
     const cipher = crypto.createCipheriv('aes-256-gcm', this.keyBuf, iv)
     const ciphertext = Buffer.concat([cipher.update(body), cipher.final()])

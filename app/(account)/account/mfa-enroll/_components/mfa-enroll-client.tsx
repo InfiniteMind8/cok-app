@@ -17,7 +17,7 @@ interface Props {
   userName: string
 }
 
-export function MfaEnrollClient({ isStaff, userName: _ }: Props) {
+export function MfaEnrollClient({ isStaff, userName: _userName }: Props) {
   const router = useRouter()
   const { user } = useUser()
   const [phase, setPhase] = useState<Phase>('setup')
@@ -94,7 +94,7 @@ export function MfaEnrollClient({ isStaff, userName: _ }: Props) {
 
           <div className="bg-white border border-karis-stone-100 rounded-2xl shadow-sm p-6 space-y-5">
             <div className="space-y-2">
-              <p className="font-body text-sm font-medium text-karis-green-900">What you'll need</p>
+              <p className="font-body text-sm font-medium text-karis-green-900">What you&apos;ll need</p>
               <ul className="space-y-1 font-body text-sm text-karis-stone-600 list-disc list-inside">
                 <li>An authenticator app (Google Authenticator, Authy, or 1Password)</li>
                 <li>A safe place to store 10 one-time backup codes</li>
@@ -137,7 +137,7 @@ export function MfaEnrollClient({ isStaff, userName: _ }: Props) {
 
             <div className="space-y-1">
               <p className="font-body text-xs text-karis-stone-500">
-                Can't scan? Enter this key manually in your authenticator:
+                Can&apos;t scan? Enter this key manually in your authenticator:
               </p>
               <div className="flex items-center gap-2 bg-karis-stone-50 border border-karis-stone-200 rounded-lg px-3 py-2">
                 <code className="font-mono text-xs text-karis-stone-700 flex-1 break-all select-all">

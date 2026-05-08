@@ -42,7 +42,6 @@ import {
 const mockGroupCreate = db.visitorGroup.create as ReturnType<typeof vi.fn>
 const mockGroupUpdate = db.visitorGroup.update as ReturnType<typeof vi.fn>
 const mockGroupFindUnique = db.visitorGroup.findUnique as ReturnType<typeof vi.fn>
-const mockGroupFindFirst = db.visitorGroup.findFirst as ReturnType<typeof vi.fn>
 const mockMemberCreate = db.visitorGroupMembership.create as ReturnType<typeof vi.fn>
 const mockMemberFindFirst = db.visitorGroupMembership.findFirst as ReturnType<typeof vi.fn>
 const mockMemberUpdate = db.visitorGroupMembership.update as ReturnType<typeof vi.fn>

@@ -4,7 +4,6 @@ import { requireRole } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { PropertyType, PropertyCategory, PropertyStatus, AttachmentEntityType } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
-import { createAttachment, type CreateAttachmentInput } from '@/lib/storage/attachments'
 
 interface AttachmentInput {
   storageKey: string

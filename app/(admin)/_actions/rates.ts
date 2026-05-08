@@ -2,7 +2,7 @@
 import 'server-only'
 import { z } from 'zod/v4'
 import { revalidatePath } from 'next/cache'
-import { getCurrentUser, requireRole } from '@/lib/auth'
+import { requireRole } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { DisplayCurrency } from '@prisma/client'
 

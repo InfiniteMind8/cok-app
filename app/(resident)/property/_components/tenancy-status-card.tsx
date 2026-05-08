@@ -2,8 +2,7 @@ import { format, differenceInDays } from 'date-fns'
 import { Prisma } from '@prisma/client'
 import type { CycleUnit, LeaseStatus, RequestStatus } from '@prisma/client'
 import { KAmount } from '@/components/admin/k-amount'
-import { Check, Clock, AlertTriangle, XCircle } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
+import { Check, Clock, AlertTriangle } from 'lucide-react'
 import { ExtensionRequestModal } from './extension-request-modal'
 
 interface TenancyCyclePayment {

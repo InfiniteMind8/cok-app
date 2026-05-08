@@ -85,6 +85,7 @@ export function CreateAccountDialog({ visitorGroups = [] }: { visitorGroups?: Vi
     defaultValues: { role: 'RESIDENT' },
   })
 
+  // eslint-disable-next-line react-hooks/incompatible-library -- react-hook-form watch() is incompatible with React Compiler; known limitation
   const role = watch('role')
 
   function handleClose() {

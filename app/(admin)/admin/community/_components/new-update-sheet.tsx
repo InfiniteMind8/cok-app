@@ -68,6 +68,7 @@ export function NewUpdateSheet({
     },
   })
 
+  // eslint-disable-next-line react-hooks/incompatible-library -- react-hook-form watch() is incompatible with React Compiler; known limitation
   const targetType = watch('targetType')
 
   function onSubmit(values: FormValues) {

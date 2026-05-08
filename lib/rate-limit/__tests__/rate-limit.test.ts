@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { InMemoryRatelimit, RateLimitError, checkRateLimit, createLimiter } from '../index'
-import type { RateLimitScope } from '../index'
 
 vi.mock('@sentry/nextjs', () => ({
   captureMessage: vi.fn(),

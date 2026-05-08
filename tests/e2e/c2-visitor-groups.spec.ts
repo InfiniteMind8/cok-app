@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { signInAs, signOut } from './helpers/auth'
+import { signInAs } from './helpers/auth'
 
 // Unique names per run to avoid collisions with previous test data
 const GROUP_NAME = `Heritage Walk ${Date.now()}`

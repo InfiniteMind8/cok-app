@@ -54,16 +54,16 @@ export function OnboardingTour({
   onSkip,
 }: OnboardingTourProps) {
   const [targetRect, setTargetRect] = useState<TourRect | null>(null)
-  const [reducedMotion, setReducedMotion] = useState(false)
+  const [reducedMotion] = useState(() =>
+    typeof window !== 'undefined'
+      ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      : false
+  )
   const dialogRef = useRef<HTMLDivElement>(null)
 
   const step = steps[currentIndex]
   const isFirst = currentIndex === 0
   const isLast = currentIndex === steps.length - 1
-
-  useEffect(() => {
-    setReducedMotion(window.matchMedia('(prefers-reduced-motion: reduce)').matches)
-  }, [])
 
   useEffect(() => {
     if (!visible || !step) return
