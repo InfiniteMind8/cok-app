@@ -1,8 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useSignIn, useClerk } from '@clerk/nextjs'
-import { useRouter } from 'next/navigation'
+import { useClerk } from '@clerk/nextjs'
 
 interface AccessButtonProps {
   userId: string
@@ -10,11 +9,7 @@ interface AccessButtonProps {
 }
 
 export function AccessButton({ userId, firstName }: AccessButtonProps) {
-  // Clerk v7 API: useSignIn returns { errors, fetchStatus, signIn }
-  // signIn is a SignInFutureResource — always defined, never null
-  const { signIn } = useSignIn()
   const { signOut } = useClerk()
-  const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -24,10 +19,10 @@ export function AccessButton({ userId, firstName }: AccessButtonProps) {
     setError(null)
 
     try {
-      // Clear any active session (idempotent — no-op if not signed in)
-      await signOut()
-
-      // Generate a Clerk sign-in token server-side
+      // Generate token first, then sign out and hard-navigate.
+      // This matches the pattern used in login-button.tsx and dev-sign-in-button.tsx.
+      // The sign-in page's useEffect detects __clerk_ticket and auto-signs in
+      // without showing the form — user lands on the dashboard within ~300ms.
       const res = await fetch('/api/auth/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -36,25 +31,8 @@ export function AccessButton({ userId, firstName }: AccessButtonProps) {
       const { token, error: apiError } = await res.json()
       if (!token) throw new Error(apiError ?? 'Token generation failed')
 
-      // v7: signIn.ticket() is the purpose-built method for ticket-based auth.
-      // Avoids reading signIn.status synchronously after create() — in the
-      // signal-based reactive API the captured reference hasn't re-rendered yet.
-      const { error: ticketError } = await signIn.ticket({ ticket: token })
-      if (ticketError) {
-        throw new Error(ticketError.message ?? 'Ticket authentication failed')
-      }
-
-      // v7: signIn.finalize() activates the new session
-      const { error: finalizeError } = await signIn.finalize()
-      if (finalizeError) {
-        throw new Error(finalizeError.message ?? 'Session activation failed')
-      }
-
-      // Route through home — app/page.tsx reads the DB role and dispatches:
-      // MASTER_ADMIN → /admin/dashboard, RESIDENT/VISITOR → /wallet,
-      // ADMIN/VENDOR → coming-soon. Single source of truth, no role drift.
-      router.push('/')
-      router.refresh()
+      await signOut()
+      window.location.href = `/sign-in?__clerk_ticket=${token}`
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign-in failed')
       setLoading(false)
