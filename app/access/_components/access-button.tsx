@@ -32,7 +32,7 @@ export function AccessButton({ userId, firstName }: AccessButtonProps) {
       if (!token) throw new Error(apiError ?? 'Token generation failed')
 
       await signOut()
-      window.location.href = `/sign-in?__clerk_ticket=${token}`
+      window.location.href = `/access/callback?ticket=${token}`
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign-in failed')
       setLoading(false)
