@@ -1,28 +1,36 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type FormEvent, type ReactNode } from 'react'
 import { useClerk } from '@clerk/nextjs'
 
 interface AccessButtonProps {
-  userId: string
   firstName: string
+  children: ReactNode
 }
 
-export function AccessButton({ userId, firstName }: AccessButtonProps) {
+export function AccessButton({ firstName, children }: AccessButtonProps) {
   const { signOut } = useClerk()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  async function handleClick() {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
     if (loading) return
     setLoading(true)
     setError(null)
 
     try {
+      const formData = new FormData(event.currentTarget)
+      const userId = formData.get('userId')
+
+      if (typeof userId !== 'string') {
+        throw new Error('Invalid request')
+      }
+
       // Generate token first, then sign out and hard-navigate.
       // This matches the pattern used in login-button.tsx and dev-sign-in-button.tsx.
       // The sign-in page's useEffect detects __clerk_ticket and auto-signs in
-      // without showing the form — user lands on the dashboard within ~300ms.
+      // without showing the form - user lands on the dashboard within ~300ms.
       const res = await fetch('/api/auth/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -40,9 +48,10 @@ export function AccessButton({ userId, firstName }: AccessButtonProps) {
   }
 
   return (
-    <div className="space-y-1.5">
+    <form onSubmit={handleSubmit} className="space-y-1.5">
+      {children}
       <button
-        onClick={handleClick}
+        type="submit"
         disabled={loading}
         className="w-full py-3 text-sm font-body font-medium rounded-lg transition-colors duration-150 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
         style={{
@@ -50,7 +59,7 @@ export function AccessButton({ userId, firstName }: AccessButtonProps) {
           color: 'oklch(0.13 0.01 70)',
         }}
       >
-        {loading ? 'Signing in…' : `Enter as ${firstName}`}
+        {loading ? 'Signing in...' : `Enter as ${firstName}`}
       </button>
       {error && (
         <p
@@ -60,6 +69,6 @@ export function AccessButton({ userId, firstName }: AccessButtonProps) {
           {error}
         </p>
       )}
-    </div>
+    </form>
   )
 }

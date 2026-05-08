@@ -1,54 +1,12 @@
 import { redirect } from 'next/navigation'
 import { BrandLogo } from '@/components/shared/brand-logo'
+import { listDemoAccounts } from '@/lib/demo-mode'
 import { AccessButtonWrapper } from './_components/access-button-wrapper'
-
-const ACCOUNTS = [
-  {
-    id: 'user_3CtmfDZfRg9T21vmoAEMqwKj5co',
-    name: 'Karis Munroe',
-    role: 'MASTER_ADMIN',
-    title: 'Master Admin',
-    description: 'Full platform access — treasury, accounts, settings',
-  },
-  {
-    id: 'user_3CtmfI4l73YuvWDzzAT1H9I3g91',
-    name: 'Naomi Wells',
-    role: 'ADMIN',
-    title: 'Admin',
-    description: 'Approvals, community management, member support',
-  },
-  {
-    id: 'user_3CtmfMWnpFibGSGws37JEW7FFwH',
-    name: 'Devon McKenzie',
-    role: 'RESIDENT',
-    title: 'Resident',
-    description: 'Wallet, property, community — full resident experience',
-  },
-  {
-    id: 'user_3CtmfKH80kXydPxKBsxVjFfgZLP',
-    name: 'Anjali Pereira',
-    role: 'RESIDENT',
-    title: 'Resident',
-    description: 'Pending settlement request, active community member',
-  },
-  {
-    id: 'user_3CtmfWRMtnrt8gecUHkqyQ0CMZk',
-    name: 'Aaliyah Singh',
-    role: 'VENDOR',
-    title: 'Vendor',
-    description: 'Vendor wallet access — Phase 2 portal coming soon',
-  },
-  {
-    id: 'user_3CtmfSIS8UizzHXbLQQfbyC5o5w',
-    name: 'Marcus Bowen',
-    role: 'VISITOR',
-    title: 'Visitor',
-    description: 'Limited access — wallet only, no property tab',
-  },
-]
 
 export default function AccessPage() {
   if (process.env.NODE_ENV === 'production') redirect('/')
+
+  const accounts = listDemoAccounts()
 
   return (
     <div
@@ -83,13 +41,13 @@ export default function AccessPage() {
           className="font-body text-xs mt-1"
           style={{ color: 'oklch(0.45 0.01 70)' }}
         >
-          One click — no password required
+          One click - no password required
         </p>
       </div>
 
       {/* Account grid */}
       <div className="relative w-full max-w-lg grid sm:grid-cols-2 gap-3">
-        {ACCOUNTS.map((account) => (
+        {accounts.map((account) => (
           <div
             key={account.id}
             className="flex flex-col gap-3 rounded-xl p-5 border"
