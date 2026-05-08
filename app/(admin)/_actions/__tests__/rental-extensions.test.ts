@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   findUniqueOrThrow: vi.fn(),
   findUnique: vi.fn(),
   createRequest: vi.fn(),
+  updateRequestMany: vi.fn(),
   updateRequest: vi.fn(),
   updateTenancy: vi.fn(),
   createAuditLog: vi.fn(),
@@ -31,6 +32,8 @@ vi.mock('@/lib/db', () => ({
       update: mocks.updateTenancy,
     },
     rentalExtensionRequest: {
+      updateMany: mocks.updateRequestMany,
+      findUnique: mocks.findUnique,
       findUniqueOrThrow: mocks.findUniqueOrThrow,
       create: mocks.createRequest,
       update: mocks.updateRequest,
@@ -167,13 +170,17 @@ describe('approveExtensionAction', () => {
     mocks.sendEmail.mockResolvedValue({ ok: true, messageId: 'x' })
     mocks.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
       const mockTx = {
-        rentalExtensionRequest: { update: mocks.updateRequest },
+        rentalExtensionRequest: {
+          updateMany: mocks.updateRequestMany,
+          findUnique: mocks.findUnique,
+          findUniqueOrThrow: mocks.findUniqueOrThrow,
+        },
         propertyTenancy: { update: mocks.updateTenancy },
         auditLog: { create: mocks.createAuditLog },
       }
       return fn(mockTx)
     })
-    mocks.updateRequest.mockResolvedValue({})
+    mocks.updateRequestMany.mockResolvedValue({ count: 1 })
     mocks.updateTenancy.mockResolvedValue({})
     mocks.createAuditLog.mockResolvedValue({})
   })
@@ -186,8 +193,9 @@ describe('approveExtensionAction', () => {
   it('approves request and updates tenancy in a transaction', async () => {
     mocks.findUniqueOrThrow.mockResolvedValue(PENDING_REQUEST)
     await approveExtensionAction({ requestId: 'req-1', note: 'Approved.' })
-    expect(mocks.updateRequest).toHaveBeenCalledWith(
+    expect(mocks.updateRequestMany).toHaveBeenCalledWith(
       expect.objectContaining({
+        where: { id: 'req-1', status: 'PENDING' },
         data: expect.objectContaining({ status: 'APPROVED', reviewedById: ADMIN.id }),
       }),
     )
@@ -221,8 +229,11 @@ describe('approveExtensionAction', () => {
   })
 
   it('throws if request is not PENDING', async () => {
-    mocks.findUniqueOrThrow.mockResolvedValue({ ...PENDING_REQUEST, status: 'APPROVED' })
-    await expect(approveExtensionAction({ requestId: 'req-1' })).rejects.toThrow('not pending')
+    mocks.updateRequestMany.mockResolvedValueOnce({ count: 0 })
+    mocks.findUnique.mockResolvedValueOnce({ status: 'APPROVED' })
+    await expect(approveExtensionAction({ requestId: 'req-1' })).rejects.toThrow(
+      'Request already processed (status: APPROVED)',
+    )
   })
 })
 
@@ -235,12 +246,16 @@ describe('declineExtensionAction', () => {
     mocks.sendEmail.mockResolvedValue({ ok: true, messageId: 'x' })
     mocks.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
       const mockTx = {
-        rentalExtensionRequest: { update: mocks.updateRequest },
+        rentalExtensionRequest: {
+          updateMany: mocks.updateRequestMany,
+          findUnique: mocks.findUnique,
+          findUniqueOrThrow: mocks.findUniqueOrThrow,
+        },
         auditLog: { create: mocks.createAuditLog },
       }
       return fn(mockTx)
     })
-    mocks.updateRequest.mockResolvedValue({})
+    mocks.updateRequestMany.mockResolvedValue({ count: 1 })
     mocks.createAuditLog.mockResolvedValue({})
   })
 
@@ -254,8 +269,9 @@ describe('declineExtensionAction', () => {
   it('declines request with required note', async () => {
     mocks.findUniqueOrThrow.mockResolvedValue(PENDING_REQUEST)
     await declineExtensionAction({ requestId: 'req-1', note: 'End date too far.' })
-    expect(mocks.updateRequest).toHaveBeenCalledWith(
+    expect(mocks.updateRequestMany).toHaveBeenCalledWith(
       expect.objectContaining({
+        where: { id: 'req-1', status: 'PENDING' },
         data: expect.objectContaining({ status: 'DECLINED', decisionNote: 'End date too far.' }),
       }),
     )
@@ -290,9 +306,10 @@ describe('declineExtensionAction', () => {
   })
 
   it('throws if request is not PENDING', async () => {
-    mocks.findUniqueOrThrow.mockResolvedValue({ ...PENDING_REQUEST, status: 'DECLINED' })
+    mocks.updateRequestMany.mockResolvedValueOnce({ count: 0 })
+    mocks.findUnique.mockResolvedValueOnce({ status: 'DECLINED' })
     await expect(
       declineExtensionAction({ requestId: 'req-1', note: 'Already done.' }),
-    ).rejects.toThrow('not pending')
+    ).rejects.toThrow('Request already processed (status: DECLINED)')
   })
 })

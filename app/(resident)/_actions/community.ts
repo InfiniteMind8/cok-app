@@ -22,12 +22,22 @@ export async function castVoteAction(voteId: string, optionId: string) {
   await denyIfVisitor()
   const user = await requireRole(['RESIDENT'])
 
-  const vote = await db.vote.findUnique({ where: { id: voteId } })
-  if (!vote) throw new Error('Vote not found')
-  if (!vote.isOpen) throw new Error('This vote is no longer open')
+  await db.$transaction(async (tx) => {
+    const option = await tx.voteOption.findUnique({
+      where: { id: optionId },
+      select: { voteId: true, vote: { select: { isOpen: true } } },
+    })
 
-  await db.voteSubmission.create({
-    data: { voteId, optionId, userId: user.id },
+    if (!option || option.voteId !== voteId) {
+      throw new Error('Invalid vote option')
+    }
+    if (!option.vote.isOpen) {
+      throw new Error('This vote is no longer open')
+    }
+
+    await tx.voteSubmission.create({
+      data: { voteId, optionId, userId: user.id },
+    })
   })
 
   revalidatePath('/community')
