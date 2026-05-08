@@ -60,6 +60,12 @@ describe('GET /api/cron/leases', () => {
     mocks.update.mockResolvedValue({})
   })
 
+  it('returns 500 when CRON_SECRET env var is absent', async () => {
+    vi.stubEnv('CRON_SECRET', '')
+    const res = await GET(makeRequest('test-secret'))
+    expect(res.status).toBe(500)
+  })
+
   it('returns 401 when authorization header is missing', async () => {
     const res = await GET(makeRequest(null) as Parameters<typeof GET>[0])
     expect(res.status).toBe(401)
@@ -118,5 +124,20 @@ describe('GET /api/cron/leases', () => {
     expect(mocks.sendEmail).toHaveBeenCalledWith(
       expect.objectContaining({ to: 'jane@test.com' }),
     )
+  })
+
+  it('flips ENDING_SOON → EXPIRED when endDate is today or past; does not send email', async () => {
+    const endDate = new Date()
+    endDate.setDate(endDate.getDate() - 1) // yesterday → EXPIRED
+    mocks.findMany.mockResolvedValue([
+      { ...BASE_TENANCY, endDate, leaseStatus: 'ENDING_SOON' },
+    ])
+    const res = await GET(makeRequest('test-secret'))
+    expect(mocks.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ leaseStatus: 'EXPIRED' }),
+      }),
+    )
+    expect(mocks.sendEmail).not.toHaveBeenCalled()
   })
 })

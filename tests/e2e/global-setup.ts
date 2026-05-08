@@ -66,6 +66,29 @@ async function seedTestFixtures(prisma: PrismaClient) {
     }
   }
 
+  // ── Aaliyah's RESIDENCE-B07 tenancy — C.3 rental extension fixture ──────────
+  // Seeds startDate, endDate (30 days out, leaseStatus=ACTIVE) so the
+  // TenancyStatusCard shows the "Request extension" button during E2E tests.
+  const propB07 = await prisma.property.findFirst({ where: { code: 'RESIDENCE-B07' } })
+  if (aaliyah && propB07) {
+    const tenancy = await prisma.propertyTenancy.findFirst({
+      where: { propertyId: propB07.id, userId: aaliyah.id },
+    })
+    if (tenancy) {
+      const today = new Date()
+      const startDate = new Date('2024-01-01')
+      const endDate = new Date(today)
+      endDate.setDate(today.getDate() + 30) // 30 days → ACTIVE, > 14 days away
+      const nextPaymentDue = new Date(today)
+      nextPaymentDue.setMonth(today.getMonth() + 1)
+      await prisma.propertyTenancy.update({
+        where: { id: tenancy.id },
+        data: { startDate, endDate, leaseStatus: 'ACTIVE', nextPaymentDue },
+      })
+      console.log('[global-setup] Updated Aaliyah RESIDENCE-B07 tenancy with lease dates (C.3 fixture)')
+    }
+  }
+
   // ── Pending voucher request (Aaliyah requests K 100) ───────────────────────
   if (aaliyah) {
     const existing = await prisma.voucherRequest.findFirst({

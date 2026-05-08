@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
 
-import { addOneCycle, computeNextPaymentDue, computeLeaseStatus } from '../cycle'
+import { addOneCycle, computeNextPaymentDue, computeLeaseStatus, isLeaseExpired } from '../cycle'
 
 const d = (s: string) => new Date(s)
 
@@ -94,5 +94,25 @@ describe('computeLeaseStatus', () => {
 
   it('returns EXPIRED when endDate is in the past', () => {
     expect(computeLeaseStatus(d('2026-01-01'), d('2026-04-29'))).toBe('EXPIRED')
+  })
+})
+
+// ─── isLeaseExpired ───────────────────────────────────────────────────────────
+
+describe('isLeaseExpired', () => {
+  it('returns false when endDate is null (open-ended tenancy)', () => {
+    expect(isLeaseExpired(null, d('2026-04-29'))).toBe(false)
+  })
+
+  it('returns false when endDate is in the future', () => {
+    expect(isLeaseExpired(d('2026-12-31'), d('2026-04-29'))).toBe(false)
+  })
+
+  it('returns false when endDate is today (isBefore is strict)', () => {
+    expect(isLeaseExpired(d('2026-04-29'), d('2026-04-29'))).toBe(false)
+  })
+
+  it('returns true when endDate is in the past', () => {
+    expect(isLeaseExpired(d('2026-01-01'), d('2026-04-29'))).toBe(true)
   })
 })
