@@ -1,8 +1,11 @@
 import { Suspense } from 'react'
+import { redirect } from 'next/navigation'
 import { BrandLogo } from '@/components/shared/brand-logo'
 import { AccessCallbackClient } from './_components/access-callback-client'
 
 export default function AccessCallbackPage() {
+  if (process.env.NODE_ENV === 'production') redirect('/')
+
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center px-6 gap-6"

@@ -10,6 +10,10 @@ const ALLOWED_USER_IDS = new Set([
 ])
 
 export async function POST(req: NextRequest) {
+  if (process.env.NODE_ENV === 'production') {
+    return Response.json({ error: 'Not found' }, { status: 404 })
+  }
+
   const { userId } = await req.json()
 
   if (!userId || !ALLOWED_USER_IDS.has(userId)) {

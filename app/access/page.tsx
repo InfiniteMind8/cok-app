@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import { BrandLogo } from '@/components/shared/brand-logo'
 import { AccessButtonWrapper } from './_components/access-button-wrapper'
 
@@ -47,6 +48,8 @@ const ACCOUNTS = [
 ]
 
 export default function AccessPage() {
+  if (process.env.NODE_ENV === 'production') redirect('/')
+
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center px-6 py-16 relative overflow-hidden"
