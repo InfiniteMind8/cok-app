@@ -1,4 +1,5 @@
 import { Webhook } from 'svix'
+import { clerkClient } from '@clerk/nextjs/server'
 import { db } from '@/lib/db'
 import { generateUniqueMemberId } from '@/lib/member-id'
 
@@ -144,6 +145,18 @@ export async function POST(request: Request) {
           deactivationReason: 'clerk_deleted',
         },
       })
+
+      try {
+        const clerk = await clerkClient()
+        const sessions = await clerk.sessions
+          .getSessionList({ userId: event.data.id })
+          .catch(() => ({ data: [] }))
+        await Promise.all(
+          sessions.data.map((s) => clerk.sessions.revokeSession(s.id).catch(() => {})),
+        )
+      } catch {
+        // Clerk may have already deleted the user and invalidated sessions.
+      }
     }
   } catch (err) {
     // Do NOT persist the WebhookEvent on failure so Clerk can retry (same svix-id).
@@ -157,7 +170,7 @@ export async function POST(request: Request) {
       id: svixId,
       source: 'clerk',
       type: event.type,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+       
       payload: JSON.parse(payload),
       signatureValid: true,
       processedAt: new Date(),

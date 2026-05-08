@@ -20,6 +20,7 @@ export async function getCurrentUser() {
       fullName: true,
       role: true,
       status: true,
+      deactivatedAt: true,
       profilePhotoUrl: true,
       createdAt: true,
     },
@@ -35,6 +36,10 @@ export async function requireRole(role: Role | Role[]) {
     redirect('/sign-in')
   }
 
+  if (user.status !== 'ACTIVE' || user.deactivatedAt !== null) {
+    redirect('/sign-in?reason=account-inactive')
+  }
+
   const allowed = Array.isArray(role) ? role : [role]
   if (!allowed.includes(user.role)) {
     redirect('/')
@@ -46,6 +51,8 @@ export async function requireRole(role: Role | Role[]) {
 export async function getClerkUser() {
   return currentUser()
 }
+
+export { requireMfaEnrolled as requireStaffMfa } from '@/lib/mfa'
 
 // C.2: enforce visitor permission boundary at Server Action layer
 export async function denyIfVisitor() {

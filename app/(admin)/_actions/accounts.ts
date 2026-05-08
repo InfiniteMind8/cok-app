@@ -212,10 +212,19 @@ export async function suspendAccountAction(userId: string, reason: string) {
   await requireRole(['MASTER_ADMIN'])
   if (!reason.trim()) throw new Error('Suspension reason is required')
 
-  await db.user.update({
+  const targetUser = await db.user.update({
     where: { id: userId },
     data: { status: 'SUSPENDED' },
   })
+
+  if (targetUser.clerkId) {
+    const clerk = await clerkClient()
+    const sessions = await clerk.sessions.getSessionList({ userId: targetUser.clerkId })
+    await Promise.all(
+      sessions.data.map((s) => clerk.sessions.revokeSession(s.id).catch(() => {})),
+    )
+  }
+
   revalidatePath('/admin/accounts')
 }
 
