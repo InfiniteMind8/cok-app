@@ -36,25 +36,18 @@ export function AccessButton({ userId, firstName }: AccessButtonProps) {
       const { token, error: apiError } = await res.json()
       if (!token) throw new Error(apiError ?? 'Token generation failed')
 
-      // v7: signIn.create() with ticket strategy authenticates the user
-      const createResult = await signIn.create({ strategy: 'ticket', ticket: token })
-      if (createResult.error) {
-        throw new Error(createResult.error.message ?? 'Ticket authentication failed')
+      // v7: signIn.ticket() is the purpose-built method for ticket-based auth.
+      // Avoids reading signIn.status synchronously after create() — in the
+      // signal-based reactive API the captured reference hasn't re-rendered yet.
+      const { error: ticketError } = await signIn.ticket({ ticket: token })
+      if (ticketError) {
+        throw new Error(ticketError.message ?? 'Ticket authentication failed')
       }
 
-      // Confirm the sign-in actually completed before we try to finalize.
-      // If status isn't 'complete', surface what Clerk reported instead of
-      // hitting "Cannot finalize sign-in without a created session" downstream.
-      if (signIn.status !== 'complete' || !signIn.createdSessionId) {
-        throw new Error(
-          `Sign-in did not complete (status: ${signIn.status ?? 'null'})`
-        )
-      }
-
-      // v7: signIn.finalize() activates the new session (replaces old setActive)
-      const finalizeResult = await signIn.finalize()
-      if (finalizeResult.error) {
-        throw new Error(finalizeResult.error.message ?? 'Session activation failed')
+      // v7: signIn.finalize() activates the new session
+      const { error: finalizeError } = await signIn.finalize()
+      if (finalizeError) {
+        throw new Error(finalizeError.message ?? 'Session activation failed')
       }
 
       // Route through home — app/page.tsx reads the DB role and dispatches:
