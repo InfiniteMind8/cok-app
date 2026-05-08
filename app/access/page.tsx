@@ -1,18 +1,5 @@
-import dynamic from 'next/dynamic'
 import { BrandLogo } from '@/components/shared/brand-logo'
-
-const AccessButton = dynamic(
-  () => import('./_components/access-button').then((m) => m.AccessButton),
-  {
-    ssr: false,
-    loading: () => (
-      <div
-        className="w-full py-3 h-10 rounded-lg animate-pulse"
-        style={{ background: 'oklch(0.25 0.01 70)' }}
-      />
-    ),
-  },
-)
+import { AccessButtonWrapper } from './_components/access-button-wrapper'
 
 const ACCOUNTS = [
   {
@@ -130,7 +117,7 @@ export default function AccessPage() {
               {account.description}
             </p>
 
-            <AccessButton
+            <AccessButtonWrapper
               userId={account.id}
               firstName={account.name.split(' ')[0]}
             />
