@@ -26,7 +26,7 @@ export function ResidentTabBar({ role, unreadCount = 0 }: TabBarProps) {
   )
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 h-16 bg-karis-green-900 flex items-center z-50 safe-area-pb">
+    <nav aria-label="Main navigation" className="fixed bottom-0 left-0 right-0 h-16 bg-karis-green-900 flex items-center z-50 safe-area-pb">
       {visibleTabs.map((tab) => {
         const Icon = tab.icon
         const isActive = pathname.startsWith(tab.href)
@@ -46,7 +46,10 @@ export function ResidentTabBar({ role, unreadCount = 0 }: TabBarProps) {
             <div className="relative">
               <Icon size={20} strokeWidth={isActive ? 2.5 : 1.75} />
               {hasBadge && (
-                <span className="absolute -top-1 -right-1.5 w-2 h-2 rounded-full bg-karis-gold-500 border border-karis-green-900" />
+                <>
+                  <span className="absolute -top-1 -right-1.5 w-2 h-2 rounded-full bg-karis-gold-500 border border-karis-green-900" aria-hidden="true" />
+                  <span className="sr-only">{unreadCount} unread</span>
+                </>
               )}
             </div>
             <span className="text-[10px] font-body font-medium tracking-wide">

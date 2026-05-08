@@ -2,7 +2,7 @@ import { test } from '@playwright/test'
 
 // TODO(phase1+/D.14): Activate when test infra supports floor mutation
 // Requires: seeded system wallet with floor set near balance
-describe.skip('D.14 system wallet floor protection', () => {
+test.describe.skip('D.14 system wallet floor protection', () => {
   test('near-floor: yellow warning banner is visible on Treasury dashboard', async ({ page }) => {
     // 1. Sign in as MASTER_ADMIN
     // 2. Set treasury_reserve floor to 90% of current balance

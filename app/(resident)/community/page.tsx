@@ -57,7 +57,7 @@ export default async function CommunityPage({
     <div className="pb-8">
       {/* Sticky tab row */}
       <div className="sticky top-14 z-30 bg-karis-stone-50 border-b border-karis-stone-100">
-        <nav className="flex max-w-lg mx-auto">
+        <nav aria-label="Community sections" className="flex max-w-lg mx-auto">
           {tabList.map((tab) => {
             const isActive = tab === activeTab
             const label =
@@ -72,6 +72,7 @@ export default async function CommunityPage({
               <a
                 key={tab}
                 href={`/community?tab=${tab}`}
+                aria-current={isActive ? 'page' : undefined}
                 className={`flex-1 py-3 text-center font-body text-sm transition-colors duration-150 ${
                   isActive
                     ? 'text-karis-green-900 border-b-2 border-karis-green-900'

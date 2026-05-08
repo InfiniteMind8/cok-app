@@ -207,7 +207,7 @@ export function OnboardingTour({
               )}
             />
           ))}
-          <span className="ml-auto font-body text-[10px] text-karis-stone-400 tabular-nums">
+          <span aria-live="polite" aria-atomic="true" className="ml-auto font-body text-[10px] text-karis-stone-400 tabular-nums">
             {currentIndex + 1}/{steps.length}
           </span>
         </div>

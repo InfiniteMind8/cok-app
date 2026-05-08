@@ -27,7 +27,7 @@ export async function EmergencyBroadcastBanner({ userId }: { userId: string }) {
             className={`w-full ${s.bg} ${s.text} px-6 py-3 flex items-center justify-between gap-4 shadow-md border-b ${s.border}`}
           >
             <div className="flex items-center gap-3 min-w-0">
-              <span className="shrink-0 w-2 h-2 rounded-full bg-white animate-pulse" />
+              <span aria-hidden="true" className="shrink-0 w-2 h-2 rounded-full bg-white animate-pulse" />
               <div className="min-w-0">
                 <span className="text-xs font-semibold uppercase tracking-widest opacity-80 mr-2">
                   {s.label}

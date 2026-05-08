@@ -48,7 +48,7 @@ export function AdminSidebar({ userName, userPhoto }: AdminSidebarProps) {
     .slice(0, 2)
 
   return (
-    <aside className="w-64 flex-none bg-karis-stone-900 flex flex-col h-full min-h-screen">
+    <aside aria-label="Main navigation" className="w-64 flex-none bg-karis-stone-900 flex flex-col h-full min-h-screen">
       {/* Logo */}
       <div className="p-6 flex items-center gap-3 border-b border-karis-stone-900/50">
         <BrandLogo size={40} />

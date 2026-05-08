@@ -37,8 +37,6 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   themeColor: '#1E2E23',
 }
 
@@ -52,13 +50,14 @@ export default function RootLayout({
       <html
         lang="en"
         className={`${cormorantGaramond.variable} ${fraunces.variable} ${inter.variable} h-full antialiased`}
+        suppressHydrationWarning
       >
         <head>
           <meta name="apple-mobile-web-app-capable" content="yes" />
           <meta name="apple-mobile-web-app-status-bar-style" content="default" />
           <link rel="apple-touch-icon" href="/logo.png" />
         </head>
-        <body className="min-h-full flex flex-col bg-karis-stone-50 font-body">
+        <body className="min-h-full flex flex-col bg-karis-stone-50 font-body" suppressHydrationWarning>
           {children}
           <IOSInstallPrompt />
         </body>
