@@ -1,4 +1,5 @@
 import 'server-only'
+import { createHash } from 'node:crypto'
 import { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
 import { getActiveFeeSchedule, calculateFee } from './fee-engine'
@@ -6,7 +7,29 @@ import { reconcileTreasury } from './reconciliation'
 import { FloorBreachError } from './types'
 import type { TransferRequest, TransferResult, FeeScheduleRules } from './types'
 
-export async function transferCredits(req: TransferRequest): Promise<TransferResult> {
+interface TransferOptions {
+  tx?: Prisma.TransactionClient
+}
+
+function walletIdToLockKey(walletId: string): bigint {
+  return BigInt(`0x${createHash('sha256').update(walletId).digest('hex').slice(0, 15)}`)
+}
+
+async function acquireWalletLocks(tx: Prisma.TransactionClient, walletIds: string[]) {
+  if (typeof tx.$queryRaw !== 'function') return
+
+  const lockKeys = [...new Set(walletIds.map(walletIdToLockKey))]
+    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+
+  for (const lockKey of lockKeys) {
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(${lockKey}::bigint)`
+  }
+}
+
+export async function transferCredits(
+  req: TransferRequest,
+  options?: TransferOptions,
+): Promise<TransferResult> {
   if (req.amount.lte(0)) {
     throw new Error(`Amount must be positive, got ${req.amount}`)
   }
@@ -16,16 +39,41 @@ export async function transferCredits(req: TransferRequest): Promise<TransferRes
   const rules = ((schedule?.rules ?? {}) as FeeScheduleRules)
   const feeSplit = calculateFee(req.type, req.amount, rules)
 
-  const transactionId = await db.$transaction(async (tx) => {
-    const [fromWallet, toWallet] = await Promise.all([
+  const run = async (tx: Prisma.TransactionClient) => {
+    const [fromWallet, toWallet, systemWallets] = await Promise.all([
       tx.wallet.findUnique({
         where: { id: req.fromWalletId },
         select: { id: true, isSystem: true, systemKey: true, floor_kcrd: true },
       }),
       tx.wallet.findUnique({ where: { id: req.toWalletId }, select: { id: true } }),
+      tx.wallet.findMany({
+        where: { isSystem: true },
+        select: { id: true, systemKey: true },
+      }),
     ])
     if (!fromWallet) throw new Error(`Wallet not found: ${req.fromWalletId}`)
     if (!toWallet) throw new Error(`Wallet not found: ${req.toWalletId}`)
+
+    const sysMap = new Map((systemWallets ?? []).map((w) => [w.systemKey, w.id]))
+    const lockWalletIds = [req.fromWalletId, req.toWalletId]
+
+    if (feeSplit.communityFund.gt(0)) {
+      const id = sysMap.get('community_fund')
+      if (!id) throw new Error('System wallet community_fund not found')
+      lockWalletIds.push(id)
+    }
+    if (feeSplit.operationsFund.gt(0)) {
+      const id = sysMap.get('operations_fund')
+      if (!id) throw new Error('System wallet operations_fund not found')
+      lockWalletIds.push(id)
+    }
+    if (feeSplit.developerShare.gt(0)) {
+      const id = sysMap.get('developer_share')
+      if (!id) throw new Error('System wallet developer_share not found')
+      lockWalletIds.push(id)
+    }
+
+    await acquireWalletLocks(tx, lockWalletIds)
 
     // Check sender balance
     const balanceAgg = await tx.ledgerEntry.aggregate({
@@ -53,13 +101,6 @@ export async function transferCredits(req: TransferRequest): Promise<TransferRes
         )
       }
     }
-
-    // Get system wallet IDs
-    const systemWallets = await tx.wallet.findMany({
-      where: { isSystem: true },
-      select: { id: true, systemKey: true },
-    })
-    const sysMap = new Map(systemWallets.map((w) => [w.systemKey, w.id]))
 
     // Build ledger entries
     const entries: Array<{ walletId: string; amount: Prisma.Decimal; description?: string }> = [
@@ -110,9 +151,11 @@ export async function transferCredits(req: TransferRequest): Promise<TransferRes
     })
 
     return txRow.id
-  })
+  }
 
-  if (process.env.NODE_ENV === 'development') {
+  const transactionId = options?.tx ? await run(options.tx) : await db.$transaction(run)
+
+  if (!options?.tx && process.env.NODE_ENV === 'development') {
     const check = await reconcileTreasury()
     if (!check.isBalanced) {
       throw new Error(

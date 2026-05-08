@@ -2,6 +2,7 @@ import 'server-only'
 import { DisplayCurrency, PromotionDirection } from '@prisma/client'
 import { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
+import { transferCredits } from '@/lib/ledger/service'
 import { getActiveRate } from './rate-resolver'
 import { getApplicablePromotion } from './promotion-resolver'
 
@@ -149,24 +150,32 @@ export async function convertKcrdToFiat(params: {
 
   if (!userWallet) return { ok: false, error: 'User wallet not found.' }
   if (!fiatSettlementWallet) return { ok: false, error: 'Fiat settlement wallet not found.' }
+  if (promotion && bonusKcrd.gt(0) && !promotionsWallet) {
+    throw new Error('Promotion resolved but promotions wallet not found — refusing to silently omit bonus')
+  }
 
   await db.$transaction(async (tx) => {
-    const outTx = await tx.transaction.create({
-      data: {
+    await transferCredits(
+      {
+        fromWalletId: userWallet.id,
+        toWalletId: fiatSettlementWallet.id,
+        amount: kcrdAmount,
         type: 'FIAT_CONVERSION',
-        description: `KCRD → ${targetCurrency} conversion: ${kcrdAmount.toFixed(8)} KCRD @ rate ${rateStr}`,
+        description: `KCRD -> ${targetCurrency} conversion @ rate ${rateStr}`,
         initiatedBy: recordedBy,
-        metadata: { kcrdAmount: kcrdAmount.toFixed(8), targetCurrency, rate: rateStr },
+        metadata: {
+          kcrdAmount: kcrdAmount.toFixed(8),
+          targetCurrency,
+          rate: rateStr,
+        },
       },
-    })
-    await tx.ledgerEntry.createMany({
-      data: [
-        { transactionId: outTx.id, walletId: userWallet.id, amount: kcrdAmount.neg(), description: `KCRD sent for ${targetCurrency} conversion` },
-        { transactionId: outTx.id, walletId: fiatSettlementWallet.id, amount: kcrdAmount, description: `Fiat settlement credit` },
-      ],
-    })
+      { tx },
+    )
 
-    if (promotion && bonusKcrd.gt(0) && promotionsWallet) {
+    if (promotion && bonusKcrd.gt(0)) {
+      if (!promotionsWallet) {
+        throw new Error('Promotion resolved but promotions wallet not found — refusing to silently omit bonus')
+      }
       const bonusTx = await tx.transaction.create({
         data: {
           type: 'CONVERSION_BONUS',
