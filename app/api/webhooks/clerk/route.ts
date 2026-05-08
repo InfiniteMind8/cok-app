@@ -1,5 +1,6 @@
 import { Webhook } from 'svix'
 import { clerkClient } from '@clerk/nextjs/server'
+import * as Sentry from '@sentry/nextjs'
 import { db } from '@/lib/db'
 import { generateUniqueMemberId } from '@/lib/member-id'
 
@@ -52,6 +53,15 @@ function getFullName(data: ClerkUserCreatedEvent['data']): string {
   return parts.join(' ') || 'Karis Member'
 }
 
+function isPrismaUniqueViolation(err: unknown): boolean {
+  return Boolean(
+    err &&
+      typeof err === 'object' &&
+      'code' in err &&
+      (err as { code: unknown }).code === 'P2002',
+  )
+}
+
 export async function POST(request: Request) {
   const webhookSecret = process.env.CLERK_WEBHOOK_SECRET
 
@@ -64,7 +74,7 @@ export async function POST(request: Request) {
   const svixSignature = request.headers.get('svix-signature')
 
   if (!svixId || !svixTimestamp || !svixSignature) {
-    return new Response('Missing svix headers', { status: 400 })
+    return new Response('Missing svix headers', { status: 401 })
   }
 
   const payload = await request.text()
@@ -81,10 +91,22 @@ export async function POST(request: Request) {
     return new Response('Invalid webhook signature', { status: 401 })
   }
 
-  // Idempotency: if we've already processed this event id, return 200 immediately.
-  const existing = await db.webhookEvent.findUnique({ where: { id: svixId } })
-  if (existing) {
-    return new Response('Already processed', { status: 200 })
+  try {
+    await db.webhookEvent.create({
+      data: {
+        id: svixId,
+        source: 'clerk',
+        type: event.type,
+        payload: JSON.parse(payload),
+        signatureValid: true,
+        processedAt: new Date(),
+      },
+    })
+  } catch (err) {
+    if (isPrismaUniqueViolation(err)) {
+      return new Response('Already processed', { status: 200 })
+    }
+    throw err
   }
 
   try {
@@ -159,23 +181,17 @@ export async function POST(request: Request) {
       }
     }
   } catch (err) {
-    // Do NOT persist the WebhookEvent on failure so Clerk can retry (same svix-id).
+    await db.webhookEvent.delete({ where: { id: svixId } }).catch(() => {})
     const errorMessage = err instanceof Error ? err.message : String(err)
-    console.error(`[webhook] handler error for ${event.type} (${svixId}):`, errorMessage)
+    Sentry.captureException(err instanceof Error ? err : new Error(errorMessage), {
+      tags: {
+        route: 'webhooks/clerk',
+        event_type: event.type,
+        svix_id: svixId,
+      },
+    })
     return new Response('Handler error', { status: 500 })
   }
-
-  await db.webhookEvent.create({
-    data: {
-      id: svixId,
-      source: 'clerk',
-      type: event.type,
-       
-      payload: JSON.parse(payload),
-      signatureValid: true,
-      processedAt: new Date(),
-    },
-  })
 
   return new Response('OK', { status: 200 })
 }

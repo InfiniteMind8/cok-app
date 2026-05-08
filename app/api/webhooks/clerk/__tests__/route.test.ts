@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   walletCreate: vi.fn(),
   webhookEventFindUnique: vi.fn(),
   webhookEventCreate: vi.fn(),
+  webhookEventDelete: vi.fn(),
   transaction: vi.fn(),
   generateUniqueMemberId: vi.fn(),
   verify: vi.fn(),
@@ -31,6 +32,7 @@ vi.mock('@/lib/db', () => ({
     webhookEvent: {
       findUnique: mocks.webhookEventFindUnique,
       create: mocks.webhookEventCreate,
+      delete: mocks.webhookEventDelete,
     },
     $transaction: mocks.transaction,
   },
@@ -45,6 +47,10 @@ vi.mock('svix', () => ({
   Webhook: vi.fn(function () {
     return { verify: mocks.verify }
   }),
+}))
+
+vi.mock('@sentry/nextjs', () => ({
+  captureException: vi.fn(),
 }))
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -113,6 +119,7 @@ describe('POST /api/webhooks/clerk', () => {
     vi.stubEnv('CLERK_WEBHOOK_SECRET', 'whsec_test')
     mocks.webhookEventFindUnique.mockResolvedValue(null) // not yet processed
     mocks.webhookEventCreate.mockResolvedValue({})
+    mocks.webhookEventDelete.mockResolvedValue({})
     mocks.verify.mockReturnValue(USER_CREATED_EVENT)
     mocks.generateUniqueMemberId.mockResolvedValue('KM-0001')
     mocks.transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
@@ -209,13 +216,36 @@ describe('POST /api/webhooks/clerk', () => {
   })
 
   it('replay of same svix-id returns 200 without touching User table', async () => {
-    mocks.webhookEventFindUnique.mockResolvedValue({ id: 'msg_test123' })
+    mocks.webhookEventCreate.mockRejectedValue({ code: 'P2002' })
     mocks.verify.mockReturnValue(USER_CREATED_EVENT)
     const res = await POST(makeRequest(USER_CREATED_EVENT))
     expect(res.status).toBe(200)
     expect(mocks.userFindUnique).not.toHaveBeenCalled()
     expect(mocks.userCreate).not.toHaveBeenCalled()
-    expect(mocks.webhookEventCreate).not.toHaveBeenCalled()
+    expect(mocks.webhookEventCreate).toHaveBeenCalledTimes(1)
+  })
+
+  it('concurrent delivery of same svix-id runs side effects once', async () => {
+    mocks.verify.mockReturnValue(USER_CREATED_EVENT)
+    mocks.webhookEventCreate
+      .mockResolvedValueOnce({})
+      .mockRejectedValueOnce({ code: 'P2002' })
+
+    const [first, second] = await Promise.all([
+      POST(makeRequest(USER_CREATED_EVENT)),
+      POST(makeRequest(USER_CREATED_EVENT)),
+    ])
+    const bodies = await Promise.all([first.text(), second.text()])
+
+    expect(first.status).toBe(200)
+    expect(second.status).toBe(200)
+    expect(bodies.sort()).toEqual(['Already processed', 'OK'].sort())
+    expect(mocks.webhookEventCreate).toHaveBeenCalledTimes(2)
+    expect(mocks.transaction).toHaveBeenCalledTimes(1)
+    expect(mocks.userCreate).toHaveBeenCalledTimes(1)
+    expect(mocks.walletCreate).toHaveBeenCalledTimes(1)
+    expect(mocks.userUpdate).not.toHaveBeenCalled()
+    expect(mocks.userUpdateMany).not.toHaveBeenCalled()
   })
 
   it('bad signature returns 401', async () => {
@@ -225,11 +255,23 @@ describe('POST /api/webhooks/clerk', () => {
     expect(mocks.webhookEventCreate).not.toHaveBeenCalled()
   })
 
-  it('missing svix headers returns 400', async () => {
+  it('missing svix headers returns 401', async () => {
     const res = await POST(
       makeRequest(USER_CREATED_EVENT, { 'svix-id': null }),
     )
-    expect(res.status).toBe(400)
+    expect(res.status).toBe(401)
+    expect(mocks.verify).not.toHaveBeenCalled()
+  })
+
+  it('missing all svix headers returns 401', async () => {
+    const res = await POST(
+      makeRequest(USER_CREATED_EVENT, {
+        'svix-id': null,
+        'svix-timestamp': null,
+        'svix-signature': null,
+      }),
+    )
+    expect(res.status).toBe(401)
     expect(mocks.verify).not.toHaveBeenCalled()
   })
 })
