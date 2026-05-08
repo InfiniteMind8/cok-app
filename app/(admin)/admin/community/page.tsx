@@ -26,6 +26,9 @@ interface SearchParams {
   urgency?: string
   status?: string
   role?: string
+  // C.2: deep-link from visitor group detail "Send announcement to this group"
+  announce?: string
+  groupId?: string
 }
 
 export default async function CommunityPage({
@@ -35,6 +38,7 @@ export default async function CommunityPage({
 }) {
   const sp = await searchParams
   const tab = sp.tab ?? 'updates'
+  const defaultGroupId = sp.announce === 'group' && sp.groupId ? sp.groupId : undefined
 
   const seriousness = Object.values(IssueLevel).includes(sp.seriousness as IssueLevel)
     ? (sp.seriousness as IssueLevel) : undefined
@@ -89,6 +93,7 @@ export default async function CommunityPage({
                 name: g.name,
                 theme: g.theme,
               }))}
+              defaultGroupId={defaultGroupId}
             />
           </div>
           {updates.length === 0 ? (
