@@ -7,11 +7,11 @@ import { useSearchParams } from 'next/navigation'
 export function AccessCallbackClient() {
   const { signIn } = useSignIn()
   const searchParams = useSearchParams()
-  const [error, setError] = useState<string | null>(null)
+  const ticket = searchParams.get('ticket')
+  const [asyncError, setAsyncError] = useState<string | null>(null)
 
   useEffect(() => {
-    const ticket = searchParams.get('ticket')
-    if (!ticket) { setError('No ticket provided.'); return }
+    if (!ticket) return
 
     async function run() {
       try {
@@ -21,12 +21,14 @@ export function AccessCallbackClient() {
         if (finalErr) throw new Error(finalErr.message ?? 'Session activation failed')
         window.location.href = '/'
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Sign-in failed')
+        setAsyncError(e instanceof Error ? e.message : 'Sign-in failed')
       }
     }
     run()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [ticket])
+
+  const error = !ticket ? 'No ticket provided.' : asyncError
 
   if (error) {
     return (
