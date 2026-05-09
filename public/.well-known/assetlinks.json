@@ -1,0 +1,13 @@
+[
+  {
+    "_comment": "Digital Asset Links — proves the TWA owns this domain so the Android client runs full-screen with no browser chrome. Owner replaces sha256_cert_fingerprints[0] with the SHA-256 fingerprint emitted by 'bubblewrap build' (also visible via 'keytool -list -v -keystore android.keystore'), then redeploys. Procedure: docs/play-store.md §Asset Links.",
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "org.cityofkaris.app",
+      "sha256_cert_fingerprints": [
+        "REPLACE_WITH_BUBBLEWRAP_UPLOAD_KEY_SHA256_FINGERPRINT"
+      ]
+    }
+  }
+]

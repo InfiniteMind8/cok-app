@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from 'next'
 import { Cormorant_Garamond, Fraunces, Inter } from 'next/font/google'
 import { ClerkProvider } from '@clerk/nextjs'
 import { IOSInstallPrompt } from '@/components/shared/ios-install-prompt'
+import { InstallPrompt } from '@/components/shared/install-prompt'
+import { SwRegister } from '@/components/shared/sw-register'
 import './globals.css'
 
 const cormorantGaramond = Cormorant_Garamond({
@@ -60,6 +62,8 @@ export default function RootLayout({
         <body className="min-h-full flex flex-col bg-karis-stone-50 font-body" suppressHydrationWarning>
           {children}
           <IOSInstallPrompt />
+          <InstallPrompt />
+          <SwRegister />
         </body>
       </html>
     </ClerkProvider>

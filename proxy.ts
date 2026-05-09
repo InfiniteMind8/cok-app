@@ -13,6 +13,14 @@ const isPublicRoute = createRouteMatcher([
   '/login',
   '/dev-login',
   '/api/auth/token',
+  // PRE-3: public demo showcase. The /demo layout itself returns 404 when
+  // NEXT_PUBLIC_DEMO_SHOWCASE_ENABLED !== 'true'.
+  '/demo(.*)',
+  // F.2: PWA + Play Store public surfaces.
+  '/privacy',
+  '/terms',
+  '/offline',
+  '/.well-known/(.*)',
 ])
 
 const isAuthRoute = createRouteMatcher(['/sign-in(.*)', '/sign-up(.*)'])
