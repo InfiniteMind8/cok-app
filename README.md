@@ -2,6 +2,8 @@
 
 The resident-facing portal and admin back-office for the City of Karis settlement. Residents hold K Credits (an internal store-of-value token), transact with vendors, submit settlement requests, pay property installments, and participate in community governance. Admins manage accounts, treasury, approvals, and community content.
 
+> **➡ For the current state of the project, read [`PROJECT-HANDOVER.md`](PROJECT-HANDOVER.md).** It is the canonical single source of truth as of 2026-05-09. Phase 1+ is engineering-complete — the README below is the original Phase 1 quickstart and the architecture / "What's NOT in Phase 1" sections are partially outdated (most of those items shipped in Phase 1+). The handover supersedes them. New sessions should read the handover first; its §13 lists the exact 8 files to read in order.
+
 ---
 
 ## Quick Start

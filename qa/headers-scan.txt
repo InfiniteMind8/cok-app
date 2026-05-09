@@ -1,0 +1,58 @@
+# HTTP Security Header Scan — E.2 Security Sweep
+# Date: 2026-05-08
+# Method: curl -sI against local dev server (pnpm dev, port 3000)
+# Performed AFTER security header fix was applied to next.config.ts
+
+## Pre-fix State (code inspection, no live scan needed)
+## next.config.ts had no headers() function — all security headers absent.
+
+## Post-fix Scan Results
+
+=== Route: GET / (root — redirects to /sign-in) ===
+HTTP/1.1 200 OK
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Referrer-Policy: strict-origin-when-cross-origin
+Permissions-Policy: camera=(), microphone=(), geolocation=()
+x-clerk-auth-reason: dev-browser-missing
+x-clerk-auth-status: signed-out
+Cache-Control: no-cache, must-revalidate
+X-Powered-By: Next.js
+Content-Type: text/html; charset=utf-8
+
+=== Route: GET /sign-in ===
+HTTP/1.1 200 OK
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Referrer-Policy: strict-origin-when-cross-origin
+Permissions-Policy: camera=(), microphone=(), geolocation=()
+X-Powered-By: Next.js
+
+=== Route: POST /api/attachments/upload (unauthenticated → 307 redirect to sign-in) ===
+HTTP/1.1 307 Temporary Redirect
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Referrer-Policy: strict-origin-when-cross-origin
+Permissions-Policy: camera=(), microphone=(), geolocation=()
+
+## Header Verdict
+
+| Header                           | Status  | Value                                                  |
+|----------------------------------|---------|--------------------------------------------------------|
+| Strict-Transport-Security        | PRESENT | max-age=63072000; includeSubDomains; preload           |
+| X-Content-Type-Options           | PRESENT | nosniff                                                |
+| X-Frame-Options                  | PRESENT | DENY                                                   |
+| Referrer-Policy                  | PRESENT | strict-origin-when-cross-origin                        |
+| Permissions-Policy               | PRESENT | camera=(), microphone=(), geolocation=()               |
+| Content-Security-Policy          | ABSENT  | Deferred to F.1 (D-E2-01) — complex domain enumeration|
+| X-Powered-By                     | EXPOSED | Next.js — Info finding (E2-F-11); non-critical         |
+
+## Notes
+- All five security headers confirmed present on all tested routes after fix.
+- CSP absence is a documented Medium finding (E2-F-05); deferred to F.1.
+- X-Powered-By can be disabled by setting `poweredByHeader: false` in next.config.ts (future pass).
+- HTTPS is enforced at deployment level (Vercel); HSTS is advisory in dev (HTTP localhost).
+- Full header scan against deployed staging server should be run during F.1 to confirm A grade.

@@ -47,8 +47,8 @@ import { chromium, type Browser, type Page } from '@playwright/test'
 import path from 'node:path'
 import { mkdir } from 'node:fs/promises'
 
-const REPO_ROOT = path.resolve(__dirname, '..', '..', '..')
-const OUT = path.resolve(REPO_ROOT, 'COK-City-of-Karis', 'marketing', 'play-store', 'screenshots')
+const REPO_ROOT = path.resolve(__dirname, '..')
+const OUT = path.resolve(REPO_ROOT, 'marketing', 'play-store', 'screenshots')
 const BASE = process.env.SCREENSHOT_BASE_URL || 'http://localhost:3000'
 
 const VIEWPORT = { width: 1080, height: 1920 } // Play Console phone screenshot — 9:16 portrait

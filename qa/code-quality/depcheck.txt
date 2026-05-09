@@ -1,0 +1,10 @@
+Unused dependencies
+* @types/pg
+* decimal.js
+* pg
+* shadcn
+* tw-animate-css
+Unused devDependencies
+* @tailwindcss/postcss
+* @types/qrcode
+* @types/react-dom

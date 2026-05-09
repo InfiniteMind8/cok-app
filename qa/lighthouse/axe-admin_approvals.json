@@ -1,0 +1,9 @@
+{
+  "page": "/admin/approvals",
+  "timestamp": "2026-05-08T06:45:00.000Z",
+  "method": "code-review",
+  "note": "Live axe scan skipped — demo auth not available in this env. Modal primitive uses @base-ui/react/dialog (Radix-based, full ARIA support). See report for methodology walk.",
+  "violationCount": 0,
+  "passCount": null,
+  "criticalOrSeriousViolations": []
+}

@@ -1,0 +1,80 @@
+Unused files (16)
+.tmp/test-access-flow.mjs                                      
+lib/uploadthing.ts                                             
+prisma/schema.prisma                                           
+scripts/preview-emails.ts                                      
+components/ui/alert-dialog.tsx                                 
+components/ui/card.tsx                                         
+components/ui/command.tsx                                      
+components/ui/dialog.tsx                                       
+components/ui/input-group.tsx                                  
+components/ui/popover.tsx                                      
+components/ui/scroll-area.tsx                                  
+components/ui/sonner.tsx                                       
+lib/currency/index.ts                                          
+app/(resident)/property/_components/installment-list.tsx       
+app/(resident)/property/_components/ownership-progress-card.tsx
+app/(admin)/admin/treasury/_components/create-voucher-sheet.tsx
+Unused dependencies (6)
+@types/pg           package.json:34:6
+@uploadthing/react  package.json:35:6
+cmdk                package.json:40:6
+decimal.js          package.json:42:6
+next-themes         package.json:46:6
+pg                  package.json:47:6
+Unused devDependencies (1)
+@types/qrcode  package.json:68:6
+Unused exports (41)
+badgeVariants                       components/ui/badge.tsx:52:17                             
+getClerkUser              function  lib/auth.ts:46:23                                         
+getVotes                  function  lib/queries/community.ts:56:23                            
+getUserVoteSubmission     function  lib/queries/community.ts:117:23                           
+getIssueDetail            function  lib/queries/community.ts:181:23                           
+getUserActiveGroupIds     function  lib/queries/visitor-groups.ts:48:23                       
+VoteCard                  function  app/(resident)/community/_components/vote-card.tsx:26:17  
+rateKey                   function  lib/currency/rate-resolver.ts:52:17                       
+convertKcrdToFiat         function  lib/currency/conversion-engine.ts:117:23                  
+SelectGroup                         components/ui/select.tsx:193:3                            
+SelectLabel                         components/ui/select.tsx:195:3                            
+SelectScrollDownButton              components/ui/select.tsx:196:3                            
+SelectScrollUpButton                components/ui/select.tsx:197:3                            
+SelectSeparator                     components/ui/select.tsx:198:3                            
+getUserDetail             function  lib/queries/accounts.ts:59:23                             
+tabsListVariants                    components/ui/tabs.tsx:82:52                              
+TableCaption                        components/ui/table.tsx:115:3                             
+buttonVariants                      components/ui/button.tsx:58:18                            
+addPropertyPaymentAction  function  app/(admin)/_actions/properties.ts:204:23                 
+getRateHistory                      app/(admin)/admin/settings/currency/_actions/rates.ts:1:35
+AvatarGroup                         components/ui/avatar.tsx:106:3                            
+AvatarGroupCount                    components/ui/avatar.tsx:107:3                            
+AvatarBadge                         components/ui/avatar.tsx:108:3                            
+updateIntroductionAction  function  app/(resident)/_actions/profile.ts:26:23                  
+updateProfilePhotoAction  function  app/(resident)/_actions/profile.ts:37:23                  
+SheetTrigger                        components/ui/sheet.tsx:131:3                             
+SheetClose                          components/ui/sheet.tsx:132:3                             
+SheetFooter                         components/ui/sheet.tsx:135:3                             
+notifyMany                function  lib/notifications/service.ts:26:23                        
+captureActionException    function  lib/sentry.ts:19:17                                       
+getRateHistory            function  app/(admin)/_actions/rates.ts:67:23                       
+DropdownMenuPortal                  components/ui/dropdown-menu.tsx:254:3                     
+DropdownMenuGroup                   components/ui/dropdown-menu.tsx:257:3                     
+DropdownMenuLabel                   components/ui/dropdown-menu.tsx:258:3                     
+DropdownMenuCheckboxItem            components/ui/dropdown-menu.tsx:260:3                     
+DropdownMenuRadioGroup              components/ui/dropdown-menu.tsx:261:3                     
+DropdownMenuRadioItem               components/ui/dropdown-menu.tsx:262:3                     
+DropdownMenuShortcut                components/ui/dropdown-menu.tsx:264:3                     
+DropdownMenuSub                     components/ui/dropdown-menu.tsx:265:3                     
+DropdownMenuSubTrigger              components/ui/dropdown-menu.tsx:266:3                     
+DropdownMenuSubContent              components/ui/dropdown-menu.tsx:267:3                     
+Unused exported types (11)
+DemoRole              type       tests/e2e/helpers/auth.ts:11:13       
+ResidentProperty      type       lib/queries/properties.ts:137:13      
+RatePair              type       lib/currency/rate-resolver.ts:5:13    
+OurFileRouter         type       app/api/uploadthing/core.ts:116:13    
+TransactionType       type       lib/ledger/types.ts:3:15              
+SystemWalletFloor     interface  lib/ledger/types.ts:19:18             
+ParsedRowStatus       type       lib/imports/members-parser.ts:4:13    
+MemberRowData         interface  lib/imports/members-parser.ts:13:18   
+ParsedRowStatus       type       lib/imports/properties-parser.ts:4:13 
+PropertyRowData       interface  lib/imports/properties-parser.ts:13:18
+UploadEndpointConfig  interface  components/ui/file-upload.tsx:15:18   
