@@ -23,7 +23,7 @@ export function ModalPreviewClient() {
       <div>
         <h1 className="font-heading text-2xl text-karis-green-900 mb-1">Modal primitive — dev preview</h1>
         <p className="font-body text-sm text-karis-stone-500">
-          Isolated render of all Modal variants. §4.4 spacing enforced. Only visible when NEXT_PUBLIC_DEMO_MODE=true.
+          Isolated render of all Modal variants. §4.4 spacing enforced. Only visible when NEXT_PUBLIC_DEMO_MODE_ENABLED=true.
         </p>
       </div>
 
