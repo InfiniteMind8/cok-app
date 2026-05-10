@@ -42,6 +42,7 @@ export default defineConfig({
     stderr: 'pipe',
     env: {
       NEXT_PUBLIC_DEMO_MODE_ENABLED: 'true',
+      NEXT_PUBLIC_DEMO_SHOWCASE_ENABLED: 'true',
     },
   },
 

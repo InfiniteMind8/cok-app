@@ -3,19 +3,17 @@ import { Wordmark } from '@/components/shared/wordmark'
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-karis-stone-50 flex flex-col items-center justify-center p-4">
-      <div className="mb-6 flex flex-col items-center gap-2">
-        <BrandLogo size={56} priority />
-        <p className="font-heading text-base text-karis-stone-500">
-          Welcome to City of Karis
+    <div className="min-h-screen bg-karis-stone-50 flex flex-col items-center justify-center px-4 py-12">
+      {/* Brand header — §4.5: wordmark above card, tagline in Inter italic */}
+      <div className="mb-8 flex flex-col items-center gap-2 text-center">
+        <BrandLogo size={52} priority className="mb-2" />
+        <Wordmark size="lg" />
+        <p className="font-body italic text-sm text-karis-stone-700">
+          A community, by design.
         </p>
       </div>
 
       {children}
-
-      <div className="mt-6">
-        <Wordmark size="sm" className="opacity-50" />
-      </div>
     </div>
   )
 }

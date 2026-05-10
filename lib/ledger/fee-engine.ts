@@ -16,7 +16,7 @@ const ZERO_RULE: FeeRuleEntry = {
 
 export async function getActiveFeeSchedule(at: Date = new Date()) {
   return db.feeSchedule.findFirst({
-    where: { effectiveAt: { lte: at } },
+    where: { effectiveTo: null, effectiveAt: { lte: at } },
     orderBy: { effectiveAt: 'desc' },
   })
 }

@@ -39,7 +39,7 @@ function HeroPage() {
         }}
       >
         <BrandLogo
-          size={96}
+          size={160}
           priority
           className="mb-8 drop-shadow-[0_2px_8px_rgba(0,0,0,0.08)]"
         />
