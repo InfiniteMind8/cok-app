@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { Button } from '@/components/ui/button'
@@ -17,7 +18,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { CalendarDays } from 'lucide-react'
-import { requestExtensionAction } from '@/app/(admin)/_actions/rental-extensions'
+import { residentPropertyApi, getBrowserApi } from '@/lib/api'
 
 interface ExtensionRequestModalProps {
   tenancyId: string
@@ -25,6 +26,7 @@ interface ExtensionRequestModalProps {
 }
 
 export function ExtensionRequestModal({ tenancyId, currentEndDate }: ExtensionRequestModalProps) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [newEndDate, setNewEndDate] = useState('')
   const [reason, setReason] = useState('')
@@ -41,7 +43,7 @@ export function ExtensionRequestModal({ tenancyId, currentEndDate }: ExtensionRe
     }
     startTransition(async () => {
       try {
-        await requestExtensionAction({
+        await residentPropertyApi.requestExtension(getBrowserApi(), {
           tenancyId,
           requestedNewEndDate: newEndDate,
           reason: reason.trim() || undefined,
@@ -50,6 +52,7 @@ export function ExtensionRequestModal({ tenancyId, currentEndDate }: ExtensionRe
         setOpen(false)
         setNewEndDate('')
         setReason('')
+        router.refresh()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed to submit request')
       }

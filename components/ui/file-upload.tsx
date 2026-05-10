@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react'
 import { X, FileText, Image as ImageIcon, Video, Paperclip, UploadCloud, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { attachmentsApi, getBrowserApi } from '@/lib/api'
 
 export interface UploadedFile {
   key: string   // storageKey (structured path)
@@ -66,29 +67,13 @@ export function FileUpload({
     const results: UploadedFile[] = []
 
     for (const file of Array.from(fileList)) {
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('entityType', endpoint.entityType)
-      formData.append('entityId', endpoint.entityId ?? '')
-      formData.append('fieldName', endpoint.fieldName)
-      formData.append('category', endpoint.category ?? '')
-
       try {
-        const res = await fetch('/api/attachments/upload', {
-          method: 'POST',
-          body: formData,
+        const data = await attachmentsApi.upload(getBrowserApi(), file, {
+          entityType: endpoint.entityType,
+          entityId: endpoint.entityId,
+          fieldName: endpoint.fieldName,
+          category: endpoint.category,
         })
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({ error: 'Upload failed' }))
-          setUploadError((body as { error?: string }).error ?? 'Upload failed')
-          break
-        }
-        const data = (await res.json()) as {
-          storageKey: string
-          name: string
-          size: number
-          type: string
-        }
         results.push({
           key: data.storageKey,
           url: data.storageKey,

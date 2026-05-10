@@ -13,16 +13,19 @@ export const attachmentsApi = {
       raw: true,
     }),
 
-  // POST /v1/attachments/upload — multipart form upload
+  // POST /v1/attachments/upload — multipart form upload. `entityId` is optional;
+  // omit for new-entity forms where the parent record does not exist yet (the
+  // backend stores the file under an `unknown` placeholder until the record is
+  // created and stitched up via the AttachmentInput list on submit).
   upload: (
     api: ApiClient,
     file: File,
-    fields: { entityType: string; entityId: string; fieldName: string; category?: string },
+    fields: { entityType: string; entityId?: string; fieldName: string; category?: string },
   ) => {
     const fd = new FormData()
     fd.set('file', file)
     fd.set('entityType', fields.entityType)
-    fd.set('entityId', fields.entityId)
+    if (fields.entityId) fd.set('entityId', fields.entityId)
     fd.set('fieldName', fields.fieldName)
     if (fields.category) fd.set('category', fields.category)
     return api.upload<{

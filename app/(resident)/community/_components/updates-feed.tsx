@@ -6,7 +6,7 @@ import { format, formatDistance } from 'date-fns'
 import { Check, Newspaper } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import { acknowledgeUpdateAction } from '@/app/(resident)/_actions/community'
+import { residentCommunityApi, getBrowserApi } from '@/lib/api'
 
 interface Update {
   id: string
@@ -63,7 +63,7 @@ function UpdateCard({ update }: { update: Update }) {
     if (acknowledged) return
     startTransition(async () => {
       try {
-        await acknowledgeUpdateAction(update.id)
+        await residentCommunityApi.acknowledgeUpdate(getBrowserApi(), update.id)
         setAcknowledged(true)
       } catch {
         toast.error('Failed to acknowledge update')

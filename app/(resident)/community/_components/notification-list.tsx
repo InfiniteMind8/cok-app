@@ -6,7 +6,7 @@ import { Bell, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
-import { markAllNotificationsReadAction } from '@/app/(resident)/_actions/community'
+import { meApi, getBrowserApi } from '@/lib/api'
 
 interface Notification {
   id: string
@@ -32,7 +32,7 @@ export function NotificationList({ notifications: initialNotifications }: Notifi
   // Auto-mark all as read on mount when there are unread notifications
   useEffect(() => {
     if (!hasUnread) return
-    markAllNotificationsReadAction()
+    meApi.markAllNotificationsRead(getBrowserApi())
       .then(() => {
         setNotifications((prev) =>
           prev.map((n) => (n.readAt ? n : { ...n, readAt: new Date() })),
@@ -47,7 +47,7 @@ export function NotificationList({ notifications: initialNotifications }: Notifi
   function handleMarkAllRead() {
     startTransition(async () => {
       try {
-        await markAllNotificationsReadAction()
+        await meApi.markAllNotificationsRead(getBrowserApi())
         setNotifications((prev) =>
           prev.map((n) => (n.readAt ? n : { ...n, readAt: new Date() })),
         )

@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { Vote } from 'lucide-react'
 import { toast } from 'sonner'
-import { castVoteAction } from '@/app/(resident)/_actions/community'
+import { residentCommunityApi, getBrowserApi } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
 interface VoteOption {
@@ -43,7 +43,7 @@ export function VoteCard({
     if (hasVoted || isPending || !isOpen) return
     startTransition(async () => {
       try {
-        await castVoteAction(voteId, optionId)
+        await residentCommunityApi.castVote(getBrowserApi(), voteId, optionId)
         setVotedOptionId(optionId)
         setLocalTotalVotes((v) => v + 1)
       } catch (err) {
