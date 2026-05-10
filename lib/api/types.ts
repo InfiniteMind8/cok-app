@@ -98,6 +98,40 @@ export interface SettlementCreatedResponse {
   settlementId: string
 }
 
+// ─── Dashboard shape ─────────────────────────────────────────────────────────
+
+export interface DashboardSystemWalletRow {
+  walletId: string
+  key: string
+  balance: MoneyString
+  floor: MoneyString | null
+  headroom: MoneyString | null
+}
+
+export interface DashboardFlowRow {
+  role: Role
+  totalDeposits: MoneyString
+  totalSettlements: MoneyString
+}
+
+export interface DashboardCreditsByRoleRow {
+  role: Role
+  totalBalance: MoneyString
+  memberCount: number
+}
+
+export interface AdminDashboardResponse {
+  treasuryReserve: MoneyString
+  communityFund: MoneyString
+  systemWallets: DashboardSystemWalletRow[]
+  totalCirculating: MoneyString
+  activeMembers: number
+  pendingApprovals: number
+  openIssues: number
+  flowByRole: DashboardFlowRow[]
+  creditsByRole: DashboardCreditsByRoleRow[]
+}
+
 // ─── Voucher shapes ──────────────────────────────────────────────────────────
 
 export interface VoucherApprovedResponse {

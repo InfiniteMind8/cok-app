@@ -7,6 +7,10 @@ export const meApi = {
   // GET /v1/me — current user profile
   get: (api: ApiClient) => api.get<MeResponse>('/v1/me'),
 
+  // GET /v1/me/tour-status — should the onboarding tour show?
+  tourStatus: (api: ApiClient) =>
+    api.get<{ shouldShow: boolean }>('/v1/me/tour-status'),
+
   // POST /v1/me/tour/complete | /tour/dismiss
   completeTour: (api: ApiClient) =>
     api.post<{ completed: true }>('/v1/me/tour/complete'),

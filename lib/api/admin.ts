@@ -1,5 +1,6 @@
 import type { ApiClient } from './client'
 import type {
+  AdminDashboardResponse,
   AnnouncementSeverity,
   AnnouncementTargetType,
   ApprovalsCounts,
@@ -35,6 +36,14 @@ import type {
 // All admin endpoints. Mirrors the backend route layout under
 // `/v1/admin/*`. Every call requires MASTER_ADMIN per Phase 1+ D-D4-01;
 // the backend enforces it via the parent admin router gate.
+
+// ─── dashboard ───────────────────────────────────────────────────────────────
+
+export const adminDashboardApi = {
+  // GET /v1/admin/dashboard — full page payload (treasury balances, KPIs,
+  // flow-by-role, credits-by-role, system wallet summary). One round-trip.
+  get: (api: ApiClient) => api.get<AdminDashboardResponse>('/v1/admin/dashboard'),
+}
 
 // ─── audit-log ───────────────────────────────────────────────────────────────
 
