@@ -144,3 +144,214 @@ export interface EmailResendResponse {
   messageId: string
   skipped: boolean
 }
+
+export type EmailStatus = 'SENT' | 'FAILED' | 'QUEUED'
+
+export interface EmailLogEntry {
+  id: string
+  recipient: string
+  subject: string
+  template: string
+  status: EmailStatus
+  sentAt: string | null
+  createdAt: string
+  providerError: string | null
+}
+
+export interface EmailLogListResponse {
+  logs: EmailLogEntry[]
+  total: number
+  page: number
+  pageSize: number
+  counts: Partial<Record<EmailStatus, number>>
+}
+
+// ─── Approvals shapes ────────────────────────────────────────────────────────
+
+export interface ApprovalsCounts {
+  settlements: number
+  transfers: number
+  vouchers: number
+  extensions: number
+}
+
+export interface SettlementApprovalRow {
+  id: string
+  userId: string
+  amount: MoneyString
+  purpose: string | null
+  createdAt: string
+  userName: string
+  memberId: string
+  eligibleBalance: MoneyString
+}
+
+export interface TransferApprovalRow {
+  id: string
+  propertyCode: string
+  propertyAddress: string | null
+  fromUser: { fullName: string; memberId: string }
+  toUser: { fullName: string; memberId: string }
+  createdAt: string
+}
+
+export interface VoucherApprovalRow {
+  id: string
+  amount: MoneyString
+  description: string | null
+  expiresAt: string | null
+  createdAt: string
+  recipient: { fullName: string; memberId: string }
+}
+
+export interface RentalExtensionApprovalRow {
+  id: string
+  requesterName: string
+  requesterMemberId: string
+  propertyCode: string
+  propertyAddress: string | null
+  currentEnd: string | null
+  requestedEnd: string
+  deltaDays: number
+  reason: string | null
+  createdAt: string
+}
+
+// ─── Treasury shapes ─────────────────────────────────────────────────────────
+
+export interface TreasurySystemWalletRow {
+  walletId: string
+  key: string
+  balance: MoneyString
+  floor: MoneyString | null
+  headroom: MoneyString | null
+}
+
+export interface TreasuryDepositRow {
+  id: string
+  createdAt: string
+  userId: string
+  userName: string
+  memberId: string
+  fiatAmount: MoneyString
+  currency: string
+  paymentMethod: string
+  proofUrl: string | null
+  kIssued: MoneyString
+}
+
+export interface TreasuryApprovedSettlementRow {
+  id: string
+  userId: string
+  amount: MoneyString
+  userName: string
+  memberId: string
+  approvedAt: string | null
+}
+
+export interface TreasuryUserOption {
+  id: string
+  fullName: string
+  email: string
+  memberId: string
+}
+
+export interface TreasuryOverviewResponse {
+  reserveBalance: MoneyString
+  systemWallets: TreasurySystemWalletRow[]
+  allUsers: TreasuryUserOption[]
+  deposits: TreasuryDepositRow[]
+  depositTotal: number
+  approvedSettlements: TreasuryApprovedSettlementRow[]
+}
+
+// ─── Reconciliation shapes ───────────────────────────────────────────────────
+
+export type ReconciliationStatus = 'OK' | 'WARNING' | 'MISMATCH'
+
+export interface ReconciliationReportRow {
+  id: string
+  runAt: string
+  status: ReconciliationStatus
+  details: unknown
+  acknowledgedAt: string | null
+  acknowledgedBy: { fullName: string } | null
+}
+
+export interface ReconciliationListResponse {
+  reports: ReconciliationReportRow[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+export interface ReconciliationReportDetail {
+  id: string
+  runAt: string
+  status: ReconciliationStatus
+  details: unknown
+  acknowledgedAt: string | null
+  acknowledgedBy: { fullName: string; email: string } | null
+}
+
+// ─── Promotions shapes ───────────────────────────────────────────────────────
+
+export interface PromotionRow {
+  id: string
+  name: string
+  description: string
+  bonusPercent: MoneyString
+  direction: PromotionDirection
+  eligibility: PromotionEligibility
+  eligibleUserIds: string[]
+  startsAt: string
+  endsAt: string
+  active: boolean
+  createdAt: string
+}
+
+// ─── Imports session shape ───────────────────────────────────────────────────
+
+export interface ImportSessionRow {
+  id: string
+  rowNumber: number
+  rowData: Record<string, string>
+  status: 'VALID' | 'WARNING' | 'ERROR'
+  messages: string[]
+}
+
+export interface ImportSessionDetail {
+  id: string
+  type: string
+  fileName: string
+  status: 'UPLOADED' | 'COMMITTED' | 'CANCELLED'
+  totalRows: number
+  validCount: number
+  warningCount: number
+  errorCount: number
+  committedCount: number
+  skippedCount: number
+  createdAt: string
+  rows: ImportSessionRow[]
+}
+
+// ─── Settings page bundle ────────────────────────────────────────────────────
+
+export interface SettingsRecentActivityRow {
+  id: string
+  type: string
+  description: string
+  total: MoneyString
+  createdAt: string
+  initiatedByName: string
+}
+
+export interface SettingsOverviewResponse {
+  feeSchedule: {
+    id: string
+    effectiveAt: string
+    rules: Record<string, unknown>
+  } | null
+  systemWallets: TreasurySystemWalletRow[]
+  recentActivity: SettingsRecentActivityRow[]
+}

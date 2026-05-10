@@ -2,20 +2,33 @@ import type { ApiClient } from './client'
 import type {
   AnnouncementSeverity,
   AnnouncementTargetType,
+  ApprovalsCounts,
   AttachmentInput,
   BroadcastSendResponse,
+  EmailLogListResponse,
   EmailResendResponse,
+  EmailStatus,
   ImportSessionCommitResponse,
+  ImportSessionDetail,
   ImportSessionParseResponse,
   IssueStatus,
   MoneyString,
   PromotionDirection,
   PromotionEligibility,
+  PromotionRow,
   PropertyCategory,
   PropertyStatus,
   PropertyType,
+  ReconciliationListResponse,
+  ReconciliationReportDetail,
   ReconciliationRunResponse,
+  RentalExtensionApprovalRow,
   Role,
+  SettingsOverviewResponse,
+  SettlementApprovalRow,
+  TransferApprovalRow,
+  TreasuryOverviewResponse,
+  VoucherApprovalRow,
   VoucherApprovedResponse,
 } from './types'
 
@@ -123,6 +136,12 @@ export const adminDepositsApi = {
 // ─── treasury ────────────────────────────────────────────────────────────────
 
 export const adminTreasuryApi = {
+  // GET /v1/admin/treasury — page bundle for the treasury dashboard
+  getOverview: (api: ApiClient, depositsPage = 1) =>
+    api.get<TreasuryOverviewResponse>('/v1/admin/treasury', {
+      query: { depositsPage },
+    }),
+
   recordAdjustment: (
     api: ApiClient,
     input: { amount: MoneyString; currency: string; reason: string },
@@ -156,8 +175,22 @@ export const adminVouchersApi = {
 // ─── reconciliation ──────────────────────────────────────────────────────────
 
 export const adminReconciliationApi = {
+  list: (
+    api: ApiClient,
+    params: { page?: number; from?: string; to?: string } = {},
+  ) =>
+    api.get<ReconciliationListResponse>('/v1/admin/reconciliation/reports', {
+      query: params,
+    }),
+
+  get: (api: ApiClient, reportId: string) =>
+    api.get<ReconciliationReportDetail>(
+      `/v1/admin/reconciliation/reports/${reportId}`,
+    ),
+
   runNow: (api: ApiClient) =>
     api.post<ReconciliationRunResponse>('/v1/admin/reconciliation/run-now'),
+
   acknowledge: (api: ApiClient, reportId: string) =>
     api.post<{ reportId: string; acknowledgedAt: string }>(
       `/v1/admin/reconciliation/${reportId}/acknowledge`,
@@ -278,13 +311,45 @@ export const adminBroadcastsApi = {
 // ─── emails ──────────────────────────────────────────────────────────────────
 
 export const adminEmailsApi = {
+  list: (
+    api: ApiClient,
+    params: { page?: number; status?: EmailStatus } = {},
+  ) =>
+    api.get<EmailLogListResponse>('/v1/admin/emails', {
+      query: params,
+    }),
+
   resend: (api: ApiClient, logId: string) =>
     api.post<EmailResendResponse>(`/v1/admin/emails/${logId}/resend`),
+}
+
+// ─── approvals ───────────────────────────────────────────────────────────────
+
+export const adminApprovalsApi = {
+  // GET /v1/admin/approvals — counts only (cheap, used for tab badges)
+  counts: (api: ApiClient) =>
+    api.get<{ counts: ApprovalsCounts }>('/v1/admin/approvals'),
+
+  listSettlements: (api: ApiClient) =>
+    api.get<SettlementApprovalRow[]>('/v1/admin/approvals/settlements'),
+
+  listPropertyTransfers: (api: ApiClient) =>
+    api.get<TransferApprovalRow[]>('/v1/admin/approvals/property-transfers'),
+
+  listVoucherRequests: (api: ApiClient) =>
+    api.get<VoucherApprovalRow[]>('/v1/admin/approvals/voucher-requests'),
+
+  listRentalExtensions: (api: ApiClient) =>
+    api.get<RentalExtensionApprovalRow[]>('/v1/admin/approvals/rental-extensions'),
 }
 
 // ─── imports ─────────────────────────────────────────────────────────────────
 
 export const adminImportsApi = {
+  // GET /v1/admin/imports/sessions/:sessionId — preview a parsed session
+  getSession: (api: ApiClient, sessionId: string) =>
+    api.get<ImportSessionDetail>(`/v1/admin/imports/sessions/${sessionId}`),
+
   parseMembers: (api: ApiClient, file: File) => {
     const fd = new FormData()
     fd.set('file', file)
@@ -397,6 +462,10 @@ export interface FeeRule {
 }
 
 export const adminSettingsApi = {
+  // GET /v1/admin/settings — settings page bundle
+  getOverview: (api: ApiClient) =>
+    api.get<SettingsOverviewResponse>('/v1/admin/settings'),
+
   applyFeeSchedule: (
     api: ApiClient,
     input: { rules: Record<string, FeeRule>; effectiveFrom: string },
@@ -438,8 +507,12 @@ export interface CreatePromotionInput {
 }
 
 export const adminPromotionsApi = {
+  list: (api: ApiClient) =>
+    api.get<PromotionRow[]>('/v1/admin/promotions'),
+
   create: (api: ApiClient, input: CreatePromotionInput) =>
     api.post<{ promotionId: string }>('/v1/admin/promotions', input),
+
   archive: (api: ApiClient, id: string) =>
     api.post<{ promotionId: string }>(`/v1/admin/promotions/${id}/archive`),
 }
