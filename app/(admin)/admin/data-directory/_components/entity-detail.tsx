@@ -4,8 +4,7 @@ import { useState, useTransition } from 'react'
 import { format } from 'date-fns'
 import { Download, ExternalLink, KeyRound, Loader2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import { getAttachmentUrlAction } from '@/app/(admin)/_actions/attachment'
-import { resetUserMfaAction } from '@/app/(admin)/_actions/data-directory'
+import { adminDataDirectoryApi, attachmentsApi, getBrowserApi } from '@/lib/api'
 import { JsonDiffView } from '../../audit-log/_components/json-diff-view'
 import type { getUserEntityDetail, getPropertyEntityDetail, getLeaseEntityDetail, getIssueEntityDetail } from '@/lib/queries/data-directory'
 
@@ -58,9 +57,13 @@ function AttachmentCard({
 
   function handleView() {
     startTransition(async () => {
-      const result = await getAttachmentUrlAction(att.id)
-      setUrl(result)
-      window.open(result, '_blank', 'noopener')
+      try {
+        const result = await attachmentsApi.getUrl(getBrowserApi(), att.id)
+        setUrl(result.url)
+        window.open(result.url, '_blank', 'noopener')
+      } catch {
+        // Surface failure quietly — the user retries via the button.
+      }
     })
   }
 
@@ -134,8 +137,12 @@ function UserDetailPanel({ detail, userRole }: { detail: UserDetail; userRole: s
   function handleMfaReset() {
     if (!isMasterAdmin) return
     startMfaTransition(async () => {
-      const result = await resetUserMfaAction(user.id)
-      setMfaMsg({ ok: result.ok, msg: result.ok ? '2FA reset. User will re-enrol on next sign-in.' : result.error ?? 'Unknown error' })
+      try {
+        await adminDataDirectoryApi.resetMfa(getBrowserApi(), user.id)
+        setMfaMsg({ ok: true, msg: '2FA reset. User will re-enrol on next sign-in.' })
+      } catch (err) {
+        setMfaMsg({ ok: false, msg: err instanceof Error ? err.message : 'Unknown error' })
+      }
     })
   }
 

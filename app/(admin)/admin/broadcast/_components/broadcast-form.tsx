@@ -2,8 +2,7 @@
 
 import { useState, useTransition, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { sendBroadcastAction } from '@/app/(admin)/_actions/broadcast'
-import type { AnnouncementSeverity } from '@prisma/client'
+import { adminBroadcastsApi, getBrowserApi, type AnnouncementSeverity } from '@/lib/api'
 
 type FormState = 'idle' | 'confirming' | 'sending' | 'done' | 'error'
 
@@ -58,14 +57,13 @@ export function BroadcastForm({ activeUserCount }: Props) {
     setState('sending')
     startTransition(async () => {
       try {
-        const res = await sendBroadcastAction({ title: title.trim(), body: body.trim(), severity })
-        if (res.ok) {
-          setResult({ sent: res.sent ?? 0, failed: res.failed ?? 0 })
-          setState('done')
-        } else {
-          setError(res.error ?? 'An unexpected error occurred.')
-          setState('error')
-        }
+        const res = await adminBroadcastsApi.send(getBrowserApi(), {
+          title: title.trim(),
+          body: body.trim(),
+          severity,
+        })
+        setResult({ sent: res.sent, failed: res.failed })
+        setState('done')
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An unexpected error occurred.')
         setState('error')

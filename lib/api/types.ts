@@ -30,7 +30,7 @@ export type PromotionEligibility =
   | 'SPECIFIC_USERS'
 
 export type PropertyType = 'OWNERSHIP' | 'RENTAL' | 'ADMIN'
-export type PropertyCategory = 'RESIDENTIAL' | 'COMMERCIAL' | 'AMENITY' | 'COMMON'
+export type PropertyCategory = 'RESIDENTIAL' | 'COMMERCIAL' | 'MIXED'
 export type PropertyStatus = 'VACANT' | 'OCCUPIED' | 'UNDER_CONSTRUCTION'
 
 export type AttachmentEntityType =

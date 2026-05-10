@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { format } from 'date-fns'
 import { Settings2, CheckCircle2, AlertCircle, Clock, ChevronDown, ChevronRight } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -15,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { applyFeeScheduleAction } from '@/app/(admin)/_actions/settings'
+import { adminSettingsApi, getBrowserApi, type FeeRule } from '@/lib/api'
 import type { FeeScheduleHistoryRow } from '@/app/(admin)/_actions/settings'
 import type { FeeScheduleRules } from '@/lib/ledger/types'
 import type { FeeRuleEntry } from '@/lib/ledger/types'
@@ -65,6 +66,7 @@ interface Props {
 }
 
 export function FeeScheduleEditor({ initialRules, history }: Props) {
+  const router = useRouter()
   const [rows, setRows] = useState<Record<string, FeeRowState>>(() => {
     const result: Record<string, FeeRowState> = {}
     for (const [type, rule] of Object.entries(initialRules)) {
@@ -86,20 +88,24 @@ export function FeeScheduleEditor({ initialRules, history }: Props) {
   }
 
   function handleApply() {
-    const rules: FeeScheduleRules = {}
+    const rules: Record<string, FeeRule> = {}
     for (const [type, state] of Object.entries(rows)) {
-      rules[type as keyof FeeScheduleRules] = stateToRule(state)
+      rules[type] = stateToRule(state)
     }
 
     startTransition(async () => {
-      const result = await applyFeeScheduleAction({
-        rules,
-        effectiveFrom: new Date(),
-      })
-      if (result.success) {
+      try {
+        await adminSettingsApi.applyFeeSchedule(getBrowserApi(), {
+          rules,
+          effectiveFrom: new Date().toISOString(),
+        })
         setFeedback({ success: true, message: 'Fee schedule updated and active.' })
-      } else {
-        setFeedback({ success: false, message: result.error })
+        router.refresh()
+      } catch (err) {
+        setFeedback({
+          success: false,
+          message: err instanceof Error ? err.message : 'Failed to update fee schedule.',
+        })
       }
     })
   }
