@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { runNowAction } from '@/app/(admin)/_actions/reconciliation'
+import { adminReconciliationApi, getBrowserApi, ApiClientError } from '@/lib/api'
 
 export function RunNowButton() {
   const [loading, setLoading] = useState(false)
@@ -13,15 +13,10 @@ export function RunNowButton() {
     setLoading(true)
     setError(null)
     try {
-      const result = await runNowAction()
-      if (result.ok && result.reportId) {
-        router.push(`/admin/treasury/reconciliation/${result.reportId}`)
-      } else {
-        setError(result.error ?? 'Unknown error')
-        setLoading(false)
-      }
-    } catch {
-      setError('Failed to run reconciliation.')
+      const result = await adminReconciliationApi.runNow(getBrowserApi())
+      router.push(`/admin/treasury/reconciliation/${result.reportId}`)
+    } catch (err) {
+      setError(err instanceof ApiClientError ? err.message : 'Failed to run reconciliation.')
       setLoading(false)
     }
   }
