@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Prisma } from '@prisma/client'
 import { AlertTriangle, ShieldAlert, Shield } from 'lucide-react'
-import { adminTreasuryApi, getBrowserApi } from '@/lib/api'
+import { adminTreasuryApi, getBrowserApi, type MoneyString } from '@/lib/api'
 
 const SYSTEM_KEY_LABELS: Record<string, string> = {
   treasury_reserve: 'Treasury Reserve',
@@ -16,16 +16,16 @@ const SYSTEM_KEY_LABELS: Record<string, string> = {
   promotions: 'Promotions',
 }
 
-function fmt(d: Prisma.Decimal): string {
+function fmt(d: MoneyString): string {
   return `K ${new Prisma.Decimal(d).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`
 }
 
 type FloorStatus = 'at-floor' | 'near-floor' | 'healthy' | 'unlimited'
 
 function getFloorStatus(
-  balance: Prisma.Decimal,
-  floor: Prisma.Decimal | null,
-  headroom: Prisma.Decimal | null,
+  balance: MoneyString,
+  floor: MoneyString | null,
+  headroom: MoneyString | null,
 ): FloorStatus {
   if (floor === null || headroom === null) return 'unlimited'
   const b = new Prisma.Decimal(balance)
@@ -38,9 +38,9 @@ function getFloorStatus(
 interface Props {
   walletId: string
   walletKey: string
-  balance: Prisma.Decimal
-  floor: Prisma.Decimal | null
-  headroom: Prisma.Decimal | null
+  balance: MoneyString
+  floor: MoneyString | null
+  headroom: MoneyString | null
 }
 
 export function WalletFloorCard({ walletId, walletKey, balance, floor, headroom }: Props) {

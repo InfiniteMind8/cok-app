@@ -14,16 +14,15 @@ import {
 } from '@/components/ui/sheet'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
-import { adminSettlementsApi, getBrowserApi } from '@/lib/api'
-import { Prisma } from '@prisma/client'
+import { adminSettlementsApi, getBrowserApi, type MoneyString } from '@/lib/api'
 
 interface ApprovedSettlement {
   id: string
-  amount: Prisma.Decimal
+  amount: MoneyString
   userId: string
   userName: string
   memberId: string
-  approvedAt: Date | null
+  approvedAt: string | null
 }
 
 interface ExecuteSettlementSheetProps {
@@ -107,7 +106,7 @@ export function ExecuteSettlementSheet({ settlements }: ExecuteSettlementSheetPr
                         <p className="text-xs font-body text-karis-stone-500">{s.memberId}</p>
                       </div>
                       <p className="text-sm font-body text-karis-gold-700 tabular-nums font-medium">
-                        K {new Prisma.Decimal(s.amount).toFixed(2)}
+                        K {s.amount}
                       </p>
                     </div>
                   </button>
@@ -121,7 +120,7 @@ export function ExecuteSettlementSheet({ settlements }: ExecuteSettlementSheetPr
                 <p className="text-karis-stone-900">
                   {selected.userName} —{' '}
                   <span className="text-karis-gold-700 tabular-nums font-medium">
-                    K {new Prisma.Decimal(selected.amount).toFixed(2)}
+                    K {selected.amount}
                   </span>
                 </p>
               </div>
