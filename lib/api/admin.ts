@@ -5,6 +5,9 @@ import type {
   AnnouncementTargetType,
   ApprovalsCounts,
   AttachmentInput,
+  AuditLogFilter,
+  AuditLogListResponse,
+  BroadcastOverviewResponse,
   BroadcastSendResponse,
   EmailLogListResponse,
   EmailResendResponse,
@@ -48,6 +51,21 @@ export const adminDashboardApi = {
 // ─── audit-log ───────────────────────────────────────────────────────────────
 
 export const adminAuditLogApi = {
+  // GET /v1/admin/audit-log — paginated list with filters
+  list: (api: ApiClient, filters: AuditLogFilter = {}) =>
+    api.get<AuditLogListResponse>('/v1/admin/audit-log', {
+      query: {
+        actorId: filters.actorId,
+        action: filters.action,
+        entity: filters.entity,
+        entityId: filters.entityId,
+        dateFrom: filters.dateFrom,
+        dateTo: filters.dateTo,
+        page: filters.page,
+        pageSize: filters.pageSize,
+      },
+    }),
+
   // GET /v1/admin/audit-log/export — returns a CSV. Use raw to keep the
   // raw Response so the caller can stream/download.
   export: (
@@ -288,7 +306,45 @@ export interface CreateVoteInput {
   options: { label: string; description: string }[]
 }
 
+// Issues filter shape — kept narrow because the page already passes optional
+// IssueLevel / IssueStatus / Role values from the typed API.
+export interface AdminIssuesFilter {
+  role?: Role
+  seriousness?: 'GREEN' | 'YELLOW' | 'ORANGE' | 'RED'
+  urgency?: 'GREEN' | 'YELLOW' | 'ORANGE' | 'RED'
+  status?: IssueStatus
+  page?: number
+  pageSize?: number
+}
+
 export const adminCommunityApi = {
+  // GET /v1/admin/community/updates — paginated published updates
+  listUpdates: (api: ApiClient, page = 1, pageSize = 20) =>
+    api.get<{ updates: unknown[]; total: number }>(
+      '/v1/admin/community/updates',
+      { query: { page, pageSize } },
+    ),
+
+  // GET /v1/admin/community/votes/admin — votes with submission breakdowns
+  listAdminVotes: (api: ApiClient) =>
+    api.get<unknown[]>('/v1/admin/community/votes/admin'),
+
+  // GET /v1/admin/community/issues — paginated issues with filters
+  listIssues: (api: ApiClient, filters: AdminIssuesFilter = {}) =>
+    api.get<{ issues: unknown[]; total: number }>(
+      '/v1/admin/community/issues',
+      {
+        query: {
+          role: filters.role,
+          seriousness: filters.seriousness,
+          urgency: filters.urgency,
+          status: filters.status,
+          page: filters.page,
+          pageSize: filters.pageSize,
+        },
+      },
+    ),
+
   publishUpdate: (api: ApiClient, input: PublishUpdateInput) =>
     api.post<{ updateId: string }>('/v1/admin/community/updates', input),
 
@@ -313,6 +369,12 @@ export const adminCommunityApi = {
 // ─── broadcasts ──────────────────────────────────────────────────────────────
 
 export const adminBroadcastsApi = {
+  // GET /v1/admin/broadcasts — page bundle (active count + recent broadcasts)
+  getOverview: (api: ApiClient, limit = 5) =>
+    api.get<BroadcastOverviewResponse>('/v1/admin/broadcasts', {
+      query: { limit },
+    }),
+
   send: (api: ApiClient, input: { title: string; body: string; severity: AnnouncementSeverity }) =>
     api.post<BroadcastSendResponse>('/v1/admin/broadcasts/send', input),
 }
@@ -529,6 +591,16 @@ export const adminPromotionsApi = {
 // ─── visitor-groups ──────────────────────────────────────────────────────────
 
 export const adminVisitorGroupsApi = {
+  // GET /v1/admin/visitor-groups — list (optionally including archived)
+  list: (api: ApiClient, includeArchived = false) =>
+    api.get<unknown[]>('/v1/admin/visitor-groups', {
+      query: { includeArchived: includeArchived ? 'true' : undefined },
+    }),
+
+  // GET /v1/admin/visitor-groups/:id — single group detail with memberships
+  get: (api: ApiClient, id: string) =>
+    api.get<unknown>(`/v1/admin/visitor-groups/${id}`),
+
   create: (api: ApiClient, input: { name: string; theme?: string; description: string }) =>
     api.post<{ groupId: string }>('/v1/admin/visitor-groups', input),
 

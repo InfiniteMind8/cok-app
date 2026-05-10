@@ -1,15 +1,11 @@
-import { db } from '@/lib/db'
-import { getRecentEmergencyBroadcasts } from '@/lib/queries/broadcast'
+import { adminBroadcastsApi, getServerApi } from '@/lib/api'
 import { BroadcastForm } from './_components/broadcast-form'
-import { format } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 
 export const dynamic = 'force-dynamic'
 
 export default async function BroadcastPage() {
-  const [activeCount, recent] = await Promise.all([
-    db.user.count({ where: { status: 'ACTIVE' } }),
-    getRecentEmergencyBroadcasts(5),
-  ])
+  const { activeCount, recent } = await adminBroadcastsApi.getOverview(getServerApi())
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-8 space-y-8">
@@ -43,7 +39,7 @@ export default async function BroadcastPage() {
                 </div>
                 <div className="shrink-0 text-right space-y-0.5">
                   <p className="text-xs font-body text-karis-stone-500">
-                    {format(b.publishedAt, 'dd MMM yyyy HH:mm')}
+                    {format(parseISO(b.publishedAt), 'dd MMM yyyy HH:mm')}
                   </p>
                   <p className="text-xs font-body text-karis-stone-400">
                     {b._count.acknowledgements} acknowledged

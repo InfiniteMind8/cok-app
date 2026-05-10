@@ -369,6 +369,51 @@ export interface ImportSessionDetail {
   rows: ImportSessionRow[]
 }
 
+// ─── Audit log ───────────────────────────────────────────────────────────────
+
+export interface AuditLogRow {
+  id: string
+  action: string
+  entity: string
+  entityId: string | null
+  actorId: string
+  before: unknown
+  after: unknown
+  createdAt: string
+}
+
+export interface AuditLogListResponse {
+  logs: AuditLogRow[]
+  total: number
+}
+
+export interface AuditLogFilter {
+  actorId?: string
+  action?: string
+  entity?: string
+  entityId?: string
+  dateFrom?: string
+  dateTo?: string
+  page?: number
+  pageSize?: number
+}
+
+// ─── Broadcast page bundle ───────────────────────────────────────────────────
+
+export interface BroadcastRecentRow {
+  id: string
+  headline: string
+  message: string
+  severity: AnnouncementSeverity
+  publishedAt: string
+  _count: { acknowledgements: number }
+}
+
+export interface BroadcastOverviewResponse {
+  activeCount: number
+  recent: BroadcastRecentRow[]
+}
+
 // ─── Settings page bundle ────────────────────────────────────────────────────
 
 export interface SettingsRecentActivityRow {
