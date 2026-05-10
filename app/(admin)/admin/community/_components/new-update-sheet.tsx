@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -24,7 +25,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { publishUpdateAction } from '@/app/(admin)/_actions/community'
+import { adminCommunityApi, getBrowserApi, type AnnouncementTargetType, type Role } from '@/lib/api'
 
 interface VisitorGroupOption {
   id: string
@@ -50,6 +51,7 @@ export function NewUpdateSheet({
   visitorGroups?: VisitorGroupOption[]
   defaultGroupId?: string
 }) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
 
@@ -74,18 +76,19 @@ export function NewUpdateSheet({
   function onSubmit(values: FormValues) {
     startTransition(async () => {
       try {
-        await publishUpdateAction({
+        await adminCommunityApi.publishUpdate(getBrowserApi(), {
           headline: values.headline,
           category: values.category,
           message: values.message,
           photoUrl: values.photoUrl,
-          targetType: values.targetType as 'COMMUNITY_WIDE' | 'ROLE' | 'VISITOR_GROUP',
-          targetRole: values.targetType === 'ROLE' ? (values.targetRole as 'RESIDENT' | 'VISITOR' | 'ADMIN' | 'VENDOR' | 'MASTER_ADMIN' | undefined) : undefined,
+          targetType: values.targetType as AnnouncementTargetType,
+          targetRole: values.targetType === 'ROLE' ? (values.targetRole as Role | undefined) : undefined,
           targetGroupId: values.targetType === 'VISITOR_GROUP' ? values.targetGroupId : undefined,
         })
         toast.success('Update published')
         reset()
         setOpen(false)
+        router.refresh()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed')
       }

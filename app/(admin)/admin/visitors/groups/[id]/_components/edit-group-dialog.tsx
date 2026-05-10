@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -11,7 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Modal, ModalContent, ModalHeader, ModalTitle } from '@/components/ui/modal'
-import { editGroupAction } from '@/app/(admin)/_actions/visitor-groups'
+import { adminVisitorGroupsApi, getBrowserApi } from '@/lib/api'
 
 const schema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -27,6 +28,7 @@ export function EditGroupDialog({
   id: string
   defaultValues: { name: string; theme?: string | null; description: string }
 }) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const {
@@ -45,9 +47,10 @@ export function EditGroupDialog({
   function onSubmit(values: FormValues) {
     startTransition(async () => {
       try {
-        await editGroupAction(id, values)
+        await adminVisitorGroupsApi.edit(getBrowserApi(), id, values)
         toast.success('Group updated')
         setOpen(false)
+        router.refresh()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed to update group')
       }

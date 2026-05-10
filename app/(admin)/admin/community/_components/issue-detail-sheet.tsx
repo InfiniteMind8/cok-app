@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import {
   Sheet,
@@ -18,9 +19,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { replyToIssueAction, updateIssueStatusAction, assignIssueAction } from '@/app/(admin)/_actions/community'
+import { adminCommunityApi, getBrowserApi, type IssueStatus } from '@/lib/api'
 import { format } from 'date-fns'
-import { IssueStatus } from '@prisma/client'
 
 interface Reply {
   id: string
@@ -60,6 +60,7 @@ const statusColors: Record<string, string> = {
 }
 
 export function IssueDetailSheet({ open, onClose, issue }: IssueDetailSheetProps) {
+  const router = useRouter()
   const [reply, setReply] = useState('')
   const [isAssigned, setIsAssigned] = useState(!!issue?.assigneeId)
   const [replyPending, startReplyTransition] = useTransition()
@@ -75,9 +76,10 @@ export function IssueDetailSheet({ open, onClose, issue }: IssueDetailSheetProps
     if (!reply.trim() || !issue) return
     startReplyTransition(async () => {
       try {
-        await replyToIssueAction(issue.id, reply)
+        await adminCommunityApi.replyToIssue(getBrowserApi(), issue.id, reply)
         toast.success('Reply posted')
         setReply('')
+        router.refresh()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed')
       }
@@ -88,8 +90,9 @@ export function IssueDetailSheet({ open, onClose, issue }: IssueDetailSheetProps
     if (!issue) return
     startStatusTransition(async () => {
       try {
-        await updateIssueStatusAction(issue.id, newStatus as IssueStatus)
+        await adminCommunityApi.setIssueStatus(getBrowserApi(), issue.id, newStatus as IssueStatus)
         toast.success(`Issue marked ${newStatus.replace('_', ' ')}`)
+        router.refresh()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed')
       }
@@ -100,9 +103,10 @@ export function IssueDetailSheet({ open, onClose, issue }: IssueDetailSheetProps
     if (!issue || currentlyAssigned) return
     startAssignTransition(async () => {
       try {
-        await assignIssueAction(issue.id)
+        await adminCommunityApi.assignIssue(getBrowserApi(), issue.id)
         setIsAssigned(true)
         toast.success('Issue assigned to you')
+        router.refresh()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed')
       }
