@@ -15,7 +15,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { CheckCircle2, XCircle } from 'lucide-react'
-import { approveExtensionAction, declineExtensionAction } from '@/app/(admin)/_actions/rental-extensions'
+import { adminRentalExtensionsApi, getBrowserApi } from '@/lib/api'
 
 interface RentalExtensionActionsProps {
   row: {
@@ -45,7 +45,7 @@ function ApproveDialog({ row }: RentalExtensionActionsProps) {
   function handleApprove() {
     startTransition(async () => {
       try {
-        await approveExtensionAction({ requestId: row.id, note: note.trim() || undefined })
+        await adminRentalExtensionsApi.approve(getBrowserApi(), row.id, note.trim() || undefined)
         toast.success('Extension approved')
         setOpen(false)
         setNote('')
@@ -110,7 +110,7 @@ function DeclineDialog({ row }: RentalExtensionActionsProps) {
     }
     startTransition(async () => {
       try {
-        await declineExtensionAction({ requestId: row.id, note: note.trim() })
+        await adminRentalExtensionsApi.decline(getBrowserApi(), row.id, note.trim())
         toast.success('Extension declined')
         setOpen(false)
         setNote('')

@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/modal'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import { approveSettlementAction, declineSettlementAction } from '@/app/(admin)/_actions/settlements'
+import { adminSettlementsApi, getBrowserApi } from '@/lib/api'
 import { CheckCircle2, XCircle } from 'lucide-react'
 
 interface SettlementRow {
@@ -35,7 +35,7 @@ export function ApproveSettlementDialog({ settlement }: { settlement: Settlement
   function handleApprove() {
     startTransition(async () => {
       try {
-        await approveSettlementAction(settlement.id)
+        await adminSettlementsApi.approve(getBrowserApi(), settlement.id)
         toast.success('Settlement approved')
         setOpen(false)
       } catch (err) {
@@ -124,7 +124,7 @@ export function DeclineSettlementDialog({ settlement }: { settlement: Settlement
     }
     startTransition(async () => {
       try {
-        await declineSettlementAction(settlement.id, reason)
+        await adminSettlementsApi.decline(getBrowserApi(), settlement.id, reason)
         toast.success('Settlement declined')
         setOpen(false)
         setReason('')

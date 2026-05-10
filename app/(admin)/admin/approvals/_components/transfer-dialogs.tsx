@@ -1,6 +1,6 @@
 'use client'
 
-import { approveTransferAction, declineTransferAction } from '@/app/(admin)/_actions/property-transfers'
+import { adminPropertyTransfersApi, getBrowserApi } from '@/lib/api'
 import { ApprovalActions } from './approval-actions'
 
 interface TransferRow {
@@ -14,8 +14,12 @@ export function TransferApprovalActions({ row }: { row: TransferRow }) {
   return (
     <ApprovalActions
       label={`Transfer ${row.propertyCode} from ${row.fromUserName} to ${row.toUserName}`}
-      onApprove={approveTransferAction.bind(null, row.id)}
-      onDecline={declineTransferAction.bind(null, row.id)}
+      onApprove={async () => {
+        await adminPropertyTransfersApi.approve(getBrowserApi(), row.id)
+      }}
+      onDecline={async (reason) => {
+        await adminPropertyTransfersApi.decline(getBrowserApi(), row.id, reason)
+      }}
     />
   )
 }

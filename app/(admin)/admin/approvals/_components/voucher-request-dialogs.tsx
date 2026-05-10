@@ -1,6 +1,6 @@
 'use client'
 
-import { approveVoucherRequestAction, declineVoucherRequestAction } from '@/app/(admin)/_actions/voucher-requests'
+import { adminVoucherRequestsApi, getBrowserApi } from '@/lib/api'
 import { ApprovalActions } from './approval-actions'
 
 interface VoucherRow {
@@ -13,8 +13,12 @@ export function VoucherRequestApprovalActions({ row }: { row: VoucherRow }) {
   return (
     <ApprovalActions
       label={`Issue ${row.amount} KCRD voucher to ${row.recipientName}`}
-      onApprove={approveVoucherRequestAction.bind(null, row.id)}
-      onDecline={declineVoucherRequestAction.bind(null, row.id)}
+      onApprove={async () => {
+        await adminVoucherRequestsApi.approve(getBrowserApi(), row.id)
+      }}
+      onDecline={async (reason) => {
+        await adminVoucherRequestsApi.decline(getBrowserApi(), row.id, reason)
+      }}
     />
   )
 }
