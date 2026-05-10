@@ -5,7 +5,6 @@ import { PageHeader } from '@/components/admin/page-header'
 import { PreviewTable } from './_components/preview-table'
 
 export const dynamic = 'force-dynamic'
-import { commitImportAction, cancelImportAction } from '@/app/(admin)/_actions/imports'
 import Link from 'next/link'
 
 interface Props {
@@ -68,8 +67,6 @@ export default async function ImportPreviewPage({ params }: Props) {
             status: r.status as 'VALID' | 'WARNING' | 'ERROR',
             messages: r.messages as string[],
           }))}
-          commitAction={commitImportAction}
-          cancelAction={cancelImportAction}
         />
       )}
     </div>

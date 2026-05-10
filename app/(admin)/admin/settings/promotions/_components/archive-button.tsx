@@ -1,10 +1,12 @@
 'use client'
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { archivePromotionAction } from '../_actions/promotions'
+import { adminPromotionsApi, getBrowserApi } from '@/lib/api'
 
 export function ArchiveButton({ id }: { id: string }) {
+  const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [done, setDone] = useState(false)
 
@@ -17,8 +19,13 @@ export function ArchiveButton({ id }: { id: string }) {
       disabled={pending}
       onClick={() =>
         startTransition(async () => {
-          await archivePromotionAction(id)
-          setDone(true)
+          try {
+            await adminPromotionsApi.archive(getBrowserApi(), id)
+            setDone(true)
+            router.refresh()
+          } catch {
+            // Surface failure quietly — table row stays in place for retry.
+          }
         })
       }
       className="h-7 font-body text-xs text-status-red border-status-red/30 hover:bg-status-red/5 hover:text-status-red"

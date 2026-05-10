@@ -1,12 +1,13 @@
 'use client'
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { format } from 'date-fns'
 import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { setConversionRateAction } from '../_actions/rates'
+import { adminRatesApi, getBrowserApi } from '@/lib/api'
 
 type Rate = {
   id: string
@@ -32,6 +33,7 @@ const PAIRS = [
 ]
 
 export function RateEditor({ rates }: RateEditorProps) {
+  const router = useRouter()
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [success, setSuccess] = useState<Record<string, boolean>>({})
@@ -55,12 +57,20 @@ export function RateEditor({ rates }: RateEditorProps) {
       return
     }
     startTransition(async () => {
-      const result = await setConversionRateAction({ baseCurrency: base, quoteCurrency: quote, rate: val })
-      if (result.ok) {
+      try {
+        await adminRatesApi.set(getBrowserApi(), {
+          baseCurrency: base,
+          quoteCurrency: quote,
+          rate: val,
+        })
         setSuccess((s) => ({ ...s, [key(base, quote)]: true }))
         setDrafts((d) => ({ ...d, [key(base, quote)]: '' }))
-      } else {
-        setErrors((e) => ({ ...e, [key(base, quote)]: result.error ?? 'Unknown error.' }))
+        router.refresh()
+      } catch (err) {
+        setErrors((e) => ({
+          ...e,
+          [key(base, quote)]: err instanceof Error ? err.message : 'Unknown error.',
+        }))
       }
     })
   }

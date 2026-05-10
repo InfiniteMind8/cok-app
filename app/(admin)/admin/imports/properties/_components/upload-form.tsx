@@ -1,15 +1,17 @@
 'use client'
 
 import { useRef, useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { UploadCloud, AlertCircle, ChevronDown } from 'lucide-react'
+import { adminImportsApi, getBrowserApi } from '@/lib/api'
 
 interface UploadFormProps {
-  action: (formData: FormData) => Promise<void>
   maxRows: number
 }
 
-export function UploadForm({ action, maxRows }: UploadFormProps) {
+export function UploadForm({ maxRows }: UploadFormProps) {
+  const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [fileName, setFileName] = useState<string | null>(null)
   const [zipFileName, setZipFileName] = useState<string | null>(null)
@@ -46,14 +48,20 @@ export function UploadForm({ action, maxRows }: UploadFormProps) {
     }
 
     const zipFile = data.get('zipFile') as File | null
-    if (showZip && zipFile && zipFile.size > 0 && !zipFile.name.endsWith('.zip')) {
+    const hasZip = showZip && zipFile && zipFile.size > 0
+    if (hasZip && !zipFile.name.endsWith('.zip')) {
       setError('Companion file must be a .zip archive.')
       return
     }
 
     startTransition(async () => {
       try {
-        await action(data)
+        const res = await adminImportsApi.parseProperties(
+          getBrowserApi(),
+          file,
+          hasZip ? zipFile : undefined,
+        )
+        router.push(`/admin/imports/properties/${res.sessionId}`)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Upload failed. Please try again.')
       }

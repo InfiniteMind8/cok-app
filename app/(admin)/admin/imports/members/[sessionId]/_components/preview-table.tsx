@@ -1,9 +1,11 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { AlertCircle, CheckCircle2, AlertTriangle, Loader2, X } from 'lucide-react'
 import Link from 'next/link'
+import { adminImportsApi, getBrowserApi } from '@/lib/api'
 
 type RowStatus = 'VALID' | 'WARNING' | 'ERROR'
 type FilterStatus = 'ALL' | RowStatus
@@ -28,8 +30,6 @@ interface SessionSummary {
 interface PreviewTableProps {
   session: SessionSummary
   rows: PreviewRow[]
-  commitAction: (sessionId: string, confirmedRowIds: string[]) => Promise<{ committedCount: number; skippedCount: number }>
-  cancelAction: (sessionId: string) => Promise<void>
 }
 
 function StatusPill({ status }: { status: RowStatus }) {
@@ -54,7 +54,8 @@ function StatusPill({ status }: { status: RowStatus }) {
   )
 }
 
-export function PreviewTable({ session, rows, commitAction, cancelAction }: PreviewTableProps) {
+export function PreviewTable({ session, rows }: PreviewTableProps) {
+  const router = useRouter()
   const [filter, setFilter] = useState<FilterStatus>('ALL')
   const [confirmed, setConfirmed] = useState<Set<string>>(new Set())
   const [result, setResult] = useState<{ committedCount: number; skippedCount: number } | null>(null)
@@ -79,8 +80,12 @@ export function PreviewTable({ session, rows, commitAction, cancelAction }: Prev
     setError(null)
     startTransition(async () => {
       try {
-        const res = await commitAction(session.id, Array.from(confirmed))
-        setResult(res)
+        const res = await adminImportsApi.commitMembers(
+          getBrowserApi(),
+          session.id,
+          Array.from(confirmed),
+        )
+        setResult({ committedCount: res.committedCount, skippedCount: res.skippedCount })
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Commit failed. Please try again.')
       }
@@ -89,7 +94,12 @@ export function PreviewTable({ session, rows, commitAction, cancelAction }: Prev
 
   function handleCancel() {
     startTransition(async () => {
-      await cancelAction(session.id)
+      try {
+        await adminImportsApi.cancelMembers(getBrowserApi(), session.id)
+        router.push('/admin/imports/members')
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Cancel failed.')
+      }
     })
   }
 
