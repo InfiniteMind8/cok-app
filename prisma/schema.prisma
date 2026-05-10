@@ -1,9 +1,29 @@
+// =============================================================================
+// IMPORTANT — TEMPORARY copy of the canonical schema.
+//
+// The single source of truth for the Prisma schema is `../backend/prisma/
+// schema.prisma`. This file exists in the frontend tree ONLY so that
+// `pnpm exec prisma generate` can produce the typed `@prisma/client` types
+// that the still-here server actions (`app/(admin)/_actions/*`,
+// `app/(resident)/_actions/*`) and `lib/queries/*` modules import from.
+//
+// Migrations + seed + db tooling all live in `backend/`. Do NOT add new
+// migrations here. When the schema changes, change it in `backend/prisma/
+// schema.prisma` first, run `prisma migrate dev` from backend, then mirror
+// the model changes into THIS file (model definitions only — no migrations,
+// no `directUrl`).
+//
+// This file is removed entirely in Phase 2 Block D.3 once `lib/queries/*`
+// + the server actions are ported to API client calls.
+// =============================================================================
+
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
