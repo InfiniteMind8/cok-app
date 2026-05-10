@@ -1,4 +1,0 @@
-
-> cok-community-app@0.1.0 typecheck C:\Users\infin\OneDrive\White Dragon\Claude Main\COK-City-of-Karis\website
-> tsc --noEmit
-

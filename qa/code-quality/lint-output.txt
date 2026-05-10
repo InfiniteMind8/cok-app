@@ -1,4 +1,0 @@
-
-> cok-community-app@0.1.0 lint C:\Users\infin\OneDrive\White Dragon\Claude Main\COK-City-of-Karis\website
-> eslint
-
