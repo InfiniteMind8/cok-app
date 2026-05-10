@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
@@ -29,6 +30,7 @@ interface SettlementRow {
 }
 
 export function ApproveSettlementDialog({ settlement }: { settlement: SettlementRow }) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
 
@@ -38,6 +40,7 @@ export function ApproveSettlementDialog({ settlement }: { settlement: Settlement
         await adminSettlementsApi.approve(getBrowserApi(), settlement.id)
         toast.success('Settlement approved')
         setOpen(false)
+        router.refresh()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed to approve settlement')
       }
@@ -113,6 +116,7 @@ export function ApproveSettlementDialog({ settlement }: { settlement: Settlement
 }
 
 export function DeclineSettlementDialog({ settlement }: { settlement: SettlementRow }) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [reason, setReason] = useState('')
   const [isPending, startTransition] = useTransition()
@@ -128,6 +132,7 @@ export function DeclineSettlementDialog({ settlement }: { settlement: Settlement
         toast.success('Settlement declined')
         setOpen(false)
         setReason('')
+        router.refresh()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed to decline settlement')
       }

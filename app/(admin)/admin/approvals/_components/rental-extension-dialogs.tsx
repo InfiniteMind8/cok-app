@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
@@ -38,6 +39,7 @@ export function RentalExtensionApprovalActions({ row }: RentalExtensionActionsPr
 }
 
 function ApproveDialog({ row }: RentalExtensionActionsProps) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [note, setNote] = useState('')
   const [isPending, startTransition] = useTransition()
@@ -49,6 +51,7 @@ function ApproveDialog({ row }: RentalExtensionActionsProps) {
         toast.success('Extension approved')
         setOpen(false)
         setNote('')
+        router.refresh()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed to approve')
       }
@@ -99,6 +102,7 @@ function ApproveDialog({ row }: RentalExtensionActionsProps) {
 }
 
 function DeclineDialog({ row }: RentalExtensionActionsProps) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [note, setNote] = useState('')
   const [isPending, startTransition] = useTransition()
@@ -114,6 +118,7 @@ function DeclineDialog({ row }: RentalExtensionActionsProps) {
         toast.success('Extension declined')
         setOpen(false)
         setNote('')
+        router.refresh()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed to decline')
       }

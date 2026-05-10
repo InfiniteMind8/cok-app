@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { CheckSquare } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -13,7 +14,7 @@ import {
 } from '@/components/ui/sheet'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
-import { executeSettlementAction } from '@/app/(admin)/_actions/settlements'
+import { adminSettlementsApi, getBrowserApi } from '@/lib/api'
 import { Prisma } from '@prisma/client'
 
 interface ApprovedSettlement {
@@ -30,6 +31,7 @@ interface ExecuteSettlementSheetProps {
 }
 
 export function ExecuteSettlementSheet({ settlements }: ExecuteSettlementSheetProps) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [selectedId, setSelectedId] = useState<string>('')
   const [proofUrl, setProofUrl] = useState('')
@@ -44,11 +46,12 @@ export function ExecuteSettlementSheet({ settlements }: ExecuteSettlementSheetPr
     }
     startTransition(async () => {
       try {
-        await executeSettlementAction(selectedId, proofUrl || undefined)
+        await adminSettlementsApi.execute(getBrowserApi(), selectedId, proofUrl || undefined)
         toast.success('Settlement executed — wallet debited')
         setSelectedId('')
         setProofUrl('')
         setOpen(false)
+        router.refresh()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed to execute settlement')
       }

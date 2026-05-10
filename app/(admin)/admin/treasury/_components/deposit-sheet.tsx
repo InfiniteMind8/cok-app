@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -23,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { recordDepositAction } from '@/app/(admin)/_actions/deposits'
+import { adminDepositsApi, getBrowserApi } from '@/lib/api'
 
 const schema = z.object({
   userId: z.string().min(1, 'Select a member'),
@@ -47,6 +48,7 @@ interface DepositSheetProps {
 }
 
 export function DepositSheet({ users }: DepositSheetProps) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [proofUrl, setProofUrl] = useState<string>('')
   const [isPending, startTransition] = useTransition()
@@ -73,16 +75,18 @@ export function DepositSheet({ users }: DepositSheetProps) {
   function onSubmit(values: FormValues) {
     startTransition(async () => {
       try {
-        const result = await recordDepositAction({
+        const result = await adminDepositsApi.record(getBrowserApi(), {
           ...values,
           proofUrl: proofUrl || undefined,
         })
-        toast.success(`Deposit recorded — K ${result.kAmount} issued`, {
+        const kDisplay = parseFloat(result.kcrdAmount).toFixed(2)
+        toast.success(`Deposit recorded — K ${kDisplay} issued`, {
           description: `Transaction ${result.transactionId.slice(0, 8)}`,
         })
         reset()
         setProofUrl('')
         setOpen(false)
+        router.refresh()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed to record deposit')
       }
