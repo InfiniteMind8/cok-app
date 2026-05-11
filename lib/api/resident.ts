@@ -4,8 +4,24 @@ import type {
   IssueLevel,
   MoneyString,
   SettlementCreatedResponse,
+  SettlementStatus,
   TransactionPage,
 } from './types'
+
+// D.4: response shape of GET /v1/resident/wallet/settlements. The backend
+// stringifies the Decimal amount; all dates arrive as ISO strings.
+export interface SettlementRequestRow {
+  id: string
+  userId: string
+  amount: MoneyString
+  purpose: string | null
+  status: SettlementStatus
+  declinedReason: string | null
+  proofUrl: string | null
+  createdAt: string
+  approvedAt: string | null
+  settledAt: string | null
+}
 
 // `/v1/resident/*` endpoints. Some are RESIDENT-only, some are
 // RESIDENT+VISITOR — gating is enforced server-side.
@@ -44,6 +60,26 @@ export const residentCommunityApi = {
 
   raiseIssue: (api: ApiClient, input: RaiseIssueInput) =>
     api.post<{ issueId: string }>('/v1/resident/community/issues', input),
+
+  // GET /v1/resident/community/issues/mine — caller's own issues + replies
+  listMyIssues: (api: ApiClient) =>
+    api.get<
+      Array<{
+        id: string
+        category: string
+        message: string
+        seriousness: string
+        urgency: string
+        status: string
+        createdAt: string
+        replies: Array<{
+          id: string
+          authorId: string
+          message: string
+          createdAt: string
+        }>
+      }>
+    >('/v1/resident/community/issues/mine'),
 }
 
 // ─── wallet ──────────────────────────────────────────────────────────────────
@@ -64,6 +100,10 @@ export const residentWalletApi = {
     api.get<TransactionPage>('/v1/resident/wallet/transactions', {
       query: { walletId, cursor },
     }),
+
+  // GET /v1/resident/wallet/settlements — caller's settlement request history
+  listSettlements: (api: ApiClient) =>
+    api.get<SettlementRequestRow[]>('/v1/resident/wallet/settlements'),
 }
 
 // ─── property ────────────────────────────────────────────────────────────────

@@ -11,6 +11,18 @@ export const meApi = {
   tourStatus: (api: ApiClient) =>
     api.get<{ shouldShow: boolean }>('/v1/me/tour-status'),
 
+  // GET /v1/me/broadcasts/active — emergency broadcasts the caller hasn't ack'd
+  getActiveBroadcasts: (api: ApiClient) =>
+    api.get<
+      Array<{
+        id: string
+        headline: string
+        message: string
+        severity: 'INFO' | 'URGENT' | 'CRITICAL'
+        publishedAt: string
+      }>
+    >('/v1/me/broadcasts/active'),
+
   // POST /v1/me/tour/complete | /tour/dismiss
   completeTour: (api: ApiClient) =>
     api.post<{ completed: true }>('/v1/me/tour/complete'),

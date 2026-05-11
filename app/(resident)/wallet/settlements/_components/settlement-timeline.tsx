@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { residentWalletApi, getBrowserApi, type SettlementStatus } from '@/lib/api'
-import type { SettlementRequestRow } from '@/lib/queries/wallet'
+import type { SettlementRequestRow } from '@/lib/api/resident'
 
 const STATUS_CONFIG: Record<
   SettlementStatus,
@@ -139,7 +139,7 @@ function TimelineStep({
   skipped = false,
 }: {
   label: string
-  date: Date | null | undefined
+  date: Date | string | null | undefined
   done: boolean
   skipped?: boolean
 }) {
