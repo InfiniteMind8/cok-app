@@ -8,6 +8,7 @@ import type {
   AuditLogFilter,
   AuditLogListResponse,
   BroadcastOverviewResponse,
+  FeeScheduleHistoryRow,
   BroadcastSendResponse,
   EmailLogListResponse,
   EmailResendResponse,
@@ -581,7 +582,7 @@ export const adminSettingsApi = {
   ) => api.post<{ scheduleId: string }>('/v1/admin/settings/fee-schedule', input),
 
   feeScheduleHistory: (api: ApiClient) =>
-    api.get<unknown[]>('/v1/admin/settings/fee-schedule/history'),
+    api.get<FeeScheduleHistoryRow[]>('/v1/admin/settings/fee-schedule/history'),
 }
 
 // ─── rates ───────────────────────────────────────────────────────────────────

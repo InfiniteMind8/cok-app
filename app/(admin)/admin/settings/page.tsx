@@ -13,37 +13,11 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { getSystemWalletSummary } from '@/lib/queries/dashboard'
-import { getActiveFeeSchedule } from '@/lib/ledger/fee-engine'
-import { db } from '@/lib/db'
-import type { FeeScheduleRules } from '@/lib/ledger/types'
+import { adminSettingsApi } from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
 import { Prisma } from '@prisma/client'
-import { FeeScheduleEditor, type FeeScheduleHistoryRow } from './_components/fee-schedule-editor'
-
-// D.3 inline — was `getFeeScheduleHistory()` from app/(admin)/_actions/settings,
-// deleted in the D.3 cleanup. Server component still reads via lib/db until D.4
-// moves page-level fetches to the API client.
-async function getFeeScheduleHistory(): Promise<FeeScheduleHistoryRow[]> {
-  const schedules = await db.feeSchedule.findMany({
-    orderBy: { effectiveAt: 'desc' },
-    take: 20,
-  })
-  const actorIds = [...new Set(schedules.map((s) => s.createdBy))]
-  const users = await db.user.findMany({
-    where: { id: { in: actorIds } },
-    select: { id: true, fullName: true },
-  })
-  const nameMap = new Map(users.map((u) => [u.id, u.fullName]))
-  return schedules.map((s) => ({
-    id: s.id,
-    effectiveAt: s.effectiveAt,
-    effectiveTo: s.effectiveTo,
-    rules: s.rules as FeeScheduleRules,
-    createdBy: nameMap.get(s.createdBy) ?? s.createdBy,
-    createdAt: s.createdAt,
-    isActive: s.effectiveTo === null,
-  }))
-}
+import type { FeeScheduleRules } from '@/lib/ledger/types'
+import { FeeScheduleEditor } from './_components/fee-schedule-editor'
 
 const SYSTEM_KEY_LABELS: Record<string, string> = {
   treasury_reserve: 'Treasury Reserve',
@@ -53,50 +27,14 @@ const SYSTEM_KEY_LABELS: Record<string, string> = {
   settlement_burn: 'Settlement Burn',
 }
 
-async function getRecentAdminActivity() {
-  const adminUsers = await db.user.findMany({
-    where: { role: { in: ['MASTER_ADMIN', 'ADMIN'] } },
-    select: { id: true, fullName: true, memberId: true },
-  })
-  const adminIds = adminUsers.map((u) => u.id)
-  const nameMap = new Map(adminUsers.map((u) => [u.id, u.fullName]))
-
-  const transactions = await db.transaction.findMany({
-    where: { initiatedBy: { in: adminIds } },
-    orderBy: { createdAt: 'desc' },
-    take: 20,
-    include: {
-      entries: {
-        where: { amount: { gt: 0 } },
-        select: { amount: true },
-      },
-    },
-  })
-
-  return transactions.map((t) => {
-    const total = t.entries.reduce(
-      (sum, e) => sum.add(e.amount),
-      new Prisma.Decimal(0),
-    )
-    return {
-      id: t.id,
-      type: t.type,
-      description: t.description,
-      total,
-      createdAt: t.createdAt,
-      initiatedByName: t.initiatedBy ? (nameMap.get(t.initiatedBy) ?? 'Unknown') : '—',
-    }
-  })
-}
-
 export default async function SettingsPage() {
-  const [feeSchedule, systemWallets, recentActivity, history] = await Promise.all([
-    getActiveFeeSchedule(),
-    getSystemWalletSummary(),
-    getRecentAdminActivity(),
-    getFeeScheduleHistory(),
+  const api = getServerApi()
+  const [overview, history] = await Promise.all([
+    adminSettingsApi.getOverview(api),
+    adminSettingsApi.feeScheduleHistory(api),
   ])
 
+  const { feeSchedule, systemWallets, recentActivity } = overview
   const rules = (feeSchedule?.rules ?? {}) as FeeScheduleRules
 
   return (
@@ -162,7 +100,7 @@ export default async function SettingsPage() {
           </Badge>
           {feeSchedule && (
             <span className="font-body text-xs text-karis-stone-400 ml-auto">
-              Since {format(feeSchedule.effectiveAt, 'dd MMM yyyy')}
+              Since {format(new Date(feeSchedule.effectiveAt), 'dd MMM yyyy')}
             </span>
           )}
         </div>
@@ -201,7 +139,7 @@ export default async function SettingsPage() {
                       {w.key}
                     </TableCell>
                     <TableCell className="px-5 text-right">
-                      <KAmount amount={w.balance} />
+                      <KAmount amount={new Prisma.Decimal(w.balance)} />
                     </TableCell>
                   </TableRow>
                 ))
@@ -236,27 +174,30 @@ export default async function SettingsPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                recentActivity.map((t) => (
-                  <TableRow key={t.id}>
-                    <TableCell className="px-5">
-                      <Badge variant="secondary" className="font-body text-xs bg-karis-stone-100 text-karis-stone-700">
-                        {t.type.replace(/_/g, ' ')}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="px-5 font-body text-sm text-karis-stone-700 max-w-xs truncate">
-                      {t.description}
-                    </TableCell>
-                    <TableCell className="px-5 text-right">
-                      {t.total.gt(0) ? <KAmount amount={t.total} /> : <span className="font-body text-sm text-karis-stone-400">—</span>}
-                    </TableCell>
-                    <TableCell className="px-5 font-body text-sm text-karis-stone-700">
-                      {t.initiatedByName}
-                    </TableCell>
-                    <TableCell className="px-5 font-body text-sm text-karis-stone-500">
-                      {format(t.createdAt, 'dd MMM yyyy · HH:mm')}
-                    </TableCell>
-                  </TableRow>
-                ))
+                recentActivity.map((t) => {
+                  const totalDecimal = new Prisma.Decimal(t.total)
+                  return (
+                    <TableRow key={t.id}>
+                      <TableCell className="px-5">
+                        <Badge variant="secondary" className="font-body text-xs bg-karis-stone-100 text-karis-stone-700">
+                          {t.type.replace(/_/g, ' ')}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="px-5 font-body text-sm text-karis-stone-700 max-w-xs truncate">
+                        {t.description}
+                      </TableCell>
+                      <TableCell className="px-5 text-right">
+                        {totalDecimal.gt(0) ? <KAmount amount={totalDecimal} /> : <span className="font-body text-sm text-karis-stone-400">—</span>}
+                      </TableCell>
+                      <TableCell className="px-5 font-body text-sm text-karis-stone-700">
+                        {t.initiatedByName}
+                      </TableCell>
+                      <TableCell className="px-5 font-body text-sm text-karis-stone-500">
+                        {format(new Date(t.createdAt), 'dd MMM yyyy · HH:mm')}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
               )}
             </TableBody>
           </Table>

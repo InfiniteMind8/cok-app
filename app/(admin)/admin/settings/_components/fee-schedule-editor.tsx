@@ -17,21 +17,11 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { adminSettingsApi, getBrowserApi, type FeeRule } from '@/lib/api'
+import { type FeeScheduleHistoryRow } from '@/lib/api/types'
 import type { FeeScheduleRules } from '@/lib/ledger/types'
 import type { FeeRuleEntry } from '@/lib/ledger/types'
 
-// Server component shape used by the settings page until D.4 moves page reads
-// to the API client. (Once the page calls adminSettingsApi.feeScheduleHistory,
-// dates become ISO strings and this type aligns with the API response.)
-export interface FeeScheduleHistoryRow {
-  id: string
-  effectiveAt: Date
-  effectiveTo: Date | null
-  rules: FeeScheduleRules
-  createdBy: string
-  createdAt: Date
-  isActive: boolean
-}
+export type { FeeScheduleHistoryRow }
 
 const TRANSACTION_TYPE_LABELS: Record<string, string> = {
   PURCHASE: 'Purchase',
@@ -236,11 +226,11 @@ export function FeeScheduleEditor({ initialRules, history }: Props) {
                 {history.map((row) => (
                   <TableRow key={row.id}>
                     <TableCell className="px-5 font-body text-sm text-karis-stone-700 tabular-nums">
-                      {format(row.effectiveAt, 'dd MMM yyyy · HH:mm')}
+                      {format(new Date(row.effectiveAt), 'dd MMM yyyy · HH:mm')}
                     </TableCell>
                     <TableCell className="px-5 font-body text-sm text-karis-stone-500 tabular-nums">
                       {row.effectiveTo
-                        ? format(row.effectiveTo, 'dd MMM yyyy · HH:mm')
+                        ? format(new Date(row.effectiveTo), 'dd MMM yyyy · HH:mm')
                         : '—'}
                     </TableCell>
                     <TableCell className="px-5 font-body text-sm text-karis-stone-700">

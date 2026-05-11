@@ -434,3 +434,14 @@ export interface SettingsOverviewResponse {
   systemWallets: TreasurySystemWalletRow[]
   recentActivity: SettingsRecentActivityRow[]
 }
+
+// Schedule history rows come back from the backend with ISO date strings.
+export interface FeeScheduleHistoryRow {
+  id: string
+  effectiveAt: string
+  effectiveTo: string | null
+  rules: Record<string, unknown>
+  createdBy: string
+  createdAt: string
+  isActive: boolean
+}
