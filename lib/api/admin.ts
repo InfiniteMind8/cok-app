@@ -267,6 +267,32 @@ export interface CreateAccountInput {
 }
 
 export const adminAccountsApi = {
+  // GET /v1/admin/accounts — paginated list (filter by role/status)
+  list: (
+    api: ApiClient,
+    params: { role?: Role; status?: string; page?: number; pageSize?: number; q?: string } = {},
+  ) =>
+    api.get<{ users: unknown[]; total: number }>('/v1/admin/accounts', {
+      query: {
+        role: params.role,
+        status: params.status,
+        page: params.page,
+        pageSize: params.pageSize,
+        q: params.q,
+      },
+    }),
+
+  // GET /v1/admin/accounts/select — minimal {id, fullName, memberId, email}
+  // for select inputs across the admin UI (deposit, voucher, owner, tenant…)
+  listForSelect: (api: ApiClient) =>
+    api.get<{ id: string; fullName: string; memberId: string; email: string; role: Role }[]>(
+      '/v1/admin/accounts/select',
+    ),
+
+  // GET /v1/admin/accounts/:id — single user detail
+  get: (api: ApiClient, userId: string) =>
+    api.get<unknown>(`/v1/admin/accounts/${userId}`),
+
   create: (api: ApiClient, input: CreateAccountInput) =>
     api.post<{ userId: string; memberId: string }>('/v1/admin/accounts', input),
   suspend: (api: ApiClient, userId: string, reason: string) =>
@@ -473,6 +499,18 @@ export interface CreatePropertyInput {
 }
 
 export const adminPropertiesApi = {
+  // GET /v1/admin/properties — paginated list (with primary owner/tenant)
+  list: (api: ApiClient, page = 1, pageSize = 20) =>
+    api.get<{ properties: unknown[]; total: number }>(
+      '/v1/admin/properties',
+      { query: { page, pageSize } },
+    ),
+
+  // GET /v1/admin/properties/:propertyId — full detail (installments,
+  // ownerships, tenancies, photos, specifications)
+  get: (api: ApiClient, propertyId: string) =>
+    api.get<unknown>(`/v1/admin/properties/${propertyId}`),
+
   create: (api: ApiClient, input: CreatePropertyInput) =>
     api.post<{ propertyId: string }>('/v1/admin/properties', input),
 

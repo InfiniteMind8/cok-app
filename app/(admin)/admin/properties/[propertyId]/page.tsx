@@ -13,15 +13,78 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { EmptyState } from '@/components/admin/empty-state'
-import { getPropertyDetail } from '@/lib/queries/properties'
-import { getAllUsersForSelect } from '@/lib/queries/accounts'
-import { Prisma } from '@prisma/client'
-import { format } from 'date-fns'
+import {
+  adminAccountsApi,
+  adminPropertiesApi,
+  ApiClientError,
+  
+  type MoneyString,
+} from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
+import { format, parseISO } from 'date-fns'
 import {
   AddInstallmentDialog,
   AssignOwnerDialog,
   AssignTenantDialog,
 } from './_components/property-tabs-client'
+
+interface PropertyPayment {
+  id: string
+  paidAt: string
+  amount: MoneyString
+  proofUrl: string | null
+  installment: { number: number; dueDate: string }
+}
+
+interface PropertyOwnership {
+  id: string
+  ownershipPct: MoneyString
+  contractDate: string
+  contractUrl: string | null
+  user: { fullName: string; memberId: string }
+  payments: PropertyPayment[]
+}
+
+interface PropertyTenancyPayment {
+  id: string
+  paidAt: string
+  cycleNumber: number
+  amount: MoneyString
+}
+
+interface PropertyTenancy {
+  id: string
+  cycle: string
+  cyclePayment: MoneyString
+  contractDate: string
+  contractUrl: string | null
+  leaseStatus: string
+  user: { fullName: string; memberId: string }
+  cyclePayments: PropertyTenancyPayment[]
+}
+
+interface PropertyInstallment {
+  id: string
+  number: number
+  dueDate: string
+  amount: MoneyString
+  progressNote: string | null
+  payments: { amount: MoneyString }[]
+}
+
+interface PropertyDetailShape {
+  id: string
+  code: string
+  type: string
+  category: string
+  address: string | null
+  totalPrice: MoneyString | null
+  specifications: Record<string, string> | null
+  photos: string[]
+  installments: PropertyInstallment[]
+  ownerships: PropertyOwnership[]
+  tenancies: PropertyTenancy[]
+}
 
 export default async function PropertyDetailPage({
   params,
@@ -33,14 +96,19 @@ export default async function PropertyDetailPage({
   const { propertyId } = await params
   const { tab = 'overview' } = await searchParams
 
-  const [property, users] = await Promise.all([
-    getPropertyDetail(propertyId),
-    getAllUsersForSelect(),
-  ])
+  const api = getServerApi()
+  let property: PropertyDetailShape
+  try {
+    property = (await adminPropertiesApi.get(api, propertyId)) as PropertyDetailShape
+  } catch (err) {
+    if (err instanceof ApiClientError && err.code === 'NOT_FOUND') notFound()
+    throw err
+  }
 
-  if (!property) notFound()
+  const users = await adminAccountsApi.listForSelect(api)
+  const specs = property.specifications
 
-  const specs = property.specifications as Record<string, string> | null
+  const totalPriceNum = property.totalPrice ? parseFloat(property.totalPrice) : null
 
   return (
     <div className="p-8 max-w-5xl">
@@ -68,11 +136,11 @@ export default async function PropertyDetailPage({
             <p className="font-body text-sm text-karis-stone-500 mt-1">{property.address}</p>
           )}
         </div>
-        {property.totalPrice && (
+        {totalPriceNum !== null && (
           <div className="text-right">
             <p className="text-xs font-body text-karis-stone-500">Total price</p>
             <p className="text-xl font-heading text-karis-green-900 tabular-nums">
-              ${new Prisma.Decimal(property.totalPrice).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+              ${totalPriceNum.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
             </p>
           </div>
         )}
@@ -146,13 +214,16 @@ export default async function PropertyDetailPage({
                 </TableHeader>
                 <TableBody>
                   {property.installments.map((inst) => {
-                    const paid = inst.payments.reduce((a, p) => a.add(p.amount), new Prisma.Decimal(0))
+                    const paid = inst.payments.reduce(
+                      (sum, p) => sum + parseFloat(p.amount),
+                      0,
+                    )
                     return (
                       <TableRow key={inst.id}>
                         <TableCell className="px-5 font-body text-sm tabular-nums text-karis-stone-900">{inst.number}</TableCell>
-                        <TableCell className="px-5 font-body text-sm text-karis-stone-500">{format(inst.dueDate, 'dd MMM yyyy')}</TableCell>
+                        <TableCell className="px-5 font-body text-sm text-karis-stone-500">{format(parseISO(inst.dueDate), 'dd MMM yyyy')}</TableCell>
                         <TableCell className="px-5 text-right font-body text-sm tabular-nums text-karis-stone-900">
-                          ${new Prisma.Decimal(inst.amount).toFixed(2)}
+                          ${parseFloat(inst.amount).toFixed(2)}
                         </TableCell>
                         <TableCell className="px-5 text-right font-body text-sm tabular-nums text-karis-stone-700">
                           ${paid.toFixed(2)}
@@ -184,10 +255,10 @@ export default async function PropertyDetailPage({
                   <div className="px-5 py-4 border-b border-karis-stone-100 flex justify-between">
                     <div>
                       <p className="font-body text-sm font-medium text-karis-stone-900">{o.user.fullName}</p>
-                      <p className="font-body text-xs text-karis-stone-500">{o.user.memberId} · {o.ownershipPct.toString()}% ownership</p>
+                      <p className="font-body text-xs text-karis-stone-500">{o.user.memberId} · {o.ownershipPct}% ownership</p>
                     </div>
                     <div className="text-right text-xs font-body text-karis-stone-500">
-                      <p>Contract: {format(o.contractDate, 'dd MMM yyyy')}</p>
+                      <p>Contract: {format(parseISO(o.contractDate), 'dd MMM yyyy')}</p>
                       {o.contractUrl && (
                         <a href={o.contractUrl} target="_blank" rel="noopener noreferrer" className="text-karis-green-700 hover:underline inline-flex items-center gap-1">
                           View contract <ExternalLink size={10} />
@@ -208,9 +279,9 @@ export default async function PropertyDetailPage({
                       <TableBody>
                         {o.payments.map((p) => (
                           <TableRow key={p.id}>
-                            <TableCell className="px-5 font-body text-sm text-karis-stone-500">{format(p.paidAt, 'dd MMM yyyy')}</TableCell>
+                            <TableCell className="px-5 font-body text-sm text-karis-stone-500">{format(parseISO(p.paidAt), 'dd MMM yyyy')}</TableCell>
                             <TableCell className="px-5 font-body text-sm text-karis-stone-500">#{p.installment.number}</TableCell>
-                            <TableCell className="px-5 text-right font-body text-sm tabular-nums">${new Prisma.Decimal(p.amount).toFixed(2)}</TableCell>
+                            <TableCell className="px-5 text-right font-body text-sm tabular-nums">${parseFloat(p.amount).toFixed(2)}</TableCell>
                             <TableCell className="px-5">
                               {p.proofUrl ? (
                                 <a href={p.proofUrl} target="_blank" rel="noopener noreferrer" className="text-xs font-body text-karis-green-700 hover:underline inline-flex items-center gap-1">View <ExternalLink size={10} /></a>
@@ -242,9 +313,9 @@ export default async function PropertyDetailPage({
                   <div className="px-5 py-4 border-b border-karis-stone-100">
                     <p className="font-body text-sm font-medium text-karis-stone-900">{t.user.fullName}</p>
                     <p className="font-body text-xs text-karis-stone-500">
-                      {t.user.memberId} · {t.cycle} — ${new Prisma.Decimal(t.cyclePayment).toFixed(2)}/cycle
+                      {t.user.memberId} · {t.cycle} — ${parseFloat(t.cyclePayment).toFixed(2)}/cycle
                     </p>
-                    <p className="font-body text-xs text-karis-stone-500">Contract: {format(t.contractDate, 'dd MMM yyyy')}</p>
+                    <p className="font-body text-xs text-karis-stone-500">Contract: {format(parseISO(t.contractDate), 'dd MMM yyyy')}</p>
                   </div>
                   {t.cyclePayments.length > 0 && (
                     <Table>
@@ -258,9 +329,9 @@ export default async function PropertyDetailPage({
                       <TableBody>
                         {t.cyclePayments.map((cp) => (
                           <TableRow key={cp.id}>
-                            <TableCell className="px-5 font-body text-sm text-karis-stone-500">{format(cp.paidAt, 'dd MMM yyyy')}</TableCell>
+                            <TableCell className="px-5 font-body text-sm text-karis-stone-500">{format(parseISO(cp.paidAt), 'dd MMM yyyy')}</TableCell>
                             <TableCell className="px-5 font-body text-sm text-karis-stone-500 tabular-nums">#{cp.cycleNumber}</TableCell>
-                            <TableCell className="px-5 text-right font-body text-sm tabular-nums">${new Prisma.Decimal(cp.amount).toFixed(2)}</TableCell>
+                            <TableCell className="px-5 text-right font-body text-sm tabular-nums">${parseFloat(cp.amount).toFixed(2)}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>

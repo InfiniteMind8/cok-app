@@ -16,10 +16,10 @@ import {
 import {
   adminCommunityApi,
   adminVisitorGroupsApi,
-  getServerApi,
   type IssueStatus,
   type Role,
 } from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
 import { NewUpdateSheet } from './_components/new-update-sheet'
 import { NewVoteSheet, CloseVoteButton } from './_components/new-vote-sheet'
 import { IssuesTable } from './_components/issues-table'

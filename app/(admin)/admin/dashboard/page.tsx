@@ -21,7 +21,8 @@ import {
   TableRow,
   TableFooter,
 } from '@/components/ui/table'
-import { adminDashboardApi, getServerApi } from '@/lib/api'
+import { adminDashboardApi } from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
 import { Prisma } from '@prisma/client'
 
 function roleName(role: string) {

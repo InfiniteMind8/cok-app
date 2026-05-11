@@ -9,7 +9,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { EmptyState } from '@/components/admin/empty-state'
-import { adminEmailsApi, getServerApi, type EmailStatus } from '@/lib/api'
+import { adminEmailsApi, type EmailStatus } from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
 import { format, parseISO } from 'date-fns'
 import { Mail } from 'lucide-react'
 import { ResendButton } from './_components/resend-button'

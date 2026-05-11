@@ -57,26 +57,16 @@ async function notifyMasterAdmins(
     select: { email: true, fullName: true },
   })
 
-  const { sendEmail } = await import('@/lib/email/service')
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ''
-
-  await Promise.allSettled(
-    admins.map((admin) =>
-      sendEmail({
-        template: 'treasury-alert',
-        to: admin.email,
-        subject: 'Treasury reconciliation discrepancy detected',
-        data: {
-          recipientName: admin.fullName,
-          discrepancy: details.discrepancy,
-          netSum: details.netSum,
-          reportUrl: `${appUrl}/admin/treasury/reconciliation/${reportId}`,
-          runAt: new Date().toUTCString(),
-        },
-        idempotencyKey: `treasury-alert:${reportId}:${admin.email}`,
-      }),
-    ),
-  )
+  // D.3 — email-send moved to backend (`cok-api`). The reconciliation cron in
+  // the backend's `src/cron/reconciliation.ts` sends treasury alerts directly
+  // via the backend's Resend client. This function still runs as part of the
+  // reconciliation calculation on the frontend (until D.4 moves the whole
+  // server-component flow to the API client); the email step is a no-op here.
+  // Variables intentionally referenced to keep the data shape stable for
+  // future re-wiring to a backend POST.
+  void admins
+  void details
+  void reportId
 }
 
 export async function getActiveAlert() {

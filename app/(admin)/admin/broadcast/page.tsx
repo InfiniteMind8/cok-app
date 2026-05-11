@@ -1,4 +1,5 @@
-import { adminBroadcastsApi, getServerApi } from '@/lib/api'
+import { adminBroadcastsApi } from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
 import { BroadcastForm } from './_components/broadcast-form'
 import { format, parseISO } from 'date-fns'
 

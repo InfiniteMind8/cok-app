@@ -4,7 +4,8 @@ import { AdminSidebar } from '@/components/shared/admin-sidebar'
 import { ReconciliationAlertBanner } from '@/components/admin/reconciliation-alert-banner'
 import { EmergencyBroadcastBanner } from '@/components/shared/emergency-broadcast-banner'
 import { TourProvider } from '@/components/shared/tour-provider'
-import { meApi, getServerApi } from '@/lib/api'
+import { meApi } from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
 import { getTourSteps } from '@/lib/tour/steps'
 
 export default async function AdminLayout({

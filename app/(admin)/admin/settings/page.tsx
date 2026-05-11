@@ -18,8 +18,32 @@ import { getActiveFeeSchedule } from '@/lib/ledger/fee-engine'
 import { db } from '@/lib/db'
 import type { FeeScheduleRules } from '@/lib/ledger/types'
 import { Prisma } from '@prisma/client'
-import { FeeScheduleEditor } from './_components/fee-schedule-editor'
-import { getFeeScheduleHistory } from '@/app/(admin)/_actions/settings'
+import { FeeScheduleEditor, type FeeScheduleHistoryRow } from './_components/fee-schedule-editor'
+
+// D.3 inline — was `getFeeScheduleHistory()` from app/(admin)/_actions/settings,
+// deleted in the D.3 cleanup. Server component still reads via lib/db until D.4
+// moves page-level fetches to the API client.
+async function getFeeScheduleHistory(): Promise<FeeScheduleHistoryRow[]> {
+  const schedules = await db.feeSchedule.findMany({
+    orderBy: { effectiveAt: 'desc' },
+    take: 20,
+  })
+  const actorIds = [...new Set(schedules.map((s) => s.createdBy))]
+  const users = await db.user.findMany({
+    where: { id: { in: actorIds } },
+    select: { id: true, fullName: true },
+  })
+  const nameMap = new Map(users.map((u) => [u.id, u.fullName]))
+  return schedules.map((s) => ({
+    id: s.id,
+    effectiveAt: s.effectiveAt,
+    effectiveTo: s.effectiveTo,
+    rules: s.rules as FeeScheduleRules,
+    createdBy: nameMap.get(s.createdBy) ?? s.createdBy,
+    createdAt: s.createdAt,
+    isActive: s.effectiveTo === null,
+  }))
+}
 
 const SYSTEM_KEY_LABELS: Record<string, string> = {
   treasury_reserve: 'Treasury Reserve',

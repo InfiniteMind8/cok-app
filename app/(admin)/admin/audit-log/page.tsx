@@ -8,7 +8,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { adminAuditLogApi, getServerApi } from '@/lib/api'
+import { adminAuditLogApi } from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
 import { Download } from 'lucide-react'
 import { AuditTable } from './_components/audit-table'
 

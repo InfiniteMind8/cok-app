@@ -12,7 +12,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { getProperties } from '@/lib/queries/properties'
+import { adminPropertiesApi } from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
 import { AddPropertySheet } from './_components/add-property-sheet'
 import { Suspense } from 'react'
 
@@ -22,11 +23,23 @@ const typeColors: Record<string, string> = {
   ADMIN: 'bg-karis-stone-100 text-karis-stone-700',
 }
 
+interface PropertyListRow {
+  id: string
+  code: string
+  type: string
+  category: string
+  totalPrice: string | null
+  paidPct: string
+  primaryOwner: { fullName: string; memberId: string } | null
+  primaryTenant: { fullName: string; memberId: string } | null
+}
+
 async function PropertiesContent({ page }: { page: number }) {
-  const { properties, total } = await getProperties(page, 20)
+  const { properties, total } = await adminPropertiesApi.list(getServerApi(), page, 20)
+  const rows = properties as PropertyListRow[]
   const totalPages = Math.ceil(total / 20)
 
-  if (properties.length === 0) {
+  if (rows.length === 0) {
     return (
       <EmptyState
         icon={Building2}
@@ -55,40 +68,44 @@ async function PropertiesContent({ page }: { page: number }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {properties.map((p) => (
-              <TableRow key={p.id} className="cursor-pointer">
-                <TableCell className="px-5">
-                  <Link
-                    href={`/admin/properties/${p.id}`}
-                    className="font-body text-sm font-medium text-karis-green-700 hover:text-karis-green-900 tabular-nums"
-                  >
-                    {p.code}
-                  </Link>
-                </TableCell>
-                <TableCell className="px-5">
-                  <Badge className={`font-body text-xs ${typeColors[p.type] ?? ''}`} variant="secondary">
-                    {p.type}
-                  </Badge>
-                </TableCell>
-                <TableCell className="px-5 font-body text-sm text-karis-stone-500">
-                  {p.category}
-                </TableCell>
-                <TableCell className="px-5 font-body text-sm text-karis-stone-900">
-                  {p.primaryOwner?.fullName ?? <span className="text-karis-stone-300">—</span>}
-                </TableCell>
-                <TableCell className="px-5 font-body text-sm text-karis-stone-900">
-                  {p.primaryTenant?.fullName ?? <span className="text-karis-stone-300">—</span>}
-                </TableCell>
-                <TableCell className="px-5 text-right font-body text-sm tabular-nums text-karis-stone-900">
-                  {p.totalPrice
-                    ? `$${p.totalPrice.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`
-                    : <span className="text-karis-stone-300">—</span>}
-                </TableCell>
-                <TableCell className="px-5 text-right font-body text-sm tabular-nums text-karis-stone-700">
-                  {p.totalPrice ? `${p.paidPct.toFixed(1)}%` : <span className="text-karis-stone-300">—</span>}
-                </TableCell>
-              </TableRow>
-            ))}
+            {rows.map((p) => {
+              const totalPriceNum = p.totalPrice ? parseFloat(p.totalPrice) : null
+              const paidPctNum = parseFloat(p.paidPct)
+              return (
+                <TableRow key={p.id} className="cursor-pointer">
+                  <TableCell className="px-5">
+                    <Link
+                      href={`/admin/properties/${p.id}`}
+                      className="font-body text-sm font-medium text-karis-green-700 hover:text-karis-green-900 tabular-nums"
+                    >
+                      {p.code}
+                    </Link>
+                  </TableCell>
+                  <TableCell className="px-5">
+                    <Badge className={`font-body text-xs ${typeColors[p.type] ?? ''}`} variant="secondary">
+                      {p.type}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="px-5 font-body text-sm text-karis-stone-500">
+                    {p.category}
+                  </TableCell>
+                  <TableCell className="px-5 font-body text-sm text-karis-stone-900">
+                    {p.primaryOwner?.fullName ?? <span className="text-karis-stone-300">—</span>}
+                  </TableCell>
+                  <TableCell className="px-5 font-body text-sm text-karis-stone-900">
+                    {p.primaryTenant?.fullName ?? <span className="text-karis-stone-300">—</span>}
+                  </TableCell>
+                  <TableCell className="px-5 text-right font-body text-sm tabular-nums text-karis-stone-900">
+                    {totalPriceNum !== null
+                      ? `$${totalPriceNum.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`
+                      : <span className="text-karis-stone-300">—</span>}
+                  </TableCell>
+                  <TableCell className="px-5 text-right font-body text-sm tabular-nums text-karis-stone-700">
+                    {totalPriceNum !== null ? `${paidPctNum.toFixed(1)}%` : <span className="text-karis-stone-300">—</span>}
+                  </TableCell>
+                </TableRow>
+              )
+            })}
           </TableBody>
         </Table>
       </div>

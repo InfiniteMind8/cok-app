@@ -15,7 +15,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { adminApprovalsApi, getServerApi } from '@/lib/api'
+import { adminApprovalsApi } from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
 import {
   ApproveSettlementDialog,
   DeclineSettlementDialog,

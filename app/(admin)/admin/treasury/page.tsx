@@ -11,7 +11,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { adminTreasuryApi, getServerApi } from '@/lib/api'
+import { adminTreasuryApi } from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
 import { DepositSheet } from './_components/deposit-sheet'
 import { TreasuryAdjustmentDialog } from './_components/treasury-adjustment-dialog'
 import { ExecuteSettlementSheet } from './_components/execute-settlement-sheet'

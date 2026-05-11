@@ -5,9 +5,10 @@ import { PageHeader } from '@/components/admin/page-header'
 import {
   adminReconciliationApi,
   ApiClientError,
-  getServerApi,
+  
   type ReconciliationStatus,
 } from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
 import { AcknowledgeButton } from '../_components/acknowledge-button'
 
 export const dynamic = 'force-dynamic'

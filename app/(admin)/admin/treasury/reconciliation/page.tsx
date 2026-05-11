@@ -1,7 +1,8 @@
 import Link from 'next/link'
 import { format, parseISO } from 'date-fns'
 import { PageHeader } from '@/components/admin/page-header'
-import { adminReconciliationApi, getServerApi, type ReconciliationStatus } from '@/lib/api'
+import { adminReconciliationApi, type ReconciliationStatus } from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
 import { RunNowButton } from './_components/run-now-button'
 
 export const dynamic = 'force-dynamic'
