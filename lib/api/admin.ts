@@ -270,7 +270,7 @@ export const adminAccountsApi = {
   // GET /v1/admin/accounts — paginated list (filter by role/status)
   list: (
     api: ApiClient,
-    params: { role?: Role; status?: string; page?: number; pageSize?: number; q?: string } = {},
+    params: { role?: Role; status?: string; page?: number; pageSize?: number; search?: string } = {},
   ) =>
     api.get<{ users: unknown[]; total: number }>('/v1/admin/accounts', {
       query: {
@@ -278,7 +278,7 @@ export const adminAccountsApi = {
         status: params.status,
         page: params.page,
         pageSize: params.pageSize,
-        q: params.q,
+        search: params.search,
       },
     }),
 

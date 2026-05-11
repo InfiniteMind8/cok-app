@@ -25,6 +25,10 @@ export interface RaiseIssueInput {
 }
 
 export const residentCommunityApi = {
+  // GET /v1/resident/community/notifications/unread-count
+  getUnreadNotificationCount: (api: ApiClient) =>
+    api.get<{ count: number }>('/v1/resident/community/notifications/unread-count'),
+
   acknowledgeUpdate: (api: ApiClient, updateId: string) =>
     api.post<{ acknowledged: true }>(
       `/v1/resident/community/updates/${updateId}/acknowledge`,
