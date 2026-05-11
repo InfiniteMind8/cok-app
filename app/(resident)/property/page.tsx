@@ -2,7 +2,8 @@ import { redirect } from 'next/navigation'
 import { Building2, Construction } from 'lucide-react'
 import { Prisma } from '@prisma/client'
 import { getCurrentUser } from '@/lib/auth'
-import { getResidentProperty } from '@/lib/queries/properties'
+import { residentPropertyApi } from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
 import { EmptyState } from '@/components/admin/empty-state'
 import { PropertyCarousel } from './_components/property-carousel'
 import { MilestoneStrip } from './_components/milestone-strip'
@@ -28,7 +29,7 @@ export default async function PropertyPage() {
     )
   }
 
-  const property = await getResidentProperty(user.id)
+  const property = await residentPropertyApi.getCurrent(getServerApi())
 
   if (!property) {
     return (

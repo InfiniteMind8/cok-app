@@ -23,6 +23,20 @@ export const meApi = {
       }>
     >('/v1/me/broadcasts/active'),
 
+  // GET /v1/me/visitor-groups — caller's active visitor-group memberships
+  // (already filtered to non-archived). Used by the resident community page
+  // when the caller is a VISITOR.
+  getVisitorGroups: (api: ApiClient) =>
+    api.get<
+      Array<{
+        id: string
+        name: string
+        theme: string | null
+        description: string
+        archived: boolean
+      }>
+    >('/v1/me/visitor-groups'),
+
   // POST /v1/me/tour/complete | /tour/dismiss
   completeTour: (api: ApiClient) =>
     api.post<{ completed: true }>('/v1/me/tour/complete'),
