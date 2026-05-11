@@ -1,6 +1,4 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
-import { NextResponse } from 'next/server'
-import { checkRateLimit, RateLimitError } from '@/lib/rate-limit'
 
 const isPublicRoute = createRouteMatcher([
   '/',
@@ -23,51 +21,16 @@ const isPublicRoute = createRouteMatcher([
   '/.well-known/(.*)',
 ])
 
-const isAuthRoute = createRouteMatcher(['/sign-in(.*)', '/sign-up(.*)'])
-const isMfaRoute = createRouteMatcher(['/account/mfa-enroll(.*)'])
-
-function getClientIp(request: Request): string {
-  const forwarded = request.headers.get('x-forwarded-for')
-  return forwarded?.split(',')[0]?.trim() ?? request.headers.get('x-real-ip') ?? 'unknown'
-}
+// D.4 note — auth + MFA rate limits previously enforced here via the local
+// @/lib/rate-limit module have been removed. Defense-in-depth is preserved:
+//   - Clerk runs its own brute-force protection on /sign-in and /sign-up.
+//   - The backend (cok-api) enforces the full Upstash-backed limiter at the
+//     /v1/auth/* endpoints any frontend traffic eventually hits.
+// If frontend-only IP-scoped limiting is ever needed again, prefer a
+// middleware-friendly Edge-runtime fetch to the backend's limit endpoint
+// over an in-process Map (which doesn't share state across edge isolates).
 
 export default clerkMiddleware(async (auth, request) => {
-  const ip = getClientIp(request)
-
-  // Auth routes: 5 requests per 15 minutes per IP (brute-force protection)
-  if (isAuthRoute(request)) {
-    try {
-      await checkRateLimit({ identifier: ip, scope: 'auth' })
-    } catch (e) {
-      if (e instanceof RateLimitError) {
-        return new NextResponse('Too many requests. Try again later.', {
-          status: 429,
-          headers: {
-            'Retry-After': String(e.retryAfterSeconds),
-            'Content-Type': 'text/plain',
-          },
-        })
-      }
-    }
-  }
-
-  // MFA enrollment: 10 requests per 15 minutes per IP
-  if (isMfaRoute(request)) {
-    try {
-      await checkRateLimit({ identifier: ip, scope: 'mfa' })
-    } catch (e) {
-      if (e instanceof RateLimitError) {
-        return new NextResponse('Too many requests. Try again later.', {
-          status: 429,
-          headers: {
-            'Retry-After': String(e.retryAfterSeconds),
-            'Content-Type': 'text/plain',
-          },
-        })
-      }
-    }
-  }
-
   if (!isPublicRoute(request)) {
     await auth.protect()
   }
