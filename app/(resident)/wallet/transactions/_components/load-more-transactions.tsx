@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react'
 import { Button } from '@/components/ui/button'
 import { TransactionList } from '../../_components/transaction-list'
 import { residentWalletApi, getBrowserApi } from '@/lib/api'
-import type { TransactionEntry } from '@/lib/queries/wallet'
+import type { WalletTransactionEntry as TransactionEntry } from '@/lib/api/resident'
 
 interface LoadMoreTransactionsProps {
   walletId: string

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth'
-import { db } from '@/lib/db'
+import { residentWalletApi, ApiClientError } from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
 import { renderToBuffer, Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
 
 const styles = StyleSheet.create({
@@ -92,32 +93,30 @@ export async function GET(
 
   const { transactionId } = await params
 
-  const transaction = await db.transaction.findUnique({
-    where: { id: transactionId },
-    include: {
-      entries: {
-        where: { wallet: { userId: user.id } },
-        take: 1,
-      },
-    },
-  })
-
-  if (!transaction || transaction.entries.length === 0) {
-    return new NextResponse('Not found', { status: 404 })
+  let transaction
+  try {
+    transaction = await residentWalletApi.getTransaction(getServerApi(), transactionId)
+  } catch (err) {
+    if (err instanceof ApiClientError) {
+      return new NextResponse(err.message, { status: err.status })
+    }
+    throw err
   }
 
-  const entry = transaction.entries[0]
-  const amount = Math.abs(parseFloat(entry.amount.toString())).toFixed(2)
+  const amount = Math.abs(parseFloat(transaction.entryAmount)).toFixed(2)
   const [int, dec] = amount.split('.')
   const withCommas = int.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
   const formattedAmount = `K ${withCommas}.${dec}`
 
   const txDate = new Date(transaction.createdAt)
-  const dateStr = txDate.toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  }) + ' ' + txDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+  const dateStr =
+    txDate.toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    }) +
+    ' ' +
+    txDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
 
   const receipt = (
     <Document>

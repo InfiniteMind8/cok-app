@@ -2,8 +2,8 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import { getCurrentUser } from '@/lib/auth'
-import { db } from '@/lib/db'
-import { getTransactionPage } from '@/lib/queries/wallet'
+import { residentWalletApi } from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
 import { LoadMoreTransactions } from './_components/load-more-transactions'
 
 export const dynamic = 'force-dynamic'
@@ -12,9 +12,10 @@ export default async function TransactionsPage() {
   const user = await getCurrentUser()
   if (!user) redirect('/sign-in')
 
-  const wallet = await db.wallet.findUnique({ where: { userId: user.id } })
+  const api = getServerApi()
+  const walletMe = await residentWalletApi.getMe(api)
 
-  if (!wallet) {
+  if (!walletMe) {
     return (
       <div className="px-4 py-8 max-w-lg mx-auto">
         <p className="font-body text-sm text-karis-stone-500 text-center">No wallet found.</p>
@@ -22,7 +23,7 @@ export default async function TransactionsPage() {
     )
   }
 
-  const { entries, nextCursor } = await getTransactionPage(wallet.id, undefined, 20)
+  const { entries, nextCursor } = await residentWalletApi.loadTransactions(api, walletMe.id)
 
   return (
     <div className="px-4 py-5 max-w-lg mx-auto space-y-4 pb-8">
@@ -37,7 +38,7 @@ export default async function TransactionsPage() {
       </div>
 
       <LoadMoreTransactions
-        walletId={wallet.id}
+        walletId={walletMe.id}
         initialEntries={entries}
         initialNextCursor={nextCursor}
       />

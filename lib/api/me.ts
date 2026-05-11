@@ -37,6 +37,31 @@ export const meApi = {
       }>
     >('/v1/me/visitor-groups'),
 
+  // GET /v1/me/rates/active — current conversion rate map keyed by
+  // `${base}_${quote}` (mirrors lib/currency/rate-resolver.RateMap).
+  getActiveRates: (api: ApiClient) =>
+    api.get<Record<string, string>>('/v1/me/rates/active'),
+
+  // GET /v1/me/profile — extended profile bundle (kyc, status, mfa, photo)
+  getProfile: (api: ApiClient) =>
+    api.get<{
+      id: string
+      clerkId: string | null
+      email: string
+      fullName: string
+      memberId: string
+      role: string
+      status: string
+      profilePhotoUrl: string | null
+      profilePhotoSignedUrl: string | null
+      introduction: string | null
+      kyc: Record<string, string> | null
+      createdAt: string
+      displayCurrency: DisplayCurrency
+      foundingMember: boolean
+      twoFactorEnabled: boolean
+    }>('/v1/me/profile'),
+
   // POST /v1/me/tour/complete | /tour/dismiss
   completeTour: (api: ApiClient) =>
     api.post<{ completed: true }>('/v1/me/tour/complete'),

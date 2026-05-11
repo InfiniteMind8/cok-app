@@ -1,7 +1,7 @@
 import { meApi } from '@/lib/api'
 import { getServerApi } from '@/lib/api/server'
 import { AcknowledgeBroadcastButton } from './acknowledge-broadcast-button'
-import type { AnnouncementSeverity } from '@prisma/client'
+import type { AnnouncementSeverity } from '@/lib/prisma-shim'
 
 function severityStyles(severity: AnnouncementSeverity): { bg: string; text: string; border: string; label: string } {
   switch (severity) {

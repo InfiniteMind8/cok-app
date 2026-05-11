@@ -1,8 +1,8 @@
 // Shared TypeScript types for API request/response shapes.
 //
 // These deliberately mirror Prisma enums + a curated set of DTOs from the
-// backend so the website can drop its `@prisma/client` runtime dependency
-// in Phase 7. Keep in sync with `backend/prisma/schema.prisma`.
+// backend so the website can stay decoupled from the @prisma/client
+// runtime. Keep in sync with `backend/prisma/schema.prisma`.
 
 // ─── Enums (mirror Prisma) ───────────────────────────────────────────────────
 

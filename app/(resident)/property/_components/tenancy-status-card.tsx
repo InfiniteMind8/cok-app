@@ -1,6 +1,6 @@
 import { format, differenceInDays } from 'date-fns'
-import { Prisma } from '@prisma/client'
-import type { CycleUnit, LeaseStatus, RequestStatus } from '@prisma/client'
+import { Prisma } from '@/lib/prisma-shim'
+import type { CycleUnit, LeaseStatus, RequestStatus } from '@/lib/prisma-shim'
 import { KAmount } from '@/components/admin/k-amount'
 import { Check, Clock, AlertTriangle } from 'lucide-react'
 import { ExtensionRequestModal } from './extension-request-modal'

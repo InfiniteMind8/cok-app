@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
 import { Copy, Check, ExternalLink } from 'lucide-react'
-import { Prisma } from '@prisma/client'
+import { Prisma } from '@/lib/prisma-shim'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import {
@@ -12,7 +12,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import type { TransactionEntry } from '@/lib/queries/wallet'
+import type { WalletTransactionEntry as TransactionEntry } from '@/lib/api/resident'
 
 interface TransactionDetailSheetProps {
   entry: TransactionEntry | null

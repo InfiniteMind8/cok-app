@@ -1,4 +1,4 @@
-import type { Role } from '@prisma/client'
+import type { Role } from '@/lib/prisma-shim'
 
 export interface TourStep {
   id: string

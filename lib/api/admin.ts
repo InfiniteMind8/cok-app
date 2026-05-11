@@ -90,6 +90,29 @@ export const adminAuditLogApi = {
 // ─── data-directory ──────────────────────────────────────────────────────────
 
 export const adminDataDirectoryApi = {
+  // GET /v1/admin/data-directory/tree — full directory + optional search filter
+  getTree: (api: ApiClient, search?: string) =>
+    api.get<import('@/lib/queries/data-directory').DirectoryTree>(
+      '/v1/admin/data-directory/tree',
+      { query: { search } },
+    ),
+
+  // GET /v1/admin/data-directory/entity/:type/:id — typed entity detail
+  getEntity: <T extends 'User' | 'Property' | 'Lease' | 'Issue'>(
+    api: ApiClient,
+    type: T,
+    id: string,
+  ) =>
+    api.get<
+      T extends 'User'
+        ? import('@/lib/queries/data-directory').UserEntityDetail
+        : T extends 'Property'
+          ? import('@/lib/queries/data-directory').PropertyEntityDetail
+          : T extends 'Lease'
+            ? import('@/lib/queries/data-directory').LeaseEntityDetail
+            : import('@/lib/queries/data-directory').IssueEntityDetail
+    >(`/v1/admin/data-directory/entity/${type}/${id}`),
+
   // GET /v1/admin/data-directory/export/:userId — ZIP download
   exportUser: (api: ApiClient, userId: string) =>
     api.request<Response>(`/v1/admin/data-directory/export/${userId}`, {
@@ -180,6 +203,25 @@ export const adminTreasuryApi = {
       `/v1/admin/treasury/wallets/${walletId}/floor`,
       { floor },
     ),
+
+  // GET /v1/admin/treasury/debug — wallet rows + reconciliation snapshot
+  getDebug: (api: ApiClient) =>
+    api.get<{
+      wallets: Array<{
+        walletId: string
+        userId: string | null
+        systemKey: string | null
+        isSystem: boolean
+        balance: MoneyString
+        displayName: string
+      }>
+      reconciliation: {
+        isBalanced: boolean
+        totalIssued: MoneyString
+        sumAllEntries: MoneyString
+        discrepancy: MoneyString
+      }
+    }>('/v1/admin/treasury/debug'),
 }
 
 // ─── vouchers ────────────────────────────────────────────────────────────────
@@ -222,6 +264,12 @@ export const adminReconciliationApi = {
   acknowledge: (api: ApiClient, reportId: string) =>
     api.post<{ reportId: string; acknowledgedAt: string }>(
       `/v1/admin/reconciliation/${reportId}/acknowledge`,
+    ),
+
+  // GET /v1/admin/reconciliation/active-alert — banner alert payload (or null)
+  getActiveAlert: (api: ApiClient) =>
+    api.get<{ id: string; runAt: string; details: unknown } | null>(
+      '/v1/admin/reconciliation/active-alert',
     ),
 }
 
@@ -601,6 +649,21 @@ export const adminRatesApi = {
     api.get<unknown[]>('/v1/admin/rates/history', { query: { base, quote } }),
 
   active: (api: ApiClient) => api.get<unknown[]>('/v1/admin/rates/active'),
+
+  // GET /v1/admin/rates/all — full history across every pair, used by the
+  // settings/currency page.
+  all: (api: ApiClient) =>
+    api.get<
+      Array<{
+        id: string
+        baseCurrency: string
+        quoteCurrency: string
+        rate: string
+        effectiveFrom: string
+        effectiveTo: string | null
+        setBy: string
+      }>
+    >('/v1/admin/rates/all'),
 }
 
 // ─── promotions ──────────────────────────────────────────────────────────────

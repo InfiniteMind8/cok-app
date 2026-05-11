@@ -1,9 +1,12 @@
-import 'server-only'
-import { db } from '@/lib/db'
-import { getWalletBalance } from '@/lib/ledger/balance'
-import { getAttachmentsByEntity } from '@/lib/storage/attachments'
-import { AttachmentEntityType } from '@prisma/client'
-import { getEntityAuditLogs } from './audit-log'
+// D.4: pure-type module. Runtime live on backend
+// (cok_backend_app: src/lib/queries/data-directory.ts +
+//  src/routes/admin/data-directory.ts). The website hits
+// `/v1/admin/data-directory/tree` and `/entity/:type/:id` via
+// `adminDataDirectoryApi`. The interfaces below describe the JSON shapes
+// the backend returns — Decimals come back as strings, Dates as ISO
+// strings.
+
+import type { AuditEntry } from './audit-log'
 
 export interface TreeUser {
   id: string
@@ -36,168 +39,188 @@ export interface TreeIssue {
   reporterName: string
 }
 
-export async function getDirectoryTree(search?: string) {
-  const searchFilter = search
-    ? {
-        OR: [
-          { fullName: { contains: search, mode: 'insensitive' as const } },
-          { email: { contains: search, mode: 'insensitive' as const } },
-          { memberId: { contains: search, mode: 'insensitive' as const } },
-        ],
-      }
-    : {}
+export interface DirectoryTree {
+  users: TreeUser[]
+  properties: TreeProperty[]
+  leases: TreeLease[]
+  issues: TreeIssue[]
+}
 
-  const [users, properties, leases, issues] = await Promise.all([
-    db.user.findMany({
-      where: searchFilter,
-      select: { id: true, fullName: true, email: true, memberId: true, role: true, status: true },
-      orderBy: [{ role: 'asc' }, { fullName: 'asc' }],
-    }),
-    db.property.findMany({
-      where: search
-        ? {
-            OR: [
-              { code: { contains: search, mode: 'insensitive' as const } },
-              { address: { contains: search, mode: 'insensitive' as const } },
-            ],
-          }
-        : {},
-      select: { id: true, code: true, type: true, address: true },
-      orderBy: { code: 'asc' },
-    }),
-    db.propertyTenancy.findMany({
-      select: {
-        id: true,
-        leaseStatus: true,
-        property: { select: { code: true } },
-        user: { select: { fullName: true } },
-      },
-      orderBy: { property: { code: 'asc' } },
-    }),
-    db.issue.findMany({
-      select: {
-        id: true,
-        title: true,
-        category: true,
-        status: true,
-        reporter: { select: { fullName: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 200,
-    }),
-  ])
+interface AttachmentRow {
+  id: string
+  name: string
+  mimeType: string
+  storageKey: string
+}
 
-  return {
-    users: users as TreeUser[],
-    properties: properties as TreeProperty[],
-    leases: leases.map((l) => ({
-      id: l.id,
-      propertyCode: l.property.code,
-      userName: l.user.fullName,
-      leaseStatus: l.leaseStatus,
-    })) as TreeLease[],
-    issues: issues.map((i) => ({
-      id: i.id,
-      title: i.title,
-      category: i.category,
-      status: i.status,
-      reporterName: i.reporter.fullName,
-    })) as TreeIssue[],
+// ─── User entity detail ──────────────────────────────────────────────────────
+
+interface UserOwnership {
+  id: string
+  ownershipPct: string
+  contractDate: string
+  property: { code: string; type: string }
+}
+
+interface UserTenancy {
+  id: string
+  leaseStatus: string
+  property: { code: string; type: string }
+}
+
+interface UserVisitorProfile {
+  visitPurpose: string | null
+  expectedArrival: string | null
+  expectedDeparture: string | null
+}
+
+interface UserVendorProfile {
+  businessName: string | null
+  businessCategory: string | null
+  payoutMethod: string | null
+}
+
+interface LedgerEntryWithTransaction {
+  id: string
+  amount: string
+  createdAt: string
+  transaction: {
+    type: string
+    description: string
+    createdAt: string
   }
 }
 
-export async function getUserEntityDetail(userId: string) {
-  const user = await db.user.findUnique({
-    where: { id: userId },
-    include: {
-      wallet: { select: { id: true } },
-      ownedProperties: { include: { property: { select: { code: true, type: true } } } },
-      rentedProperties: { include: { property: { select: { code: true, type: true } } } },
-      visitorProfile: true,
-      vendorProfile: true,
-    },
-  })
-  if (!user) return null
-
-  const [walletBalance, attachments, auditEntries, ledgerEntries] = await Promise.all([
-    user.wallet ? getWalletBalance(user.wallet.id) : Promise.resolve(null),
-    getAttachmentsByEntity(AttachmentEntityType.USER, userId),
-    getEntityAuditLogs('User', userId, 100),
-    user.wallet
-      ? db.ledgerEntry.findMany({
-          where: { walletId: user.wallet.id },
-          include: { transaction: { select: { type: true, description: true, createdAt: true } } },
-          orderBy: { createdAt: 'desc' },
-          take: 50,
-        })
-      : Promise.resolve([]),
-  ])
-
-  return {
-    type: 'User' as const,
-    entity: user,
-    walletBalance,
-    attachments,
-    auditEntries,
-    ledgerEntries,
+export interface UserEntityDetail {
+  type: 'User'
+  entity: {
+    id: string
+    fullName: string
+    email: string
+    memberId: string
+    role: string
+    status: string
+    profilePhotoUrl: string | null
+    displayCurrency: string
+    foundingMember: boolean
+    createdAt: string
+    preferredName: string | null
+    phone: string | null
+    gender: string | null
+    nationalIdType: string | null
+    nationalIdNumber: string | null
+    emergencyContactName: string | null
+    emergencyContactPhone: string | null
+    householdSize: number | null
+    vehiclePlates: string[]
+    notes: string | null
+    visitorProfile: UserVisitorProfile | null
+    vendorProfile: UserVendorProfile | null
+    ownedProperties: UserOwnership[]
+    rentedProperties: UserTenancy[]
   }
+  walletBalance: string | null
+  attachments: AttachmentRow[]
+  auditEntries: AuditEntry[]
+  ledgerEntries: LedgerEntryWithTransaction[]
 }
 
-export async function getPropertyEntityDetail(propertyId: string) {
-  const property = await db.property.findUnique({
-    where: { id: propertyId },
-    include: {
-      ownerships: { include: { user: { select: { fullName: true, email: true } } } },
-      tenancies: { include: { user: { select: { fullName: true, email: true } } } },
-      issues: { select: { id: true, title: true, status: true, category: true } },
-    },
-  })
-  if (!property) return null
+// ─── Property entity detail ──────────────────────────────────────────────────
 
-  const [attachments, auditEntries] = await Promise.all([
-    getAttachmentsByEntity(AttachmentEntityType.PROPERTY, propertyId),
-    getEntityAuditLogs('Property', propertyId, 100),
-  ])
-
-  return { type: 'Property' as const, entity: property, attachments, auditEntries }
+interface PropertyOwnership {
+  id: string
+  ownershipPct: string
+  user: { fullName: string; email: string }
 }
 
-export async function getLeaseEntityDetail(leaseId: string) {
-  const lease = await db.propertyTenancy.findUnique({
-    where: { id: leaseId },
-    include: {
-      property: { select: { code: true, type: true, address: true } },
-      user: { select: { fullName: true, email: true, memberId: true } },
-      cyclePayments: { orderBy: { cycleNumber: 'asc' } },
-      rentalExtensionRequests: { orderBy: { createdAt: 'desc' } },
-    },
-  })
-  if (!lease) return null
-
-  const [attachments, auditEntries] = await Promise.all([
-    getAttachmentsByEntity(AttachmentEntityType.LEASE, leaseId),
-    getEntityAuditLogs('PropertyTenancy', leaseId, 50),
-  ])
-
-  return { type: 'Lease' as const, entity: lease, attachments, auditEntries }
+interface PropertyTenancy {
+  id: string
+  leaseStatus: string
+  user: { fullName: string; email: string }
 }
 
-export async function getIssueEntityDetail(issueId: string) {
-  const issue = await db.issue.findUnique({
-    where: { id: issueId },
-    include: {
-      reporter: { select: { fullName: true, email: true } },
-      assignee: { select: { fullName: true, email: true } },
-      property: { select: { code: true } },
-      replies: { include: { issue: false }, orderBy: { createdAt: 'asc' } },
-    },
-  })
-  if (!issue) return null
-
-  const [attachments, auditEntries] = await Promise.all([
-    getAttachmentsByEntity(AttachmentEntityType.ISSUE, issueId),
-    getEntityAuditLogs('Issue', issueId, 50),
-  ])
-
-  return { type: 'Issue' as const, entity: issue, attachments, auditEntries }
+interface PropertyIssue {
+  id: string
+  title: string | null
+  status: string
+  category: string
 }
+
+export interface PropertyEntityDetail {
+  type: 'Property'
+  entity: {
+    id: string
+    code: string
+    type: string
+    category: string
+    propertyStatus: string
+    address: string | null
+    lotNumber: string | null
+    sizeSqm: string | null
+    bedrooms: string | null
+    bathrooms: string | null
+    yearBuilt: string | null
+    totalPrice: string | null
+    currentValuationKcrd: string | null
+    ownerships: PropertyOwnership[]
+    tenancies: PropertyTenancy[]
+    issues: PropertyIssue[]
+  }
+  attachments: AttachmentRow[]
+  auditEntries: AuditEntry[]
+}
+
+// ─── Lease entity detail ─────────────────────────────────────────────────────
+
+export interface LeaseEntityDetail {
+  type: 'Lease'
+  entity: {
+    id: string
+    leaseStatus: string
+    property: { code: string; type: string; address: string | null }
+    user: { fullName: string; email: string; memberId: string }
+    cyclePayments: Array<{ id: string; cycleNumber: number; amount: string; paidAt: string }>
+    rentalExtensionRequests: Array<{
+      id: string
+      status: string
+      reason: string | null
+      requestedNewEndDate: string
+      createdAt: string
+    }>
+  }
+  attachments: AttachmentRow[]
+  auditEntries: AuditEntry[]
+}
+
+// ─── Issue entity detail ─────────────────────────────────────────────────────
+
+export interface IssueEntityDetail {
+  type: 'Issue'
+  entity: {
+    id: string
+    title: string | null
+    category: string
+    message: string
+    seriousness: string
+    urgency: string
+    status: string
+    createdAt: string
+    reporter: { fullName: string; email: string }
+    assignee: { fullName: string; email: string } | null
+    property: { code: string } | null
+    replies: Array<{
+      id: string
+      authorId: string
+      message: string
+      createdAt: string
+    }>
+  }
+  attachments: AttachmentRow[]
+  auditEntries: AuditEntry[]
+}
+
+export type EntityDetail =
+  | UserEntityDetail
+  | PropertyEntityDetail
+  | LeaseEntityDetail
+  | IssueEntityDetail

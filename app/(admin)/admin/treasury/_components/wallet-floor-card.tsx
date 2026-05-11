@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Prisma } from '@prisma/client'
+import { Prisma } from '@/lib/prisma-shim'
 import { AlertTriangle, ShieldAlert, Shield } from 'lucide-react'
 import { adminTreasuryApi, getBrowserApi, type MoneyString } from '@/lib/api'
 

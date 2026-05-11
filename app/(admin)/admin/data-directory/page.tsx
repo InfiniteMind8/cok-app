@@ -1,12 +1,8 @@
 import { Suspense } from 'react'
 import { requireRole } from '@/lib/auth'
-import {
-  getDirectoryTree,
-  getUserEntityDetail,
-  getPropertyEntityDetail,
-  getLeaseEntityDetail,
-  getIssueEntityDetail,
-} from '@/lib/queries/data-directory'
+import { adminDataDirectoryApi, ApiClientError } from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
+import type { EntityDetail } from '@/lib/queries/data-directory'
 import { EntityTree } from './_components/entity-tree'
 import { EntityDetailPanel } from './_components/entity-detail'
 
@@ -14,6 +10,13 @@ interface SearchParams {
   type?: string
   id?: string
   q?: string
+}
+
+const ENTITY_TYPE_MAP: Record<string, 'User' | 'Property' | 'Lease' | 'Issue'> = {
+  users: 'User',
+  properties: 'Property',
+  leases: 'Lease',
+  issues: 'Issue',
 }
 
 async function EntityDetailLoader({
@@ -25,12 +28,16 @@ async function EntityDetailLoader({
   id: string
   userRole: string
 }) {
-  let detail = null
+  const apiType = ENTITY_TYPE_MAP[type]
+  let detail: EntityDetail | null = null
 
-  if (type === 'users') detail = await getUserEntityDetail(id)
-  else if (type === 'properties') detail = await getPropertyEntityDetail(id)
-  else if (type === 'leases') detail = await getLeaseEntityDetail(id)
-  else if (type === 'issues') detail = await getIssueEntityDetail(id)
+  if (apiType) {
+    try {
+      detail = await adminDataDirectoryApi.getEntity(getServerApi(), apiType, id)
+    } catch (err) {
+      if (!(err instanceof ApiClientError) || err.code !== 'NOT_FOUND') throw err
+    }
+  }
 
   return <EntityDetailPanel detail={detail} userRole={userRole} />
 }
@@ -44,7 +51,10 @@ export default async function DataDirectoryPage({
   const sp = await searchParams
   const { type, id, q } = sp
 
-  const { users, properties, leases, issues } = await getDirectoryTree(q)
+  const { users, properties, leases, issues } = await adminDataDirectoryApi.getTree(
+    getServerApi(),
+    q,
+  )
 
   return (
     <div className="flex h-[calc(100vh-0px)] overflow-hidden">

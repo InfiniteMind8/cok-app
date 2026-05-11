@@ -1,7 +1,7 @@
 import 'server-only'
 import { clerkClient } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
-import { Role } from '@prisma/client'
+import { Role } from '@/lib/prisma-shim'
 
 export const STAFF_ROLES: Role[] = ['MASTER_ADMIN', 'ADMIN']
 

@@ -11,7 +11,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { adminAccountsApi, adminVisitorGroupsApi } from '@/lib/api'
 import { getServerApi } from '@/lib/api/server'
-import { Role, AccountStatus } from '@prisma/client'
+import { Role, AccountStatus } from '@/lib/prisma-shim'
 import { CreateAccountDialog } from './_components/create-account-dialog'
 import { AccountsTable } from './_components/accounts-table'
 import { Suspense } from 'react'

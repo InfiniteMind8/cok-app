@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client'
+import { Prisma } from '@/lib/prisma-shim'
 import { formatAmount, type DisplayCurrencyCode } from '@/lib/currency/format-amount'
 import type { RateMap } from '@/lib/currency/rate-resolver'
 

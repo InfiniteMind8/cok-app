@@ -11,7 +11,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { db } from '@/lib/db'
+import { adminPromotionsApi } from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
+import type { PromotionRow } from '@/lib/api/types'
 import { NewPromotionModal } from './_components/new-promotion-modal'
 import { ArchiveButton } from './_components/archive-button'
 
@@ -44,7 +46,7 @@ function PromotionsTable({
   promotions,
   showArchive,
 }: {
-  promotions: Awaited<ReturnType<typeof db.conversionPromotion.findMany>>
+  promotions: PromotionRow[]
   showArchive: boolean
 }) {
   if (promotions.length === 0) {
@@ -75,7 +77,7 @@ function PromotionsTable({
                 <div className="font-body text-xs text-karis-stone-500 max-w-[200px] truncate">{p.description}</div>
               </TableCell>
               <TableCell className="px-5 tabular-nums font-body text-sm text-karis-stone-900">
-                +{p.bonusPercent.toString()}%
+                +{p.bonusPercent}%
               </TableCell>
               <TableCell className="px-5 font-body text-sm text-karis-stone-700">
                 {DIRECTION_LABELS[p.direction] ?? p.direction}
@@ -87,10 +89,10 @@ function PromotionsTable({
                 )}
               </TableCell>
               <TableCell className="px-5 font-body text-xs text-karis-stone-500 whitespace-nowrap">
-                {format(p.startsAt, 'dd MMM yyyy')} — {format(p.endsAt, 'dd MMM yyyy')}
+                {format(new Date(p.startsAt), 'dd MMM yyyy')} — {format(new Date(p.endsAt), 'dd MMM yyyy')}
               </TableCell>
               <TableCell className="px-5">
-                <PromotionStatusBadge active={p.active} startsAt={p.startsAt} endsAt={p.endsAt} />
+                <PromotionStatusBadge active={p.active} startsAt={new Date(p.startsAt)} endsAt={new Date(p.endsAt)} />
               </TableCell>
               {showArchive && (
                 <TableCell className="px-5 py-2">
@@ -107,13 +109,11 @@ function PromotionsTable({
 
 export default async function PromotionsPage() {
   const now = new Date()
-  const promotions = await db.conversionPromotion.findMany({
-    orderBy: { createdAt: 'desc' },
-  })
+  const promotions = await adminPromotionsApi.list(getServerApi())
 
-  const active = promotions.filter((p) => p.active && p.startsAt <= now && p.endsAt >= now)
-  const scheduled = promotions.filter((p) => p.active && p.startsAt > now)
-  const expired = promotions.filter((p) => !p.active || p.endsAt < now)
+  const active = promotions.filter((p) => p.active && new Date(p.startsAt) <= now && new Date(p.endsAt) >= now)
+  const scheduled = promotions.filter((p) => p.active && new Date(p.startsAt) > now)
+  const expired = promotions.filter((p) => !p.active || new Date(p.endsAt) < now)
 
   return (
     <div className="p-8 max-w-5xl space-y-8">

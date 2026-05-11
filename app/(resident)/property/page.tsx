@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { Building2, Construction } from 'lucide-react'
-import { Prisma } from '@prisma/client'
+import { Prisma } from '@/lib/prisma-shim'
 import { getCurrentUser } from '@/lib/auth'
 import { residentPropertyApi } from '@/lib/api'
 import { getServerApi } from '@/lib/api/server'

@@ -15,7 +15,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { adminSettingsApi } from '@/lib/api'
 import { getServerApi } from '@/lib/api/server'
-import { Prisma } from '@prisma/client'
+import { Prisma } from '@/lib/prisma-shim'
 import type { FeeScheduleRules } from '@/lib/ledger/types'
 import { FeeScheduleEditor } from './_components/fee-schedule-editor'
 

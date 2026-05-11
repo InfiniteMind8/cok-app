@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/table'
 import { adminDashboardApi } from '@/lib/api'
 import { getServerApi } from '@/lib/api/server'
-import { Prisma } from '@prisma/client'
+import { Prisma } from '@/lib/prisma-shim'
 
 function roleName(role: string) {
   const map: Record<string, string> = {
