@@ -4,7 +4,8 @@ import { AdminSidebar } from '@/components/shared/admin-sidebar'
 import { ReconciliationAlertBanner } from '@/components/admin/reconciliation-alert-banner'
 import { EmergencyBroadcastBanner } from '@/components/shared/emergency-broadcast-banner'
 import { TourProvider } from '@/components/shared/tour-provider'
-import { getTourStatus } from '@/lib/queries/tour'
+import { meApi } from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
 import { getTourSteps } from '@/lib/tour/steps'
 
 export default async function AdminLayout({
@@ -14,7 +15,11 @@ export default async function AdminLayout({
 }) {
   const user = await requireRole('MASTER_ADMIN')
   await requireMfaEnrolled(user)
-  const { shouldShow } = await getTourStatus(user.id)
+  const isBypass =
+    process.env.DEV_BYPASS_AUTH === 'true' && process.env.NODE_ENV !== 'production'
+  const { shouldShow } = isBypass
+    ? { shouldShow: false }
+    : await meApi.tourStatus(getServerApi())
 
   return (
     <TourProvider initialShow={shouldShow} steps={getTourSteps(user.role)}>

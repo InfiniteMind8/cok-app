@@ -1,7 +1,7 @@
 import 'server-only'
 import { clerkClient } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
-import { Role } from '@prisma/client'
+import { Role } from '@/lib/prisma-shim'
 
 export const STAFF_ROLES: Role[] = ['MASTER_ADMIN', 'ADMIN']
 
@@ -13,6 +13,7 @@ export async function requireMfaEnrolled(user: {
   clerkId: string | null
   role: Role
 }): Promise<void> {
+  if (process.env.DEV_BYPASS_AUTH === 'true' && process.env.NODE_ENV !== 'production') return
   if (!isStaffRole(user.role)) return
   if (!user.clerkId) redirect('/account/mfa-enroll')
 

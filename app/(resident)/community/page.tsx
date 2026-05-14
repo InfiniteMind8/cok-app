@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
-import { getUpdatesWithAcknowledgements, getVotesWithUserSubmissions, getNotifications } from '@/lib/queries/community'
-import { getUserActiveGroups } from '@/lib/queries/visitor-groups'
+import { meApi, residentCommunityApi } from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
 import { UpdatesFeed } from './_components/updates-feed'
 import { VotingList } from './_components/vote-card'
 import { NotificationList } from './_components/notification-list'
@@ -27,13 +27,14 @@ export default async function CommunityPage({
   const validTabs: readonly string[] = isVisitor ? VISITOR_TABS : RESIDENT_TABS
   const activeTab: Tab = validTabs.includes(sp.tab ?? '') ? (sp.tab as Tab) : 'updates'
 
-  const myGroups = isVisitor ? await getUserActiveGroups(user.id) : []
-  const activeGroupIds = myGroups.map((g) => g.id)
+  const api = getServerApi()
+
+  const myGroups = isVisitor ? await meApi.getVisitorGroups(api) : []
 
   const [{ updates }, votes, notifications] = await Promise.all([
-    getUpdatesWithAcknowledgements(user.id, user.role, activeGroupIds),
-    isVisitor ? Promise.resolve([]) : getVotesWithUserSubmissions(user.id),
-    getNotifications(user.id),
+    residentCommunityApi.listUpdates(api),
+    isVisitor ? Promise.resolve([]) : residentCommunityApi.listVotes(api),
+    residentCommunityApi.listNotifications(api),
   ])
 
   const unreadCount = notifications.filter((n) => !n.readAt).length

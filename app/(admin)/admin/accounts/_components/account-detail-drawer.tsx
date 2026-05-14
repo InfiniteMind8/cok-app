@@ -5,7 +5,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { KAmount } from '@/components/admin/k-amount'
-import { Prisma } from '@prisma/client'
+import { Prisma } from '@/lib/prisma-shim'
 import { format } from 'date-fns'
 
 interface AccountDetailDrawerProps {

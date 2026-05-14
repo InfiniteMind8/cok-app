@@ -1,10 +1,15 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { format, parseISO } from 'date-fns'
 import { PageHeader } from '@/components/admin/page-header'
-import { db } from '@/lib/db'
-import { format } from 'date-fns'
+import {
+  adminReconciliationApi,
+  ApiClientError,
+  
+  type ReconciliationStatus,
+} from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
 import { AcknowledgeButton } from '../_components/acknowledge-button'
-import type { ReconciliationStatus } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,12 +26,13 @@ export default async function ReconciliationDetailPage({
 }) {
   const { reportId } = await params
 
-  const report = await db.reconciliationReport.findUnique({
-    where: { id: reportId },
-    include: { acknowledgedBy: { select: { fullName: true, email: true } } },
-  })
-
-  if (!report) notFound()
+  let report
+  try {
+    report = await adminReconciliationApi.get(getServerApi(), reportId)
+  } catch (err) {
+    if (err instanceof ApiClientError && err.code === 'NOT_FOUND') notFound()
+    throw err
+  }
 
   const pill = STATUS_PILL[report.status]
   const details = report.details as Record<string, unknown>
@@ -44,7 +50,7 @@ export default async function ReconciliationDetailPage({
 
       <PageHeader
         title="Reconciliation Report"
-        subtitle={`Run at ${format(report.runAt, 'dd MMM yyyy HH:mm')} UTC`}
+        subtitle={`Run at ${format(parseISO(report.runAt), 'dd MMM yyyy HH:mm')} UTC`}
       />
 
       {/* Status + acknowledge */}
@@ -56,7 +62,7 @@ export default async function ReconciliationDetailPage({
         {report.acknowledgedAt && (
           <p className="text-xs font-body text-karis-stone-400">
             Acknowledged by {report.acknowledgedBy?.fullName ?? 'unknown'} on{' '}
-            {format(report.acknowledgedAt, 'dd MMM yyyy HH:mm')} UTC
+            {format(parseISO(report.acknowledgedAt), 'dd MMM yyyy HH:mm')} UTC
           </p>
         )}
       </div>

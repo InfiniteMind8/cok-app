@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Prisma } from '@prisma/client'
+import { Prisma } from '@/lib/prisma-shim'
 import { ArrowDownToLine, ArrowUpFromLine } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DepositInfoSheet } from './deposit-info-sheet'

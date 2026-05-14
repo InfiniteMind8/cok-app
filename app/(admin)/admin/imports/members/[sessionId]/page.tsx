@@ -1,12 +1,12 @@
 import { notFound } from 'next/navigation'
-import { db } from '@/lib/db'
+import Link from 'next/link'
 import { requireRole } from '@/lib/auth'
+import { adminImportsApi, ApiClientError } from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
 import { PageHeader } from '@/components/admin/page-header'
 import { PreviewTable } from './_components/preview-table'
 
 export const dynamic = 'force-dynamic'
-import { commitImportAction, cancelImportAction } from '@/app/(admin)/_actions/imports'
-import Link from 'next/link'
 
 interface Props {
   params: Promise<{ sessionId: string }>
@@ -16,16 +16,13 @@ export default async function ImportPreviewPage({ params }: Props) {
   const { sessionId } = await params
   await requireRole(['MASTER_ADMIN'])
 
-  const session = await db.importSession.findUnique({
-    where: { id: sessionId },
-    include: {
-      rows: {
-        orderBy: { rowNumber: 'asc' },
-      },
-    },
-  })
-
-  if (!session) notFound()
+  let session
+  try {
+    session = await adminImportsApi.getSession(getServerApi(), sessionId)
+  } catch (err) {
+    if (err instanceof ApiClientError && err.code === 'NOT_FOUND') notFound()
+    throw err
+  }
 
   const isCompleted = session.status !== 'UPLOADED'
 
@@ -61,15 +58,7 @@ export default async function ImportPreviewPage({ params }: Props) {
             warningCount: session.warningCount,
             errorCount: session.errorCount,
           }}
-          rows={session.rows.map((r) => ({
-            id: r.id,
-            rowNumber: r.rowNumber,
-            rowData: r.rowData as Record<string, string>,
-            status: r.status as 'VALID' | 'WARNING' | 'ERROR',
-            messages: r.messages as string[],
-          }))}
-          commitAction={commitImportAction}
-          cancelAction={cancelImportAction}
+          rows={session.rows}
         />
       )}
     </div>

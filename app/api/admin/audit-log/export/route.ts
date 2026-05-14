@@ -1,10 +1,13 @@
-import { requireRole } from '@/lib/auth'
-import { db } from '@/lib/db'
-import { getAuditLogsForExport } from '@/lib/queries/audit-log'
+import { type NextRequest } from 'next/server'
+import { adminAuditLogApi, ApiClientError } from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
 
-export async function GET(request: Request) {
-  const actor = await requireRole(['MASTER_ADMIN', 'ADMIN'])
-
+// D.4: thin JWT proxy. The actual CSV generation, audit-log write, and
+// role gate live on the backend at GET /v1/admin/audit-log/export. This
+// handler just forwards query params with the caller's Clerk JWT and
+// streams the response back to the browser so the existing
+// `<a href="/api/...">` download UX keeps working.
+export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const filters = {
     actorId: searchParams.get('actorId') ?? undefined,
@@ -15,49 +18,15 @@ export async function GET(request: Request) {
     dateTo: searchParams.get('dateTo') ?? undefined,
   }
 
-  const logs = await getAuditLogsForExport(filters)
-
-  // Write audit entry for the export itself
-  await db.auditLog.create({
-    data: {
-      action: 'AUDIT_LOG_EXPORT',
-      entity: 'AuditLog',
-      actorId: actor.id,
-      after: { filters, rowCount: logs.length },
-    },
-  })
-
-  const header = ['id', 'createdAt', 'actorId', 'action', 'entity', 'entityId', 'before', 'after']
-  const rows = logs.map((log) => [
-    log.id,
-    log.createdAt.toISOString(),
-    log.actorId,
-    log.action,
-    log.entity,
-    log.entityId ?? '',
-    log.before !== null && log.before !== undefined ? JSON.stringify(log.before) : '',
-    log.after !== null && log.after !== undefined ? JSON.stringify(log.after) : '',
-  ])
-
-  const csvLines = [header, ...rows].map((row) =>
-    row
-      .map((cell) => {
-        const s = String(cell)
-        if (s.includes(',') || s.includes('"') || s.includes('\n')) {
-          return `"${s.replace(/"/g, '""')}"`
-        }
-        return s
+  try {
+    return await adminAuditLogApi.export(getServerApi(), filters)
+  } catch (err) {
+    if (err instanceof ApiClientError) {
+      return new Response(JSON.stringify({ error: err.message }), {
+        status: err.status,
+        headers: { 'Content-Type': 'application/json' },
       })
-      .join(','),
-  )
-
-  const csv = csvLines.join('\r\n')
-  const filename = `audit-log-${new Date().toISOString().slice(0, 10)}.csv`
-
-  return new Response(csv, {
-    headers: {
-      'Content-Type': 'text/csv; charset=utf-8',
-      'Content-Disposition': `attachment; filename="${filename}"`,
-    },
-  })
+    }
+    throw err
+  }
 }

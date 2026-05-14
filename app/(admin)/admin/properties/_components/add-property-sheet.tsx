@@ -26,7 +26,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { FileUpload, type UploadedFile } from '@/components/ui/file-upload'
-import { createPropertyAction } from '@/app/(admin)/_actions/properties'
+import { adminPropertiesApi, getBrowserApi } from '@/lib/api'
 
 const schema = z.object({
   code: z.string().min(1, 'Property code is required *'),
@@ -111,7 +111,7 @@ export function AddPropertySheet() {
 
     startTransition(async () => {
       try {
-        const result = await createPropertyAction({
+        const result = await adminPropertiesApi.create(getBrowserApi(), {
           ...values,
           photos: attachments.photos.map((f) => f.url),
           attachments: allAttachments.map((f) => ({

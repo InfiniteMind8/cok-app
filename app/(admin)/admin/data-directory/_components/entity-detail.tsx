@@ -4,16 +4,15 @@ import { useState, useTransition } from 'react'
 import { format } from 'date-fns'
 import { Download, ExternalLink, KeyRound, Loader2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import { getAttachmentUrlAction } from '@/app/(admin)/_actions/attachment'
-import { resetUserMfaAction } from '@/app/(admin)/_actions/data-directory'
+import { adminDataDirectoryApi, attachmentsApi, getBrowserApi } from '@/lib/api'
 import { JsonDiffView } from '../../audit-log/_components/json-diff-view'
-import type { getUserEntityDetail, getPropertyEntityDetail, getLeaseEntityDetail, getIssueEntityDetail } from '@/lib/queries/data-directory'
-
-type UserDetail = NonNullable<Awaited<ReturnType<typeof getUserEntityDetail>>>
-type PropertyDetail = NonNullable<Awaited<ReturnType<typeof getPropertyEntityDetail>>>
-type LeaseDetail = NonNullable<Awaited<ReturnType<typeof getLeaseEntityDetail>>>
-type IssueDetail = NonNullable<Awaited<ReturnType<typeof getIssueEntityDetail>>>
-type EntityDetail = UserDetail | PropertyDetail | LeaseDetail | IssueDetail
+import type {
+  UserEntityDetail as UserDetail,
+  PropertyEntityDetail as PropertyDetail,
+  LeaseEntityDetail as LeaseDetail,
+  IssueEntityDetail as IssueDetail,
+  EntityDetail,
+} from '@/lib/queries/data-directory'
 
 const TABS = ['Overview', 'Records', 'Attachments', 'Transactions', 'Audit'] as const
 type Tab = (typeof TABS)[number]
@@ -58,9 +57,13 @@ function AttachmentCard({
 
   function handleView() {
     startTransition(async () => {
-      const result = await getAttachmentUrlAction(att.id)
-      setUrl(result)
-      window.open(result, '_blank', 'noopener')
+      try {
+        const result = await attachmentsApi.getUrl(getBrowserApi(), att.id)
+        setUrl(result.url)
+        window.open(result.url, '_blank', 'noopener')
+      } catch {
+        // Surface failure quietly — the user retries via the button.
+      }
     })
   }
 
@@ -87,7 +90,7 @@ function AttachmentCard({
   )
 }
 
-function AuditTab({ entries }: { entries: Array<{ id: string; action: string; entity: string; createdAt: Date; before: unknown; after: unknown }> }) {
+function AuditTab({ entries }: { entries: Array<{ id: string; action: string; entity: string; createdAt: Date | string; before: unknown; after: unknown }> }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
   if (entries.length === 0) {
@@ -134,8 +137,12 @@ function UserDetailPanel({ detail, userRole }: { detail: UserDetail; userRole: s
   function handleMfaReset() {
     if (!isMasterAdmin) return
     startMfaTransition(async () => {
-      const result = await resetUserMfaAction(user.id)
-      setMfaMsg({ ok: result.ok, msg: result.ok ? '2FA reset. User will re-enrol on next sign-in.' : result.error ?? 'Unknown error' })
+      try {
+        await adminDataDirectoryApi.resetMfa(getBrowserApi(), user.id)
+        setMfaMsg({ ok: true, msg: '2FA reset. User will re-enrol on next sign-in.' })
+      } catch (err) {
+        setMfaMsg({ ok: false, msg: err instanceof Error ? err.message : 'Unknown error' })
+      }
     })
   }
 
@@ -199,7 +206,7 @@ function UserDetailPanel({ detail, userRole }: { detail: UserDetail; userRole: s
             <FieldRow label="Member ID" value={user.memberId} />
             <FieldRow label="Role" value={user.role} />
             <FieldRow label="Status" value={user.status} />
-            <FieldRow label="Wallet balance" value={walletBalance ? `K ${walletBalance.toFixed(2)}` : '—'} />
+            <FieldRow label="Wallet balance" value={walletBalance ? `K ${Number(walletBalance).toFixed(2)}` : '—'} />
             <FieldRow label="Display currency" value={user.displayCurrency} />
             <FieldRow label="Founding member" value={user.foundingMember ? 'Yes' : 'No'} />
             <FieldRow label="Created" value={format(new Date(user.createdAt), 'yyyy-MM-dd')} />

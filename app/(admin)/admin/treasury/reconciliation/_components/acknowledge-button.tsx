@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { acknowledgeAlertAction } from '@/app/(admin)/_actions/reconciliation'
+import { adminReconciliationApi, getBrowserApi, ApiClientError } from '@/lib/api'
 
 export function AcknowledgeButton({ reportId }: { reportId: string }) {
   const [loading, setLoading] = useState(false)
@@ -12,14 +12,10 @@ export function AcknowledgeButton({ reportId }: { reportId: string }) {
     setLoading(true)
     setError(null)
     try {
-      const result = await acknowledgeAlertAction(reportId)
-      if (result.ok) {
-        setDone(true)
-      } else {
-        setError(result.error ?? 'Unknown error')
-      }
-    } catch {
-      setError('Failed to acknowledge alert.')
+      await adminReconciliationApi.acknowledge(getBrowserApi(), reportId)
+      setDone(true)
+    } catch (err) {
+      setError(err instanceof ApiClientError ? err.message : 'Failed to acknowledge alert.')
     } finally {
       setLoading(false)
     }

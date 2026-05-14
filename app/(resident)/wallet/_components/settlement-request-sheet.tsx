@@ -1,11 +1,12 @@
 'use client'
 
 import { useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import { Prisma } from '@prisma/client'
+import { Prisma } from '@/lib/prisma-shim'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -17,7 +18,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from '@/components/ui/sheet'
-import { requestSettlementAction } from '@/app/(resident)/_actions/wallet'
+import { residentWalletApi, getBrowserApi } from '@/lib/api'
 
 interface SettlementRequestSheetProps {
   open: boolean
@@ -33,6 +34,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>
 
 export function SettlementRequestSheet({ open, onOpenChange, balance }: SettlementRequestSheetProps) {
+  const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const balanceDecimal = new Prisma.Decimal(balance)
 
@@ -67,12 +69,17 @@ export function SettlementRequestSheet({ open, onOpenChange, balance }: Settleme
 
     startTransition(async () => {
       try {
-        await requestSettlementAction(values.amount, values.purpose ?? '')
+        await residentWalletApi.requestSettlement(
+          getBrowserApi(),
+          values.amount,
+          values.purpose ?? '',
+        )
         toast.success('Settlement request submitted', {
           description: 'Your request is pending Admin approval.',
         })
         reset()
         onOpenChange(false)
+        router.refresh()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed to submit request')
       }

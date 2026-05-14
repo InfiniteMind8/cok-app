@@ -2,7 +2,8 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import { getCurrentUser } from '@/lib/auth'
-import { getMyIssues } from '@/lib/queries/community'
+import { residentCommunityApi } from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
 import { MyIssuesList } from './_components/my-issues-list'
 
 export const dynamic = 'force-dynamic'
@@ -11,7 +12,12 @@ export default async function MyIssuesPage() {
   const user = await getCurrentUser()
   if (!user) redirect('/sign-in')
 
-  const issues = await getMyIssues(user.id)
+  const raw = await residentCommunityApi.listMyIssues(getServerApi())
+  const issues = raw.map((i) => ({
+    ...i,
+    createdAt: new Date(i.createdAt),
+    replies: i.replies.map((r) => ({ ...r, createdAt: new Date(r.createdAt) })),
+  }))
 
   return (
     <div className="px-4 py-5 max-w-lg mx-auto space-y-4 pb-8">

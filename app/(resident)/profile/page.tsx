@@ -3,8 +3,8 @@ import Link from 'next/link'
 import { format } from 'date-fns'
 import { Shield, Bell, Info, ChevronRight, Lock } from 'lucide-react'
 import { getCurrentUser } from '@/lib/auth'
-import { clerkClient } from '@clerk/nextjs/server'
-import { db } from '@/lib/db'
+import { meApi } from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
 import { Separator } from '@/components/ui/separator'
 import { MemberQrCard } from './_components/member-qr-card'
 import { ProfilePhotoUpload } from './_components/profile-photo-upload'
@@ -12,7 +12,6 @@ import { ResidentSignOutButton } from './_components/sign-out-button'
 import { TourTriggerButton } from '@/components/shared/tour-trigger-button'
 import { DisplayCurrencySelector } from './_components/display-currency-selector'
 import { Wordmark } from '@/components/shared/wordmark'
-import { getStorage } from '@/lib/storage/driver'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,44 +27,16 @@ export default async function ProfilePage() {
   const user = await getCurrentUser()
   if (!user) redirect('/sign-in')
 
-  const [fullUser, clerkUser] = await Promise.all([
-    db.user.findUnique({
-      where: { id: user.id },
-      select: {
-        id: true,
-        fullName: true,
-        memberId: true,
-        role: true,
-        status: true,
-        profilePhotoUrl: true,
-        introduction: true,
-        kyc: true,
-        createdAt: true,
-        displayCurrency: true,
-      },
-    }),
-    user.clerkId
-      ? clerkClient().then((c) => c.users.getUser(user.clerkId!))
-      : Promise.resolve(null),
-  ])
-
-  if (!fullUser) redirect('/sign-in')
-  const mfaEnabled = clerkUser?.twoFactorEnabled ?? false
-
-  // Resolve profile photo — sign if stored as a storageKey (no http prefix)
-  const profilePhotoDisplayUrl =
-    fullUser.profilePhotoUrl && !fullUser.profilePhotoUrl.startsWith('http')
-      ? await getStorage().getSignedUrl(fullUser.profilePhotoUrl, 300).catch(() => null)
-      : fullUser.profilePhotoUrl
-
-  const kyc = fullUser.kyc as Record<string, string> | null
+  const fullUser = await meApi.getProfile(getServerApi())
+  const mfaEnabled = fullUser.twoFactorEnabled
+  const kyc = fullUser.kyc
 
   return (
     <div className="px-4 py-5 max-w-lg mx-auto space-y-5 pb-8">
       {/* Photo + identity */}
       <div className="bg-white border border-karis-stone-100 rounded-2xl shadow-sm p-6">
         <ProfilePhotoUpload
-          currentUrl={profilePhotoDisplayUrl}
+          currentUrl={fullUser.profilePhotoSignedUrl}
           fullName={fullUser.fullName}
         />
 

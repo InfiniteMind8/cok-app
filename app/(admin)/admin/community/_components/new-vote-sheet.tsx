@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -25,7 +26,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { createVoteAction, closeVoteAction } from '@/app/(admin)/_actions/community'
+import { adminCommunityApi, getBrowserApi } from '@/lib/api'
 
 const schema = z.object({
   headline: z.string().min(1, 'Headline required'),
@@ -38,6 +39,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>
 
 export function NewVoteSheet() {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const { register, handleSubmit, control, reset, formState: { errors } } = useForm<FormValues>({
@@ -49,10 +51,11 @@ export function NewVoteSheet() {
   function onSubmit(values: FormValues) {
     startTransition(async () => {
       try {
-        await createVoteAction(values)
+        await adminCommunityApi.createVote(getBrowserApi(), values)
         toast.success('Vote created and opened')
         reset()
         setOpen(false)
+        router.refresh()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed')
       }
@@ -128,15 +131,17 @@ export function NewVoteSheet() {
 }
 
 export function CloseVoteButton({ voteId, headline }: { voteId: string; headline: string }) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
 
   function handleClose() {
     startTransition(async () => {
       try {
-        await closeVoteAction(voteId)
+        await adminCommunityApi.closeVote(getBrowserApi(), voteId)
         toast.success('Vote closed')
         setOpen(false)
+        router.refresh()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed')
       }

@@ -1,14 +1,15 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { format } from 'date-fns'
 import { Check, Clock, X, Ban, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react'
-import { Prisma, SettlementStatus } from '@prisma/client'
+import { Prisma } from '@/lib/prisma-shim'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import { cancelSettlementRequestAction } from '@/app/(resident)/_actions/wallet'
-import type { SettlementRequestRow } from '@/lib/queries/wallet'
+import { residentWalletApi, getBrowserApi, type SettlementStatus } from '@/lib/api'
+import type { SettlementRequestRow } from '@/lib/api/resident'
 
 const STATUS_CONFIG: Record<
   SettlementStatus,
@@ -26,6 +27,7 @@ interface SettlementRowProps {
 }
 
 export function SettlementRow({ request }: SettlementRowProps) {
+  const router = useRouter()
   const [expanded, setExpanded] = useState(false)
   const [isPending, startTransition] = useTransition()
 
@@ -39,8 +41,9 @@ export function SettlementRow({ request }: SettlementRowProps) {
   function handleCancel() {
     startTransition(async () => {
       try {
-        await cancelSettlementRequestAction(request.id)
+        await residentWalletApi.cancelSettlement(getBrowserApi(), request.id)
         toast.success('Settlement request cancelled')
+        router.refresh()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed to cancel request')
       }
@@ -136,7 +139,7 @@ function TimelineStep({
   skipped = false,
 }: {
   label: string
-  date: Date | null | undefined
+  date: Date | string | null | undefined
   done: boolean
   skipped?: boolean
 }) {

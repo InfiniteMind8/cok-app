@@ -1,39 +1,49 @@
 'use client'
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Loader2 } from 'lucide-react'
-import { createPromotionAction } from '../_actions/promotions'
+import {
+  adminPromotionsApi,
+  getBrowserApi,
+  type PromotionDirection,
+  type PromotionEligibility,
+} from '@/lib/api'
 
 interface PromotionFormProps {
   onSuccess?: () => void
 }
 
 export function PromotionForm({ onSuccess }: PromotionFormProps) {
+  const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState('')
   const [eligibility, setEligibility] = useState<string>('ALL')
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
+    setError('')
     const fd = new FormData(e.currentTarget)
+    const eligibleUserIdsRaw = (fd.get('eligibleUserIds') as string | null) ?? ''
     const input = {
-      name: fd.get('name'),
-      description: fd.get('description'),
-      bonusPercent: fd.get('bonusPercent'),
-      direction: fd.get('direction'),
-      eligibility: fd.get('eligibility'),
-      eligibleUserIds: fd.get('eligibleUserIds') ?? '',
-      startsAt: fd.get('startsAt'),
-      endsAt: fd.get('endsAt'),
+      name: String(fd.get('name') ?? ''),
+      description: String(fd.get('description') ?? ''),
+      bonusPercent: String(fd.get('bonusPercent') ?? ''),
+      direction: String(fd.get('direction') ?? '') as PromotionDirection,
+      eligibility: String(fd.get('eligibility') ?? '') as PromotionEligibility,
+      eligibleUserIds: eligibleUserIdsRaw,
+      startsAt: String(fd.get('startsAt') ?? ''),
+      endsAt: String(fd.get('endsAt') ?? ''),
     }
     startTransition(async () => {
-      const result = await createPromotionAction(input)
-      if (result.ok) {
+      try {
+        await adminPromotionsApi.create(getBrowserApi(), input)
+        router.refresh()
         onSuccess?.()
-      } else {
-        setError(result.error ?? 'Failed to create promotion.')
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to create promotion.')
       }
     })
   }

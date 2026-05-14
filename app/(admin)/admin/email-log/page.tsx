@@ -9,8 +9,9 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { EmptyState } from '@/components/admin/empty-state'
-import { db } from '@/lib/db'
-import { format } from 'date-fns'
+import { adminEmailsApi, type EmailStatus } from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
+import { format, parseISO } from 'date-fns'
 import { Mail } from 'lucide-react'
 import { ResendButton } from './_components/resend-button'
 import { StatusFilter } from './_components/status-filter'
@@ -30,29 +31,18 @@ export default async function EmailLogPage({
 }) {
   const { status, page: pageParam } = await searchParams
   const page = Math.max(1, parseInt(pageParam ?? '1', 10))
-  const skip = (page - 1) * PAGE_SIZE
 
-  const where = status && ['SENT', 'FAILED', 'QUEUED'].includes(status)
-    ? { status: status as 'SENT' | 'FAILED' | 'QUEUED' }
-    : {}
+  const statusFilter =
+    status && (['SENT', 'FAILED', 'QUEUED'] as const).includes(status as EmailStatus)
+      ? (status as EmailStatus)
+      : undefined
 
-  const [logs, total] = await Promise.all([
-    db.emailLog.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      skip,
-      take: PAGE_SIZE,
-    }),
-    db.emailLog.count({ where }),
-  ])
+  const { logs, total, counts: countMap } = await adminEmailsApi.list(getServerApi(), {
+    page,
+    status: statusFilter,
+  })
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
-
-  const counts = await db.emailLog.groupBy({
-    by: ['status'],
-    _count: { id: true },
-  })
-  const countMap = Object.fromEntries(counts.map((c) => [c.status, c._count.id]))
 
   return (
     <div className="p-8 max-w-7xl">
@@ -105,6 +95,7 @@ export default async function EmailLogPage({
             <TableBody>
               {logs.map((log) => {
                 const style = STATUS_STYLES[log.status] ?? STATUS_STYLES.QUEUED
+                const stamp = log.sentAt ?? log.createdAt
                 return (
                   <TableRow key={log.id}>
                     <TableCell className="px-5 font-body text-sm text-karis-stone-900 max-w-[180px] truncate">
@@ -122,9 +113,7 @@ export default async function EmailLogPage({
                       </Badge>
                     </TableCell>
                     <TableCell className="px-5 font-body text-xs text-karis-stone-500 tabular-nums">
-                      {log.sentAt
-                        ? format(log.sentAt, 'dd MMM yyyy HH:mm')
-                        : format(log.createdAt, 'dd MMM yyyy HH:mm')}
+                      {format(parseISO(stamp), 'dd MMM yyyy HH:mm')}
                     </TableCell>
                     <TableCell className="px-5 font-body text-xs text-red-600 max-w-[220px] truncate">
                       {log.providerError ?? '—'}

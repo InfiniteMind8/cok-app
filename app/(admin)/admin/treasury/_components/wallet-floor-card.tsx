@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Prisma } from '@prisma/client'
+import { useRouter } from 'next/navigation'
+import { Prisma } from '@/lib/prisma-shim'
 import { AlertTriangle, ShieldAlert, Shield } from 'lucide-react'
-import { updateWalletFloorAction } from '@/app/(admin)/_actions/treasury'
+import { adminTreasuryApi, getBrowserApi, type MoneyString } from '@/lib/api'
 
 const SYSTEM_KEY_LABELS: Record<string, string> = {
   treasury_reserve: 'Treasury Reserve',
@@ -15,16 +16,16 @@ const SYSTEM_KEY_LABELS: Record<string, string> = {
   promotions: 'Promotions',
 }
 
-function fmt(d: Prisma.Decimal): string {
+function fmt(d: MoneyString): string {
   return `K ${new Prisma.Decimal(d).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`
 }
 
 type FloorStatus = 'at-floor' | 'near-floor' | 'healthy' | 'unlimited'
 
 function getFloorStatus(
-  balance: Prisma.Decimal,
-  floor: Prisma.Decimal | null,
-  headroom: Prisma.Decimal | null,
+  balance: MoneyString,
+  floor: MoneyString | null,
+  headroom: MoneyString | null,
 ): FloorStatus {
   if (floor === null || headroom === null) return 'unlimited'
   const b = new Prisma.Decimal(balance)
@@ -37,12 +38,13 @@ function getFloorStatus(
 interface Props {
   walletId: string
   walletKey: string
-  balance: Prisma.Decimal
-  floor: Prisma.Decimal | null
-  headroom: Prisma.Decimal | null
+  balance: MoneyString
+  floor: MoneyString | null
+  headroom: MoneyString | null
 }
 
 export function WalletFloorCard({ walletId, walletKey, balance, floor, headroom }: Props) {
+  const router = useRouter()
   const [editing, setEditing] = useState(false)
   const [floorInput, setFloorInput] = useState(floor !== null ? new Prisma.Decimal(floor).toFixed(2) : '')
   const [unlimited, setUnlimited] = useState(floor === null)
@@ -56,11 +58,13 @@ export function WalletFloorCard({ walletId, walletKey, balance, floor, headroom 
     setError(null)
     startTransition(async () => {
       try {
-        await updateWalletFloorAction({
+        await adminTreasuryApi.setWalletFloor(
+          getBrowserApi(),
           walletId,
-          floor: unlimited ? null : floorInput || '0',
-        })
+          unlimited ? null : floorInput || '0',
+        )
         setEditing(false)
+        router.refresh()
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to update floor.')
       }

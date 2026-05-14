@@ -17,7 +17,7 @@ import { EmptyState } from '@/components/admin/empty-state'
 import { KAmount } from '@/components/admin/k-amount'
 import { AccountActions } from './account-actions'
 import { AccountDetailDrawer } from './account-detail-drawer'
-import { Prisma } from '@prisma/client'
+import { Prisma } from '@/lib/prisma-shim'
 
 interface UserRow {
   id: string

@@ -1,6 +1,7 @@
 'use client'
 
-import { approveVoucherRequestAction, declineVoucherRequestAction } from '@/app/(admin)/_actions/voucher-requests'
+import { useRouter } from 'next/navigation'
+import { adminVoucherRequestsApi, getBrowserApi } from '@/lib/api'
 import { ApprovalActions } from './approval-actions'
 
 interface VoucherRow {
@@ -10,11 +11,18 @@ interface VoucherRow {
 }
 
 export function VoucherRequestApprovalActions({ row }: { row: VoucherRow }) {
+  const router = useRouter()
   return (
     <ApprovalActions
       label={`Issue ${row.amount} KCRD voucher to ${row.recipientName}`}
-      onApprove={approveVoucherRequestAction.bind(null, row.id)}
-      onDecline={declineVoucherRequestAction.bind(null, row.id)}
+      onApprove={async () => {
+        await adminVoucherRequestsApi.approve(getBrowserApi(), row.id)
+        router.refresh()
+      }}
+      onDecline={async (reason) => {
+        await adminVoucherRequestsApi.decline(getBrowserApi(), row.id, reason)
+        router.refresh()
+      }}
     />
   )
 }

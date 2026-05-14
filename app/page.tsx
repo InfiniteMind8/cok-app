@@ -1,24 +1,30 @@
 import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { db } from '@/lib/db'
+import { meApi, ApiClientError } from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
 import { BrandLogo } from '@/components/shared/brand-logo'
 import { Wordmark } from '@/components/shared/wordmark'
 import { Badge } from '@/components/ui/badge'
 
 export default async function HomePage() {
+  if (process.env.DEV_BYPASS_AUTH === 'true' && process.env.NODE_ENV !== 'production') {
+    redirect('/admin/dashboard')
+  }
+
   const { userId } = await auth()
 
   if (userId) {
-    const user = await db.user.findUnique({
-      where: { clerkId: userId },
-      select: { role: true, fullName: true },
-    })
-
+    let user: { role: string; fullName: string } | null = null
+    try {
+      user = await meApi.get(getServerApi())
+    } catch (err) {
+      // Unknown user / deactivated → fall through to public hero
+      if (!(err instanceof ApiClientError)) throw err
+    }
     if (user) {
       if (user.role === 'MASTER_ADMIN') redirect('/admin/dashboard')
       if (user.role === 'RESIDENT' || user.role === 'VISITOR') redirect('/wallet')
-
       // ADMIN or VENDOR — Phase 2 placeholder
       return <ComingSoonPage name={user.fullName} role={user.role} />
     }

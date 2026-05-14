@@ -1,24 +1,28 @@
 'use client'
 
 import { useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Archive, ArchiveRestore } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { archiveGroupAction, unarchiveGroupAction } from '@/app/(admin)/_actions/visitor-groups'
+import { adminVisitorGroupsApi, getBrowserApi } from '@/lib/api'
 
 export function ArchiveGroupButton({ id, archived }: { id: string; archived: boolean }) {
+  const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
   function handleClick() {
     startTransition(async () => {
       try {
+        const api = getBrowserApi()
         if (archived) {
-          await unarchiveGroupAction(id)
+          await adminVisitorGroupsApi.unarchive(api, id)
           toast.success('Group restored')
         } else {
-          await archiveGroupAction(id)
+          await adminVisitorGroupsApi.archive(api, id)
           toast.success('Group archived')
         }
+        router.refresh()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed')
       }

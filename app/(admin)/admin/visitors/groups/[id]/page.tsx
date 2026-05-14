@@ -3,11 +3,41 @@ import { notFound } from 'next/navigation'
 import { format } from 'date-fns'
 import { ArrowLeft, Megaphone, Users } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import { getVisitorGroupById } from '@/lib/queries/visitor-groups'
-import { getUsers } from '@/lib/queries/accounts'
+import { adminVisitorGroupsApi, adminAccountsApi } from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
 import { MemberManager } from './_components/member-manager'
 import { EditGroupDialog } from './_components/edit-group-dialog'
 import { ArchiveGroupButton } from '../_components/archive-group-button'
+
+interface VisitorGroupDetail {
+  id: string
+  name: string
+  theme: string | null
+  description: string
+  archived: boolean
+  createdAt: string
+  createdBy: { fullName: string; memberId: string }
+  memberships: Array<{
+    id: string
+    userId: string
+    assignedAt: string
+    user: {
+      id: string
+      fullName: string
+      memberId: string
+      email: string
+      profilePhotoUrl: string | null
+    }
+    assignedBy: { fullName: string; memberId: string }
+  }>
+}
+
+interface VisitorUserRow {
+  id: string
+  fullName: string
+  memberId: string
+  email: string
+}
 
 export default async function VisitorGroupDetailPage({
   params,
@@ -15,10 +45,15 @@ export default async function VisitorGroupDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const group = await getVisitorGroupById(id)
+  const api = getServerApi()
+  const group = (await adminVisitorGroupsApi.get(api, id).catch(() => null)) as VisitorGroupDetail | null
   if (!group) notFound()
 
-  const { users: allVisitors } = await getUsers({ role: 'VISITOR', pageSize: 200 })
+  const { users: allVisitorsRaw } = await adminAccountsApi.list(api, {
+    role: 'VISITOR',
+    pageSize: 200,
+  })
+  const allVisitors = allVisitorsRaw as VisitorUserRow[]
 
   const activeMemberIds = new Set(group.memberships.map((m) => m.userId))
   const availableVisitors = allVisitors
@@ -52,7 +87,7 @@ export default async function VisitorGroupDetailPage({
           </div>
           <p className="font-body text-sm text-karis-stone-500 max-w-lg">{group.description}</p>
           <p className="font-body text-xs text-karis-stone-400 mt-1.5">
-            Created by {group.createdBy.fullName} · {format(group.createdAt, 'dd MMM yyyy')}
+            Created by {group.createdBy.fullName} · {format(new Date(group.createdAt), 'dd MMM yyyy')}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -94,7 +129,7 @@ export default async function VisitorGroupDetailPage({
           members={group.memberships.map((m) => ({
             id: m.id,
             userId: m.userId,
-            assignedAt: m.assignedAt,
+            assignedAt: new Date(m.assignedAt),
             user: m.user,
             assignedBy: m.assignedBy,
           }))}

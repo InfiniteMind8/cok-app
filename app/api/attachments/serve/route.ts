@@ -1,49 +1,40 @@
+import { type NextRequest } from 'next/server'
+
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-import { NextResponse } from 'next/server'
-import { LocalStorageDriver } from '@/lib/storage/driver'
-
-// GET /api/attachments/serve?token={hmac-signed-token}
-// Only used with STORAGE_DRIVER=local. S3 driver returns direct pre-signed S3 URLs.
-export async function GET(req: Request) {
+// D.4: thin proxy. The HMAC-token verification + decryption live on the
+// backend at GET /v1/attachments/serve. This handler forwards the `token`
+// query param to the backend and streams the binary response. No Clerk
+// JWT is forwarded — the HMAC token is the authorisation for this path.
+export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const token = searchParams.get('token')
-
   if (!token) {
-    return NextResponse.json({ error: 'Missing token' }, { status: 400 })
+    return new Response(JSON.stringify({ error: 'Missing token' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    })
   }
 
-  const encryptionKey = process.env.STORAGE_ENCRYPTION_KEY
-  if (!encryptionKey) {
-    return NextResponse.json({ error: 'Storage not configured' }, { status: 503 })
+  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL
+  if (!baseUrl) {
+    return new Response(JSON.stringify({ error: 'Backend URL not configured' }), {
+      status: 503,
+      headers: { 'Content-Type': 'application/json' },
+    })
   }
 
-  const driver = new LocalStorageDriver(encryptionKey)
-  const payload = driver.verifyToken(token)
+  const upstream = await fetch(
+    `${baseUrl.replace(/\/+$/, '')}/v1/attachments/serve?token=${encodeURIComponent(token)}`,
+  )
 
-  if (!payload) {
-    return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
-  }
-
-  if (Date.now() > payload.exp) {
-    return NextResponse.json({ error: 'Token expired' }, { status: 410 })
-  }
-
-  let decrypted: { data: Buffer; mime: string }
-  try {
-    decrypted = await driver.decrypt(payload.key)
-  } catch (err) {
-    // GCM auth tag mismatch or file not found
-    console.error('[serve] decrypt failed:', err)
-    return NextResponse.json({ error: 'File unavailable' }, { status: 404 })
-  }
-
-  return new Response(new Uint8Array(decrypted.data), {
-    status: 200,
+  const body = await upstream.arrayBuffer()
+  return new Response(new Uint8Array(body), {
+    status: upstream.status,
     headers: {
-      'Content-Type': decrypted.mime,
-      'Content-Length': String(decrypted.data.length),
+      'Content-Type': upstream.headers.get('content-type') ?? 'application/octet-stream',
+      'Content-Length': String(body.byteLength),
       'Cache-Control': 'private, no-store',
       'Content-Disposition': 'inline',
     },

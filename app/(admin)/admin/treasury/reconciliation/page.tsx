@@ -1,9 +1,9 @@
 import Link from 'next/link'
+import { format, parseISO } from 'date-fns'
 import { PageHeader } from '@/components/admin/page-header'
-import { db } from '@/lib/db'
-import { format } from 'date-fns'
+import { adminReconciliationApi, type ReconciliationStatus } from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
 import { RunNowButton } from './_components/run-now-button'
-import type { ReconciliationStatus } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,31 +29,12 @@ export default async function ReconciliationListPage({
 }) {
   const { page: pageParam = '1', from, to } = await searchParams
   const page = Math.max(1, parseInt(pageParam, 10) || 1)
-  const pageSize = 20
-  const skip = (page - 1) * pageSize
 
-  const where = {
-    ...(from || to
-      ? {
-          runAt: {
-            ...(from ? { gte: new Date(from) } : {}),
-            ...(to ? { lte: new Date(to) } : {}),
-          },
-        }
-      : {}),
-  }
-
-  const [reports, total] = await Promise.all([
-    db.reconciliationReport.findMany({
-      where,
-      orderBy: { runAt: 'desc' },
-      skip,
-      take: pageSize,
-      include: { acknowledgedBy: { select: { fullName: true } } },
-    }),
-    db.reconciliationReport.count({ where }),
-  ])
-
+  const { reports, total, pageSize } = await adminReconciliationApi.list(getServerApi(), {
+    page,
+    from,
+    to,
+  })
   const totalPages = Math.ceil(total / pageSize)
 
   return (
@@ -133,7 +114,7 @@ export default async function ReconciliationListPage({
                   return (
                     <tr key={r.id} className="hover:bg-karis-stone-50/50 transition-colors">
                       <td className="px-5 py-3 font-body text-sm text-karis-stone-500 tabular-nums">
-                        {format(r.runAt, 'dd MMM yyyy HH:mm')} UTC
+                        {format(parseISO(r.runAt), 'dd MMM yyyy HH:mm')} UTC
                       </td>
                       <td className="px-5 py-3">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-body font-medium ${pill.className}`}>
@@ -145,7 +126,7 @@ export default async function ReconciliationListPage({
                       </td>
                       <td className="px-5 py-3 font-body text-sm text-karis-stone-500">
                         {r.acknowledgedBy
-                          ? `${r.acknowledgedBy.fullName} · ${r.acknowledgedAt ? format(r.acknowledgedAt, 'dd MMM yyyy') : ''}`
+                          ? `${r.acknowledgedBy.fullName} · ${r.acknowledgedAt ? format(parseISO(r.acknowledgedAt), 'dd MMM yyyy') : ''}`
                           : r.status === 'MISMATCH'
                             ? <span className="text-red-600 font-medium">Unacknowledged</span>
                             : '—'}

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { formatDistance } from 'date-fns'
-import { Prisma, TransactionType } from '@prisma/client'
+import { Prisma, TransactionType } from '@/lib/prisma-shim'
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
@@ -18,7 +18,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { TransactionDetailSheet } from './transaction-detail-sheet'
-import type { TransactionEntry } from '@/lib/queries/wallet'
+import type { WalletTransactionEntry as TransactionEntry } from '@/lib/api/resident'
 
 const TYPE_ICON: Record<TransactionType, React.ComponentType<{ size?: number; className?: string }>> = {
   DEPOSIT: ArrowDownToLine,

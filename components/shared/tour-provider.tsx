@@ -3,7 +3,8 @@
 import { createContext, useCallback, useContext, useState, useTransition } from 'react'
 import type { TourStep } from '@/lib/tour/steps'
 import { OnboardingTour } from '@/components/shared/onboarding-tour'
-import { completeTourAction, dismissTourAction } from '@/app/(admin)/_actions/tour'
+import { getBrowserApi } from '@/lib/api/browser'
+import { meApi } from '@/lib/api/me'
 
 interface TourContextValue {
   startTour: () => void
@@ -36,7 +37,7 @@ export function TourProvider({ children, initialShow, steps }: TourProviderProps
       setCurrentIndex((i) => i + 1)
     } else {
       setVisible(false)
-      startTransition(() => { completeTourAction() })
+      startTransition(() => { meApi.completeTour(getBrowserApi()).catch(() => {}) })
     }
   }, [currentIndex, steps.length])
 
@@ -46,7 +47,7 @@ export function TourProvider({ children, initialShow, steps }: TourProviderProps
 
   const handleSkip = useCallback(() => {
     setVisible(false)
-    startTransition(() => { dismissTourAction() })
+    startTransition(() => { meApi.dismissTour(getBrowserApi()).catch(() => {}) })
   }, [])
 
   return (

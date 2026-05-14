@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { UserPlus, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -11,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { assignMemberAction, removeMemberAction } from '@/app/(admin)/_actions/visitor-groups'
+import { adminVisitorGroupsApi, getBrowserApi } from '@/lib/api'
 import { format } from 'date-fns'
 
 interface Visitor {
@@ -38,6 +39,7 @@ export function MemberManager({
   members: Member[]
   availableVisitors: Visitor[]
 }) {
+  const router = useRouter()
   const [selectedUserId, setSelectedUserId] = useState<string>('')
   const [isPending, startTransition] = useTransition()
 
@@ -49,9 +51,10 @@ export function MemberManager({
     if (!selectedUserId) return
     startTransition(async () => {
       try {
-        await assignMemberAction(groupId, selectedUserId)
+        await adminVisitorGroupsApi.assignMember(getBrowserApi(), groupId, selectedUserId)
         toast.success('Visitor assigned to group')
         setSelectedUserId('')
+        router.refresh()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed to assign')
       }
@@ -61,8 +64,9 @@ export function MemberManager({
   function handleRemove(membershipId: string) {
     startTransition(async () => {
       try {
-        await removeMemberAction(membershipId)
+        await adminVisitorGroupsApi.removeMember(getBrowserApi(), membershipId)
         toast.success('Member removed')
+        router.refresh()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed to remove')
       }

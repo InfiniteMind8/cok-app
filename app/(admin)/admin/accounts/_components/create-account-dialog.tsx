@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -27,7 +28,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { FileUpload, type UploadedFile } from '@/components/ui/file-upload'
-import { createAccountAction } from '@/app/(admin)/_actions/accounts'
+import { adminAccountsApi, getBrowserApi } from '@/lib/api'
 
 const baseSchema = z.object({
   fullName: z.string().min(2, 'Full name required'),
@@ -62,6 +63,7 @@ interface VisitorGroupOption {
 }
 
 export function CreateAccountDialog({ visitorGroups = [] }: { visitorGroups?: VisitorGroupOption[] }) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [result, setResult] = useState<{ memberId: string } | null>(null)
   const [copied, setCopied] = useState(false)
@@ -124,10 +126,10 @@ export function CreateAccountDialog({ visitorGroups = [] }: { visitorGroups?: Vi
 
     startTransition(async () => {
       try {
-        const res = await createAccountAction({
+        const res = await adminAccountsApi.create(getBrowserApi(), {
           fullName: values.fullName,
           email: values.email,
-          role: values.role as 'RESIDENT' | 'VENDOR' | 'VISITOR' | 'ADMIN',
+          role: values.role,
           preferredName: values.preferredName,
           phone: values.phone,
           gender: values.gender,
@@ -161,6 +163,7 @@ export function CreateAccountDialog({ visitorGroups = [] }: { visitorGroups?: Vi
           description: 'Invitation email sent to member.',
           duration: 8000,
         })
+        router.refresh()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed to create account')
       }

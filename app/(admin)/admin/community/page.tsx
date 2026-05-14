@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { format } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import { MessageSquare, Vote, AlertTriangle } from 'lucide-react'
 import { PageHeader } from '@/components/admin/page-header'
 import { EmptyState } from '@/components/admin/empty-state'
@@ -13,12 +13,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { getCommunityUpdates, getAdminVotes, getIssues } from '@/lib/queries/community'
-import { getVisitorGroups } from '@/lib/queries/visitor-groups'
-import { IssueLevel, IssueStatus, Role } from '@prisma/client'
+import {
+  adminCommunityApi,
+  adminVisitorGroupsApi,
+  type IssueStatus,
+  type Role,
+} from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
 import { NewUpdateSheet } from './_components/new-update-sheet'
 import { NewVoteSheet, CloseVoteButton } from './_components/new-vote-sheet'
 import { IssuesTable } from './_components/issues-table'
+
+const ISSUE_LEVELS = ['GREEN', 'YELLOW', 'ORANGE', 'RED'] as const
+const ISSUE_STATUSES: IssueStatus[] = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED']
+const ROLES: Role[] = ['MASTER_ADMIN', 'ADMIN', 'VENDOR', 'RESIDENT', 'VISITOR']
+
+type IssueLevel = (typeof ISSUE_LEVELS)[number]
 
 interface SearchParams {
   tab?: string
@@ -26,9 +36,45 @@ interface SearchParams {
   urgency?: string
   status?: string
   role?: string
-  // C.2: deep-link from visitor group detail "Send announcement to this group"
+  // Deep-link from visitor group detail "Send announcement to this group"
   announce?: string
   groupId?: string
+}
+
+interface AdminUpdate {
+  id: string
+  headline: string
+  category: string
+  message: string
+  photoUrl: string | null
+  publishedAt: string
+  _count: { acknowledgements: number }
+}
+
+interface AdminVoteOption {
+  id: string
+  label: string
+  description: string
+  _count: { submissions: number }
+  submissions: { id: string; user: { fullName: string; memberId: string } }[]
+}
+
+interface AdminVote {
+  id: string
+  headline: string
+  description: string
+  isOpen: boolean
+  createdAt: string
+  options: AdminVoteOption[]
+  _count: { submissions: number }
+}
+
+interface VisitorGroupOption {
+  id: string
+  name: string
+  theme: string | null
+  description: string
+  archived: boolean
 }
 
 export default async function CommunityPage({
@@ -40,23 +86,42 @@ export default async function CommunityPage({
   const tab = sp.tab ?? 'updates'
   const defaultGroupId = sp.announce === 'group' && sp.groupId ? sp.groupId : undefined
 
-  const seriousness = Object.values(IssueLevel).includes(sp.seriousness as IssueLevel)
-    ? (sp.seriousness as IssueLevel) : undefined
-  const urgency = Object.values(IssueLevel).includes(sp.urgency as IssueLevel)
-    ? (sp.urgency as IssueLevel) : undefined
-  const issueStatus = Object.values(IssueStatus).includes(sp.status as IssueStatus)
-    ? (sp.status as IssueStatus) : undefined
-  const issueRole = Object.values(Role).includes(sp.role as Role)
-    ? (sp.role as Role) : undefined
+  const seriousness = (ISSUE_LEVELS as readonly string[]).includes(sp.seriousness ?? '')
+    ? (sp.seriousness as IssueLevel)
+    : undefined
+  const urgency = (ISSUE_LEVELS as readonly string[]).includes(sp.urgency ?? '')
+    ? (sp.urgency as IssueLevel)
+    : undefined
+  const issueStatus = (ISSUE_STATUSES as readonly string[]).includes(sp.status ?? '')
+    ? (sp.status as IssueStatus)
+    : undefined
+  const issueRole = (ROLES as readonly string[]).includes(sp.role ?? '')
+    ? (sp.role as Role)
+    : undefined
 
-  const [{ updates }, votes, { issues }, visitorGroups] = await Promise.all([
-    getCommunityUpdates(1, 20),
-    getAdminVotes(),
-    getIssues({ seriousness, urgency, status: issueStatus, role: issueRole, page: 1, pageSize: 40 }),
-    getVisitorGroups(false),
+  const api = getServerApi()
+  const [updatesRes, votesRes, issuesRes, visitorGroupsRes] = await Promise.all([
+    adminCommunityApi.listUpdates(api, 1, 20),
+    adminCommunityApi.listAdminVotes(api),
+    adminCommunityApi.listIssues(api, {
+      seriousness,
+      urgency,
+      status: issueStatus,
+      role: issueRole,
+      page: 1,
+      pageSize: 40,
+    }),
+    adminVisitorGroupsApi.list(api, false),
   ])
 
-  const openIssueCount = issues.filter((i) => i.status === 'OPEN' || i.status === 'IN_PROGRESS').length
+  const updates = updatesRes.updates as unknown as AdminUpdate[]
+  const votes = votesRes as unknown as AdminVote[]
+  const issues = issuesRes.issues
+  const visitorGroups = visitorGroupsRes as unknown as VisitorGroupOption[]
+
+  const openIssueCount = (issues as { status: IssueStatus }[]).filter(
+    (i) => i.status === 'OPEN' || i.status === 'IN_PROGRESS',
+  ).length
 
   return (
     <div className="p-8 max-w-5xl">
@@ -118,7 +183,7 @@ export default async function CommunityPage({
                       <p className="font-body text-sm text-karis-stone-500 line-clamp-2">{u.message}</p>
                       <div className="flex items-center gap-3 mt-2">
                         <span className="text-xs font-body text-karis-stone-400">
-                          {format(u.publishedAt, 'dd MMM yyyy')}
+                          {format(parseISO(u.publishedAt), 'dd MMM yyyy')}
                         </span>
                         <span className="text-xs font-body text-karis-stone-400">
                           {u._count.acknowledgements} read
@@ -184,7 +249,7 @@ export default async function CommunityPage({
                   <div className="flex items-center justify-between pt-1 border-t border-karis-stone-50">
                     <div className="space-y-0.5">
                       <span className="text-xs font-body text-karis-stone-400">
-                        {v._count.submissions} total · {format(v.createdAt, 'dd MMM yyyy')}
+                        {v._count.submissions} total · {format(parseISO(v.createdAt), 'dd MMM yyyy')}
                       </span>
                       <p className="text-[10px] font-body text-karis-stone-300">
                         Participant data is visible to Admin only.
@@ -265,7 +330,7 @@ export default async function CommunityPage({
             )}
           </form>
 
-          <IssuesTable issues={issues as unknown as Parameters<typeof IssuesTable>[0]['issues']} />
+          <IssuesTable issues={issues as Parameters<typeof IssuesTable>[0]['issues']} />
         </TabsContent>
       </Tabs>
     </div>

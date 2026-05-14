@@ -2,7 +2,7 @@
 
 import { format } from 'date-fns'
 import { X, Download, ExternalLink, Check, Calendar } from 'lucide-react'
-import { Prisma } from '@prisma/client'
+import { Prisma } from '@/lib/prisma-shim'
 import { KAmount } from '@/components/admin/k-amount'
 import { cn } from '@/lib/utils'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
