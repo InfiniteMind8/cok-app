@@ -36,18 +36,20 @@ const STORAGE_HOSTS = [
 const cspDirectives = {
   'default-src': ["'self'"],
   // Clerk loads its frontend SDK from clerk subdomains; 'wasm-unsafe-eval' is required
-  // by some Clerk and Sentry browser bundles. 'unsafe-inline' is dev-only (Clerk injects
-  // inline scripts); production should migrate to a nonce strategy per playbook §F.1 step 3.
+  // by some Clerk and Sentry browser bundles. 'unsafe-inline' is required by Clerk's
+  // <SignIn /> and related components which inject inline scripts at runtime.
+  // TODO §F.1 step 3: migrate to nonce strategy to remove 'unsafe-inline'.
   'script-src': [
     "'self'",
     "'wasm-unsafe-eval'",
-    ...(process.env.NODE_ENV === 'development' ? ["'unsafe-inline'", "'unsafe-eval'"] : []),
+    "'unsafe-inline'",
+    ...(process.env.NODE_ENV === 'development' ? ["'unsafe-eval'"] : []),
     ...CLERK_HOSTS,
     ...SENTRY_HOSTS,
   ],
-  // 'unsafe-inline' is required by Tailwind/shadcn inline style attributes; tighten with
-  // a nonce strategy in a future phase per playbook §F.1 step 3.
-  'style-src': ["'self'", "'unsafe-inline'"],
+  // 'unsafe-inline' required by Tailwind/shadcn inline styles.
+  // fonts.googleapis.com required by Clerk's <SignIn /> UI which loads Inter independently.
+  'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
   'img-src': [
     "'self'",
     'data:',
@@ -57,7 +59,7 @@ const cspDirectives = {
     'https://images.unsplash.com',
     ...STORAGE_HOSTS,
   ],
-  'font-src': ["'self'", 'data:'],
+  'font-src': ["'self'", 'data:', 'https://fonts.gstatic.com'],
   'connect-src': [
     "'self'",
     ...CLERK_HOSTS,
