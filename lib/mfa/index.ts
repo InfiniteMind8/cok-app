@@ -14,7 +14,6 @@ export async function requireMfaEnrolled(user: {
   role: Role
 }): Promise<void> {
   if (process.env.DEV_BYPASS_AUTH === 'true' && process.env.NODE_ENV !== 'production') return
-  if (process.env.REQUIRE_STAFF_MFA === 'false') return
   if (!isStaffRole(user.role)) return
   if (!user.clerkId) redirect('/account/mfa-enroll')
 

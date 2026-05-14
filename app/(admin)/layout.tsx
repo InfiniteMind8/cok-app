@@ -1,5 +1,4 @@
 import { requireRole } from '@/lib/auth'
-import { requireMfaEnrolled } from '@/lib/mfa'
 import { AdminSidebar } from '@/components/shared/admin-sidebar'
 import { ReconciliationAlertBanner } from '@/components/admin/reconciliation-alert-banner'
 import { EmergencyBroadcastBanner } from '@/components/shared/emergency-broadcast-banner'
@@ -14,7 +13,6 @@ export default async function AdminLayout({
   children: React.ReactNode
 }) {
   const user = await requireRole('MASTER_ADMIN')
-  await requireMfaEnrolled(user)
   const isBypass =
     process.env.DEV_BYPASS_AUTH === 'true' && process.env.NODE_ENV !== 'production'
   const { shouldShow } = isBypass

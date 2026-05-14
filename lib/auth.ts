@@ -73,8 +73,6 @@ export async function getClerkUser() {
   return currentUser()
 }
 
-export { requireMfaEnrolled as requireStaffMfa } from '@/lib/mfa'
-
 export async function denyIfVisitor() {
   const user = await getCurrentUser()
   if (!user) redirect('/sign-in')
