@@ -4,9 +4,21 @@ import { Users } from 'lucide-react'
 import { PageHeader } from '@/components/admin/page-header'
 import { EmptyState } from '@/components/admin/empty-state'
 import { Badge } from '@/components/ui/badge'
-import { getVisitorGroups } from '@/lib/queries/visitor-groups'
+import { adminVisitorGroupsApi } from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
 import { CreateGroupDialog } from './_components/create-group-dialog'
 import { ArchiveGroupButton } from './_components/archive-group-button'
+
+interface VisitorGroupRow {
+  id: string
+  name: string
+  theme: string | null
+  description: string
+  archived: boolean
+  createdAt: string
+  createdBy: { fullName: string; memberId: string }
+  _count: { memberships: number }
+}
 
 interface SearchParams {
   archived?: string
@@ -19,7 +31,7 @@ export default async function VisitorGroupsPage({
 }) {
   const sp = await searchParams
   const showArchived = sp.archived === '1'
-  const groups = await getVisitorGroups(showArchived)
+  const groups = (await adminVisitorGroupsApi.list(getServerApi(), showArchived)) as VisitorGroupRow[]
 
   return (
     <div className="p-8 max-w-4xl">
@@ -96,7 +108,7 @@ export default async function VisitorGroupsPage({
                       Created by {g.createdBy.fullName}
                     </span>
                     <span className="text-xs font-body text-karis-stone-400">
-                      {format(g.createdAt, 'dd MMM yyyy')}
+                      {format(new Date(g.createdAt), 'dd MMM yyyy')}
                     </span>
                   </div>
                 </div>

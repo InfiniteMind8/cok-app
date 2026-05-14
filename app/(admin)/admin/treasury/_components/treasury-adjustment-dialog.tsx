@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -25,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { recordTreasuryAdjustmentAction } from '@/app/(admin)/_actions/treasury'
+import { adminTreasuryApi, getBrowserApi } from '@/lib/api'
 
 const schema = z.object({
   amount: z.string().min(1, 'Amount is required'),
@@ -36,6 +37,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>
 
 export function TreasuryAdjustmentDialog() {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
 
@@ -53,10 +55,11 @@ export function TreasuryAdjustmentDialog() {
   function onSubmit(values: FormValues) {
     startTransition(async () => {
       try {
-        await recordTreasuryAdjustmentAction(values)
+        await adminTreasuryApi.recordAdjustment(getBrowserApi(), values)
         toast.success('Treasury backing updated')
         reset()
         setOpen(false)
+        router.refresh()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed to update backing')
       }

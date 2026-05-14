@@ -1,12 +1,12 @@
 import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
-import { getUnreadNotificationCount } from '@/lib/queries/community'
+import { meApi, residentCommunityApi } from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
 import { BrandLogo } from '@/components/shared/brand-logo'
 import { Wordmark } from '@/components/shared/wordmark'
 import { ResidentTabBar } from '@/components/shared/resident-tab-bar'
 import { EmergencyBroadcastBanner } from '@/components/shared/emergency-broadcast-banner'
 import { TourProvider } from '@/components/shared/tour-provider'
-import { getTourStatus } from '@/lib/queries/tour'
 import { getTourSteps } from '@/lib/tour/steps'
 
 export default async function ResidentLayout({
@@ -28,9 +28,10 @@ export default async function ResidentLayout({
     redirect('/')
   }
 
-  const [unreadCount, { shouldShow }] = await Promise.all([
-    getUnreadNotificationCount(user.id),
-    getTourStatus(user.id),
+  const api = getServerApi()
+  const [{ count: unreadCount }, { shouldShow }] = await Promise.all([
+    residentCommunityApi.getUnreadNotificationCount(api),
+    meApi.tourStatus(api),
   ])
 
   return (

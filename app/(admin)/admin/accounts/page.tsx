@@ -9,9 +9,9 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
-import { getUsers } from '@/lib/queries/accounts'
-import { getVisitorGroups } from '@/lib/queries/visitor-groups'
-import { Role, AccountStatus } from '@prisma/client'
+import { adminAccountsApi, adminVisitorGroupsApi } from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
+import { Role, AccountStatus } from '@/lib/prisma-shim'
 import { CreateAccountDialog } from './_components/create-account-dialog'
 import { AccountsTable } from './_components/accounts-table'
 import { Suspense } from 'react'
@@ -32,7 +32,7 @@ async function AccountsContent({ sp }: { sp: SearchParams }) {
     ? (sp.status as AccountStatus)
     : undefined
 
-  const { users, total } = await getUsers({
+  const { users, total } = await adminAccountsApi.list(getServerApi(), {
     role,
     status,
     search: sp.q,
@@ -87,7 +87,11 @@ export default async function AccountsPage({
   searchParams: Promise<SearchParams>
 }) {
   const sp = await searchParams
-  const visitorGroups = await getVisitorGroups(false)
+  const visitorGroups = (await adminVisitorGroupsApi.list(getServerApi(), false)) as Array<{
+    id: string
+    name: string
+    theme: string | null
+  }>
 
   return (
     <div className="p-8 max-w-7xl">

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -24,11 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  addInstallmentAction,
-  assignOwnerAction,
-  assignTenantAction,
-} from '@/app/(admin)/_actions/properties'
+import { adminPropertiesApi, getBrowserApi } from '@/lib/api'
 import { FileUpload, type UploadedFile } from '@/components/ui/file-upload'
 
 // ─── Add Installment ────────────────────────────────────────────────────────
@@ -43,6 +40,7 @@ const installSchema = z.object({
 type InstallFormValues = z.infer<typeof installSchema>
 
 export function AddInstallmentDialog({ propertyId }: { propertyId: string }) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const { register, handleSubmit, reset, formState: { errors } } = useForm<InstallFormValues>({
@@ -52,10 +50,16 @@ export function AddInstallmentDialog({ propertyId }: { propertyId: string }) {
   function onSubmit(values: InstallFormValues) {
     startTransition(async () => {
       try {
-        await addInstallmentAction({ ...values, propertyId, number: parseInt(values.number, 10) })
+        await adminPropertiesApi.addInstallment(getBrowserApi(), propertyId, {
+          number: parseInt(values.number, 10),
+          dueDate: values.dueDate,
+          amount: values.amount,
+          progressNote: values.progressNote,
+        })
         toast.success('Installment added')
         reset()
         setOpen(false)
+        router.refresh()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed')
       }
@@ -121,6 +125,7 @@ type OwnerFormValues = z.infer<typeof ownerSchema>
 interface UserOption { id: string; fullName: string; memberId: string }
 
 export function AssignOwnerDialog({ propertyId, users }: { propertyId: string; users: UserOption[] }) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const { register, handleSubmit, setValue, reset, formState: { errors } } = useForm<OwnerFormValues>({
@@ -131,14 +136,16 @@ export function AssignOwnerDialog({ propertyId, users }: { propertyId: string; u
   function onSubmit(values: OwnerFormValues) {
     startTransition(async () => {
       try {
-        await assignOwnerAction({
-          ...values,
-          propertyId,
+        await adminPropertiesApi.assignOwner(getBrowserApi(), propertyId, {
+          userId: values.userId,
           ownershipPct: parseFloat(values.ownershipPct),
+          contractDate: values.contractDate,
+          contractUrl: values.contractUrl,
         })
         toast.success('Owner assigned')
         reset()
         setOpen(false)
+        router.refresh()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed')
       }
@@ -214,6 +221,7 @@ const tenantSchema = z.object({
 type TenantFormValues = z.infer<typeof tenantSchema>
 
 export function AssignTenantDialog({ propertyId, users }: { propertyId: string; users: UserOption[] }) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [leaseFiles, setLeaseFiles] = useState<UploadedFile[]>([])
@@ -231,9 +239,14 @@ export function AssignTenantDialog({ propertyId, users }: { propertyId: string; 
     const leaseFile = leaseFiles[0]
     startTransition(async () => {
       try {
-        await assignTenantAction({
-          ...values,
-          propertyId,
+        await adminPropertiesApi.assignTenant(getBrowserApi(), propertyId, {
+          userId: values.userId,
+          cycle: values.cycle,
+          cyclePayment: values.cyclePayment,
+          contractDate: values.contractDate,
+          startDate: values.startDate,
+          endDate: values.endDate,
+          depositAmount: values.depositAmount,
           leaseAgreementKey: leaseFile?.url,
           leaseAgreementName: leaseFile?.name,
           leaseAgreementSize: leaseFile?.size,
@@ -241,6 +254,7 @@ export function AssignTenantDialog({ propertyId, users }: { propertyId: string; 
         })
         toast.success('Tenant assigned')
         handleClose()
+        router.refresh()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed')
       }

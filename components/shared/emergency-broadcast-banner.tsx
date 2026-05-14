@@ -1,6 +1,7 @@
-import { getActiveEmergencyBroadcasts } from '@/lib/queries/broadcast'
+import { meApi } from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
 import { AcknowledgeBroadcastButton } from './acknowledge-broadcast-button'
-import type { AnnouncementSeverity } from '@prisma/client'
+import type { AnnouncementSeverity } from '@/lib/prisma-shim'
 
 function severityStyles(severity: AnnouncementSeverity): { bg: string; text: string; border: string; label: string } {
   switch (severity) {
@@ -13,8 +14,16 @@ function severityStyles(severity: AnnouncementSeverity): { bg: string; text: str
   }
 }
 
-export async function EmergencyBroadcastBanner({ userId }: { userId: string }) {
-  const broadcasts = await getActiveEmergencyBroadcasts(userId)
+// D.4: the unused `userId` prop remains in the signature to avoid touching
+// every caller. The backend's /v1/me/broadcasts/active scopes to the JWT
+// owner, so we don't need it here.
+export async function EmergencyBroadcastBanner({ userId: _userId }: { userId: string }) {
+  let broadcasts: Awaited<ReturnType<typeof meApi.getActiveBroadcasts>>
+  try {
+    broadcasts = await meApi.getActiveBroadcasts(getServerApi())
+  } catch {
+    return null
+  }
   if (!broadcasts.length) return null
 
   return (

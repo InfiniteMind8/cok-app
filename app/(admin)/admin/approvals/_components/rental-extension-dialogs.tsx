@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
@@ -15,7 +16,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { CheckCircle2, XCircle } from 'lucide-react'
-import { approveExtensionAction, declineExtensionAction } from '@/app/(admin)/_actions/rental-extensions'
+import { adminRentalExtensionsApi, getBrowserApi } from '@/lib/api'
 
 interface RentalExtensionActionsProps {
   row: {
@@ -38,6 +39,7 @@ export function RentalExtensionApprovalActions({ row }: RentalExtensionActionsPr
 }
 
 function ApproveDialog({ row }: RentalExtensionActionsProps) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [note, setNote] = useState('')
   const [isPending, startTransition] = useTransition()
@@ -45,10 +47,11 @@ function ApproveDialog({ row }: RentalExtensionActionsProps) {
   function handleApprove() {
     startTransition(async () => {
       try {
-        await approveExtensionAction({ requestId: row.id, note: note.trim() || undefined })
+        await adminRentalExtensionsApi.approve(getBrowserApi(), row.id, note.trim() || undefined)
         toast.success('Extension approved')
         setOpen(false)
         setNote('')
+        router.refresh()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed to approve')
       }
@@ -99,6 +102,7 @@ function ApproveDialog({ row }: RentalExtensionActionsProps) {
 }
 
 function DeclineDialog({ row }: RentalExtensionActionsProps) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [note, setNote] = useState('')
   const [isPending, startTransition] = useTransition()
@@ -110,10 +114,11 @@ function DeclineDialog({ row }: RentalExtensionActionsProps) {
     }
     startTransition(async () => {
       try {
-        await declineExtensionAction({ requestId: row.id, note: note.trim() })
+        await adminRentalExtensionsApi.decline(getBrowserApi(), row.id, note.trim())
         toast.success('Extension declined')
         setOpen(false)
         setNote('')
+        router.refresh()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed to decline')
       }

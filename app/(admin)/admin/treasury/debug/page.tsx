@@ -1,10 +1,17 @@
-import { getAllWalletRows, formatKCredit } from '@/lib/ledger/balance'
-import { reconcileTreasury } from '@/lib/ledger/reconciliation'
+import { adminTreasuryApi } from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
 
 export const dynamic = 'force-dynamic'
 
+function formatKCredit(amount: string): string {
+  const num = Number(amount)
+  const [int, dec = '00'] = num.toFixed(4).split('.')
+  const withCommas = int.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  return `K ${withCommas}.${dec}`
+}
+
 export default async function TreasuryDebugPage() {
-  const [wallets, recon] = await Promise.all([getAllWalletRows(), reconcileTreasury()])
+  const { wallets, reconciliation: recon } = await adminTreasuryApi.getDebug(getServerApi())
 
   return (
     <div className="p-8 max-w-4xl">

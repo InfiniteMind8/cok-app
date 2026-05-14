@@ -1,7 +1,8 @@
 'use client'
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
-import { updateDisplayCurrencyAction } from '@/app/(resident)/_actions/profile'
+import { meApi, getBrowserApi, type DisplayCurrency } from '@/lib/api'
 
 const OPTIONS = [
   { value: 'KCRD', label: 'K Credits (KCRD)' },
@@ -10,17 +11,25 @@ const OPTIONS = [
 ] as const
 
 interface DisplayCurrencySelectorProps {
-  current: 'KCRD' | 'USD' | 'GYD'
+  current: DisplayCurrency
 }
 
 export function DisplayCurrencySelector({ current }: DisplayCurrencySelectorProps) {
-  const [selected, setSelected] = useState(current)
+  const router = useRouter()
+  const [selected, setSelected] = useState<DisplayCurrency>(current)
   const [pending, startTransition] = useTransition()
 
-  function handleChange(value: 'KCRD' | 'USD' | 'GYD') {
+  function handleChange(value: DisplayCurrency) {
     setSelected(value)
     startTransition(async () => {
-      await updateDisplayCurrencyAction(value)
+      try {
+        await meApi.updateDisplayCurrency(getBrowserApi(), value)
+        router.refresh()
+      } catch {
+        // Revert UI selection if the call fails — silent failure preserves the
+        // previous server-side preference and the user can retry.
+        setSelected(current)
+      }
     })
   }
 

@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
 import { ClipboardList, ArrowRightLeft, Gift, Clock } from 'lucide-react'
+import { format, differenceInDays, parseISO } from 'date-fns'
 import { PageHeader } from '@/components/admin/page-header'
 import { EmptyState } from '@/components/admin/empty-state'
 import { KAmount } from '@/components/admin/k-amount'
@@ -14,10 +15,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { db } from '@/lib/db'
-import { getWalletBalance } from '@/lib/ledger/balance'
-import { Prisma } from '@prisma/client'
-import { format, differenceInDays } from 'date-fns'
+import { adminApprovalsApi } from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
 import {
   ApproveSettlementDialog,
   DeclineSettlementDialog,
@@ -26,15 +25,12 @@ import { TransferApprovalActions } from './_components/transfer-dialogs'
 import { VoucherRequestApprovalActions } from './_components/voucher-request-dialogs'
 import { RentalExtensionApprovalActions } from './_components/rental-extension-dialogs'
 
-// ─── Settlements tab (unchanged) ──────────────────────────────────────────────
+// ─── Settlements tab ──────────────────────────────────────────────────────────
 
 async function SettlementsTab() {
-  const requests = await db.settlementRequest.findMany({
-    where: { status: 'PENDING_APPROVAL' },
-    orderBy: { createdAt: 'asc' },
-  })
+  const settlementRows = await adminApprovalsApi.listSettlements(getServerApi())
 
-  if (requests.length === 0) {
+  if (settlementRows.length === 0) {
     return (
       <EmptyState
         icon={ClipboardList}
@@ -43,28 +39,6 @@ async function SettlementsTab() {
       />
     )
   }
-
-  const settlementRows = await Promise.all(
-    requests.map(async (r) => {
-      const user = await db.user.findUnique({
-        where: { id: r.userId },
-        select: { fullName: true, memberId: true },
-      })
-      const wallet = await db.wallet.findUnique({ where: { userId: r.userId } })
-      const eligibleBalance = wallet ? await getWalletBalance(wallet.id) : new Prisma.Decimal(0)
-
-      return {
-        id: r.id,
-        userId: r.userId,
-        amount: new Prisma.Decimal(r.amount).toFixed(2),
-        purpose: r.purpose,
-        createdAt: format(r.createdAt, 'dd MMM yyyy'),
-        userName: user?.fullName ?? 'Unknown',
-        memberId: user?.memberId ?? '—',
-        eligibleBalance: eligibleBalance.toFixed(2),
-      }
-    }),
-  )
 
   return (
     <div className="bg-white border border-karis-stone-100 rounded-xl shadow-sm overflow-hidden">
@@ -108,12 +82,34 @@ async function SettlementsTab() {
                 <KAmount amount={row.eligibleBalance} />
               </TableCell>
               <TableCell className="px-5 font-body text-sm text-karis-stone-500">
-                {row.createdAt}
+                {format(parseISO(row.createdAt), 'dd MMM yyyy')}
               </TableCell>
               <TableCell className="px-5">
                 <div className="flex items-center gap-2">
-                  <ApproveSettlementDialog settlement={row} />
-                  <DeclineSettlementDialog settlement={row} />
+                  <ApproveSettlementDialog
+                    settlement={{
+                      id: row.id,
+                      userId: row.userId,
+                      amount: row.amount,
+                      purpose: row.purpose,
+                      createdAt: row.createdAt,
+                      userName: row.userName,
+                      memberId: row.memberId,
+                      eligibleBalance: row.eligibleBalance,
+                    }}
+                  />
+                  <DeclineSettlementDialog
+                    settlement={{
+                      id: row.id,
+                      userId: row.userId,
+                      amount: row.amount,
+                      purpose: row.purpose,
+                      createdAt: row.createdAt,
+                      userName: row.userName,
+                      memberId: row.memberId,
+                      eligibleBalance: row.eligibleBalance,
+                    }}
+                  />
                 </div>
               </TableCell>
             </TableRow>
@@ -127,15 +123,9 @@ async function SettlementsTab() {
 // ─── Property Transfers tab ───────────────────────────────────────────────────
 
 async function PropertyTransfersTab() {
-  const requests = await db.propertyTransferRequest.findMany({
-    where: { status: 'PENDING' },
-    orderBy: { createdAt: 'asc' },
-    include: {
-      property: { select: { code: true, address: true } },
-    },
-  })
+  const rows = await adminApprovalsApi.listPropertyTransfers(getServerApi())
 
-  if (requests.length === 0) {
+  if (rows.length === 0) {
     return (
       <EmptyState
         icon={ArrowRightLeft}
@@ -144,23 +134,6 @@ async function PropertyTransfersTab() {
       />
     )
   }
-
-  const rows = await Promise.all(
-    requests.map(async (r) => {
-      const [fromUser, toUser] = await Promise.all([
-        db.user.findUnique({ where: { id: r.fromUserId }, select: { fullName: true, memberId: true } }),
-        db.user.findUnique({ where: { id: r.toUserId }, select: { fullName: true, memberId: true } }),
-      ])
-      return {
-        id: r.id,
-        propertyCode: r.property.code,
-        propertyAddress: r.property.address,
-        fromUser: fromUser ?? { fullName: 'Unknown', memberId: '—' },
-        toUser: toUser ?? { fullName: 'Unknown', memberId: '—' },
-        createdAt: format(r.createdAt, 'dd MMM yyyy'),
-      }
-    }),
-  )
 
   return (
     <div className="bg-white border border-karis-stone-100 rounded-xl shadow-sm overflow-hidden">
@@ -191,7 +164,9 @@ async function PropertyTransfersTab() {
                 <div className="font-body text-sm text-karis-stone-900">{row.toUser.fullName}</div>
                 <div className="font-body text-xs text-karis-stone-500">{row.toUser.memberId}</div>
               </TableCell>
-              <TableCell className="px-5 font-body text-sm text-karis-stone-500">{row.createdAt}</TableCell>
+              <TableCell className="px-5 font-body text-sm text-karis-stone-500">
+                {format(parseISO(row.createdAt), 'dd MMM yyyy')}
+              </TableCell>
               <TableCell className="px-5">
                 <TransferApprovalActions
                   row={{
@@ -213,12 +188,9 @@ async function PropertyTransfersTab() {
 // ─── Vouchers tab ─────────────────────────────────────────────────────────────
 
 async function VouchersTab() {
-  const requests = await db.voucherRequest.findMany({
-    where: { status: 'PENDING' },
-    orderBy: { createdAt: 'asc' },
-  })
+  const rows = await adminApprovalsApi.listVoucherRequests(getServerApi())
 
-  if (requests.length === 0) {
+  if (rows.length === 0) {
     return (
       <EmptyState
         icon={Gift}
@@ -227,23 +199,6 @@ async function VouchersTab() {
       />
     )
   }
-
-  const rows = await Promise.all(
-    requests.map(async (r) => {
-      const recipient = await db.user.findUnique({
-        where: { id: r.recipientId },
-        select: { fullName: true, memberId: true },
-      })
-      return {
-        id: r.id,
-        amount: new Prisma.Decimal(r.amountKcrd).toFixed(2),
-        description: r.description ?? r.message ?? null,
-        expiresAt: r.expiresAt ? format(r.expiresAt, 'dd MMM yyyy') : null,
-        createdAt: format(r.createdAt, 'dd MMM yyyy'),
-        recipient: recipient ?? { fullName: 'Unknown', memberId: '—' },
-      }
-    }),
-  )
 
   return (
     <div className="bg-white border border-karis-stone-100 rounded-xl shadow-sm overflow-hidden">
@@ -272,9 +227,11 @@ async function VouchersTab() {
                 {row.description ?? '—'}
               </TableCell>
               <TableCell className="px-5 font-body text-sm text-karis-stone-500">
-                {row.expiresAt ?? 'No expiry'}
+                {row.expiresAt ? format(parseISO(row.expiresAt), 'dd MMM yyyy') : 'No expiry'}
               </TableCell>
-              <TableCell className="px-5 font-body text-sm text-karis-stone-500">{row.createdAt}</TableCell>
+              <TableCell className="px-5 font-body text-sm text-karis-stone-500">
+                {format(parseISO(row.createdAt), 'dd MMM yyyy')}
+              </TableCell>
               <TableCell className="px-5">
                 <VoucherRequestApprovalActions
                   row={{ id: row.id, amount: row.amount, recipientName: row.recipient.fullName }}
@@ -291,16 +248,7 @@ async function VouchersTab() {
 // ─── Rental Extensions tab ────────────────────────────────────────────────────
 
 async function RentalExtensionsTab() {
-  const requests = await db.rentalExtensionRequest.findMany({
-    where: { status: 'PENDING' },
-    orderBy: { createdAt: 'asc' },
-    include: {
-      tenancy: {
-        include: { property: { select: { code: true, address: true } } },
-      },
-      requestedBy: { select: { fullName: true, memberId: true } },
-    },
-  })
+  const requests = await adminApprovalsApi.listRentalExtensions(getServerApi())
 
   if (requests.length === 0) {
     return (
@@ -313,21 +261,21 @@ async function RentalExtensionsTab() {
   }
 
   const rows = requests.map((r) => {
-    const currentEnd = r.tenancy.endDate
-    const requestedEnd = r.requestedNewEndDate
-    const deltaDays = currentEnd ? differenceInDays(requestedEnd, currentEnd) : null
+    const currentEnd = r.currentEnd ? parseISO(r.currentEnd) : null
+    const requestedEnd = parseISO(r.requestedEnd)
+    const deltaDays = currentEnd ? differenceInDays(requestedEnd, currentEnd) : r.deltaDays
 
     return {
       id: r.id,
-      requesterName: r.requestedBy.fullName,
-      requesterMemberId: r.requestedBy.memberId,
-      propertyCode: r.tenancy.property.code,
-      propertyAddress: r.tenancy.property.address,
+      requesterName: r.requesterName,
+      requesterMemberId: r.requesterMemberId,
+      propertyCode: r.propertyCode,
+      propertyAddress: r.propertyAddress,
       currentEnd: currentEnd ? format(currentEnd, 'dd MMM yyyy') : '—',
       requestedEnd: format(requestedEnd, 'dd MMM yyyy'),
-      deltaDays: deltaDays ?? 0,
+      deltaDays,
       reason: r.reason,
-      createdAt: format(r.createdAt, 'dd MMM yyyy'),
+      createdAt: format(parseISO(r.createdAt), 'dd MMM yyyy'),
     }
   })
 
@@ -397,13 +345,7 @@ export default async function ApprovalsPage({
   searchParams: Promise<{ tab?: string }>
 }) {
   const { tab = 'settlements' } = await searchParams
-
-  const [settlementCount, transferCount, voucherCount, extensionCount] = await Promise.all([
-    db.settlementRequest.count({ where: { status: 'PENDING_APPROVAL' } }),
-    db.propertyTransferRequest.count({ where: { status: 'PENDING' } }),
-    db.voucherRequest.count({ where: { status: 'PENDING' } }),
-    db.rentalExtensionRequest.count({ where: { status: 'PENDING' } }),
-  ])
+  const { counts } = await adminApprovalsApi.counts(getServerApi())
 
   return (
     <div className="p-8 max-w-7xl">
@@ -416,45 +358,45 @@ export default async function ApprovalsPage({
         <TabsList className="mb-6">
           <TabsTrigger value="settlements" className="font-body text-sm gap-2">
             Settlements
-            {settlementCount > 0 && (
+            {counts.settlements > 0 && (
               <Badge
                 variant="secondary"
                 className="text-xs h-5 min-w-5 px-1.5 bg-karis-gold-500/20 text-karis-green-900"
               >
-                {settlementCount}
+                {counts.settlements}
               </Badge>
             )}
           </TabsTrigger>
           <TabsTrigger value="property-transfers" className="font-body text-sm gap-2">
             Property Transfers
-            {transferCount > 0 && (
+            {counts.transfers > 0 && (
               <Badge
                 variant="secondary"
                 className="text-xs h-5 min-w-5 px-1.5 bg-karis-gold-500/20 text-karis-green-900"
               >
-                {transferCount}
+                {counts.transfers}
               </Badge>
             )}
           </TabsTrigger>
           <TabsTrigger value="vouchers" className="font-body text-sm gap-2">
             Vouchers
-            {voucherCount > 0 && (
+            {counts.vouchers > 0 && (
               <Badge
                 variant="secondary"
                 className="text-xs h-5 min-w-5 px-1.5 bg-karis-gold-500/20 text-karis-green-900"
               >
-                {voucherCount}
+                {counts.vouchers}
               </Badge>
             )}
           </TabsTrigger>
           <TabsTrigger value="rental-extensions" className="font-body text-sm gap-2">
             Rental Extensions
-            {extensionCount > 0 && (
+            {counts.extensions > 0 && (
               <Badge
                 variant="secondary"
                 className="text-xs h-5 min-w-5 px-1.5 bg-karis-gold-500/20 text-karis-green-900"
               >
-                {extensionCount}
+                {counts.extensions}
               </Badge>
             )}
           </TabsTrigger>

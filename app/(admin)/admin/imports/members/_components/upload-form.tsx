@@ -1,15 +1,17 @@
 'use client'
 
 import { useRef, useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { UploadCloud, AlertCircle } from 'lucide-react'
+import { adminImportsApi, getBrowserApi } from '@/lib/api'
 
 interface UploadFormProps {
-  action: (formData: FormData) => Promise<void>
   maxRows: number
 }
 
-export function UploadForm({ action, maxRows }: UploadFormProps) {
+export function UploadForm({ maxRows }: UploadFormProps) {
+  const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [fileName, setFileName] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -38,7 +40,8 @@ export function UploadForm({ action, maxRows }: UploadFormProps) {
 
     startTransition(async () => {
       try {
-        await action(data)
+        const res = await adminImportsApi.parseMembers(getBrowserApi(), file)
+        router.push(`/admin/imports/members/${res.sessionId}`)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Upload failed. Please try again.')
       }

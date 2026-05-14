@@ -1,6 +1,5 @@
 import { PageHeader } from '@/components/admin/page-header'
 import { UploadForm } from './_components/upload-form'
-import { parseAndStorePropertyImportAction } from '@/app/(admin)/_actions/imports'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,7 +15,7 @@ export default function PropertyImportPage() {
 
       <div className="grid gap-6 md:grid-cols-3">
         <div className="md:col-span-2">
-          <UploadForm action={parseAndStorePropertyImportAction} maxRows={MAX_IMPORT_ROWS} />
+          <UploadForm maxRows={MAX_IMPORT_ROWS} />
         </div>
 
         <div className="rounded-xl border bg-card p-5 space-y-3 text-sm text-muted-foreground">

@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client'
+import { Prisma } from '@/lib/prisma-shim'
 import { format } from 'date-fns'
 import { KAmount } from '@/components/admin/k-amount'
 

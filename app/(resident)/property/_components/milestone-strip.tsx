@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
 import { Check } from 'lucide-react'
-import { Prisma } from '@prisma/client'
+import { Prisma } from '@/lib/prisma-shim'
 import { cn } from '@/lib/utils'
 import { KAmount } from '@/components/admin/k-amount'
 import { InstallmentNodeSheet } from './installment-node-sheet'

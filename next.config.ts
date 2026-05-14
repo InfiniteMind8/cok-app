@@ -36,8 +36,15 @@ const STORAGE_HOSTS = [
 const cspDirectives = {
   'default-src': ["'self'"],
   // Clerk loads its frontend SDK from clerk subdomains; 'wasm-unsafe-eval' is required
-  // by some Clerk and Sentry browser bundles; no 'unsafe-eval' or 'unsafe-inline'.
-  'script-src': ["'self'", "'wasm-unsafe-eval'", ...CLERK_HOSTS, ...SENTRY_HOSTS],
+  // by some Clerk and Sentry browser bundles. 'unsafe-inline' is dev-only (Clerk injects
+  // inline scripts); production should migrate to a nonce strategy per playbook §F.1 step 3.
+  'script-src': [
+    "'self'",
+    "'wasm-unsafe-eval'",
+    ...(process.env.NODE_ENV === 'development' ? ["'unsafe-inline'", "'unsafe-eval'"] : []),
+    ...CLERK_HOSTS,
+    ...SENTRY_HOSTS,
+  ],
   // 'unsafe-inline' is required by Tailwind/shadcn inline style attributes; tighten with
   // a nonce strategy in a future phase per playbook §F.1 step 3.
   'style-src': ["'self'", "'unsafe-inline'"],

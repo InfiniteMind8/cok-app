@@ -2,7 +2,9 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { acknowledgeEmergencyBroadcastAction } from '@/app/(admin)/_actions/broadcast'
+import { getBrowserApi } from '@/lib/api/browser'
+import { residentCommunityApi } from '@/lib/api/resident'
+import { ApiClientError } from '@/lib/api/client'
 
 export function AcknowledgeBroadcastButton({ broadcastId }: { broadcastId: string }) {
   const router = useRouter()
@@ -12,11 +14,11 @@ export function AcknowledgeBroadcastButton({ broadcastId }: { broadcastId: strin
   function handleDismiss() {
     startTransition(async () => {
       setError(null)
-      const result = await acknowledgeEmergencyBroadcastAction(broadcastId)
-      if (result.ok) {
+      try {
+        await residentCommunityApi.acknowledgeBroadcast(getBrowserApi(), broadcastId)
         router.refresh()
-      } else {
-        setError(result.error ?? 'Could not dismiss.')
+      } catch (err) {
+        setError(err instanceof ApiClientError ? err.message : 'Could not dismiss.')
       }
     })
   }

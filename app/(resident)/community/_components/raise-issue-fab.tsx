@@ -1,12 +1,13 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { Plus } from 'lucide-react'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import { IssueLevel } from '@prisma/client'
+import { residentCommunityApi, getBrowserApi, type IssueLevel } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -29,7 +30,6 @@ import {
   ModalFooter,
 } from '@/components/ui/modal'
 import { FileUpload, type UploadedFile } from '@/components/ui/file-upload'
-import { raiseIssueAction } from '@/app/(resident)/_actions/community'
 
 const schema = z.object({
   title: z.string().min(3, 'Title must be at least 3 characters').max(120, 'Title max 120 characters'),
@@ -76,6 +76,7 @@ function LevelPicker({
 }
 
 export function RaiseIssueFab() {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [mediaFiles, setMediaFiles] = useState<UploadedFile[]>([])
@@ -121,7 +122,7 @@ export function RaiseIssueFab() {
 
     startTransition(async () => {
       try {
-        await raiseIssueAction({
+        await residentCommunityApi.raiseIssue(getBrowserApi(), {
           ...values,
           attachments: attachments.length > 0 ? attachments : undefined,
         })
@@ -129,6 +130,7 @@ export function RaiseIssueFab() {
           description: 'Your issue has been submitted to the Admin team.',
         })
         handleClose()
+        router.refresh()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed to raise issue')
       }

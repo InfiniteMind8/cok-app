@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -25,7 +26,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { FileUpload, type UploadedFile } from '@/components/ui/file-upload'
-import { createVoucherAction } from '@/app/(admin)/_actions/vouchers'
+import { adminVouchersApi, getBrowserApi } from '@/lib/api'
 
 const schema = z.object({
   recipientId: z.string().min(1, 'Recipient is required *'),
@@ -47,6 +48,7 @@ interface CreateVoucherSheetProps {
 }
 
 export function CreateVoucherSheet({ users }: CreateVoucherSheetProps) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [attachmentFiles, setAttachmentFiles] = useState<UploadedFile[]>([])
@@ -72,7 +74,7 @@ export function CreateVoucherSheet({ users }: CreateVoucherSheetProps) {
     const file = attachmentFiles[0]
     startTransition(async () => {
       try {
-        await createVoucherAction({
+        await adminVouchersApi.create(getBrowserApi(), {
           ...values,
           attachmentKey: file?.url,
           attachmentName: file?.name,
@@ -85,6 +87,7 @@ export function CreateVoucherSheet({ users }: CreateVoucherSheetProps) {
         reset()
         setAttachmentFiles([])
         setOpen(false)
+        router.refresh()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed to create voucher')
       }

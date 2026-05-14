@@ -1,10 +1,8 @@
 import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
-import { db } from '@/lib/db'
-import { getWalletSummary } from '@/lib/ledger/balance'
-import { getRecentTransactions } from '@/lib/queries/wallet'
-import { getCurrentRates } from '@/lib/currency/rate-resolver'
+import { meApi, residentWalletApi } from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
 import { WalletHeroCard } from './_components/wallet-hero-card'
 import { WalletStatCards } from './_components/wallet-stat-cards'
 import { TransactionList } from './_components/transaction-list'
@@ -17,27 +15,26 @@ export default async function WalletPage() {
 
   return (
     <Suspense fallback={<WalletSkeleton />}>
-      <WalletContent userId={user.id} fullName={user.fullName} memberId={user.memberId} />
+      <WalletContent fullName={user.fullName} memberId={user.memberId} />
     </Suspense>
   )
 }
 
 async function WalletContent({
-  userId,
   fullName,
   memberId,
 }: {
-  userId: string
   fullName: string
   memberId: string
 }) {
-  const [wallet, userPrefs, rates] = await Promise.all([
-    db.wallet.findUnique({ where: { userId } }),
-    db.user.findUnique({ where: { id: userId }, select: { displayCurrency: true } }),
-    getCurrentRates(),
+  const api = getServerApi()
+  const [walletMe, me, rates] = await Promise.all([
+    residentWalletApi.getMe(api),
+    meApi.get(api),
+    meApi.getActiveRates(api),
   ])
 
-  if (!wallet) {
+  if (!walletMe) {
     return (
       <div className="px-4 py-8 max-w-lg mx-auto">
         <div className="bg-white border border-karis-stone-100 rounded-2xl p-8 text-center shadow-sm">
@@ -50,17 +47,17 @@ async function WalletContent({
     )
   }
 
-  const [summary, recentEntries] = await Promise.all([
-    getWalletSummary(wallet.id),
-    getRecentTransactions(wallet.id, 10),
+  const [summary, recent] = await Promise.all([
+    residentWalletApi.getSummary(api),
+    residentWalletApi.getRecentTransactions(api, 10),
   ])
 
-  const displayCurrency = (userPrefs?.displayCurrency ?? 'KCRD') as DisplayCurrencyCode
+  const displayCurrency = (me.displayCurrency ?? 'KCRD') as DisplayCurrencyCode
 
   return (
     <div className="px-4 py-5 max-w-lg mx-auto space-y-5 pb-8">
       <WalletHeroCard
-        balance={summary.balance.toString()}
+        balance={summary.balance}
         fullName={fullName}
         memberId={memberId}
       />
@@ -76,7 +73,7 @@ async function WalletContent({
       <section>
         <h2 className="font-heading text-base text-karis-green-900 mb-3">Recent transactions</h2>
         <div className="bg-white border border-karis-stone-100 rounded-xl shadow-sm px-4">
-          <TransactionList entries={recentEntries} showViewAll />
+          <TransactionList entries={recent.entries} showViewAll />
         </div>
       </section>
 

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { MoreHorizontal, Eye, Ban, RotateCcw, ArrowUpCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -29,11 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  suspendAccountAction,
-  restoreAccountAction,
-  upgradeRoleAction,
-} from '@/app/(admin)/_actions/accounts'
+import { adminAccountsApi, getBrowserApi, type Role } from '@/lib/api'
 
 type ModalType = 'suspend' | 'restore' | 'upgrade' | null
 
@@ -46,6 +43,7 @@ interface AccountActionsProps {
 }
 
 export function AccountActions({ userId, userName, status, role, onView }: AccountActionsProps) {
+  const router = useRouter()
   const [modal, setModal] = useState<ModalType>(null)
   const [suspendReason, setSuspendReason] = useState('')
   const [targetRole, setTargetRole] = useState('')
@@ -55,10 +53,11 @@ export function AccountActions({ userId, userName, status, role, onView }: Accou
     if (!suspendReason.trim()) { toast.error('Reason required'); return }
     startTransition(async () => {
       try {
-        await suspendAccountAction(userId, suspendReason)
+        await adminAccountsApi.suspend(getBrowserApi(), userId, suspendReason)
         toast.success(`${userName} suspended`)
         setModal(null)
         setSuspendReason('')
+        router.refresh()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed')
       }
@@ -68,9 +67,10 @@ export function AccountActions({ userId, userName, status, role, onView }: Accou
   function handleRestore() {
     startTransition(async () => {
       try {
-        await restoreAccountAction(userId)
+        await adminAccountsApi.restore(getBrowserApi(), userId)
         toast.success(`${userName} restored`)
         setModal(null)
+        router.refresh()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed')
       }
@@ -81,9 +81,10 @@ export function AccountActions({ userId, userName, status, role, onView }: Accou
     if (!targetRole) { toast.error('Select a role'); return }
     startTransition(async () => {
       try {
-        await upgradeRoleAction(userId, targetRole as Parameters<typeof upgradeRoleAction>[1])
+        await adminAccountsApi.setRole(getBrowserApi(), userId, targetRole as Role)
         toast.success(`${userName} upgraded to ${targetRole}`)
         setModal(null)
+        router.refresh()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed')
       }

@@ -21,18 +21,9 @@ import {
   TableRow,
   TableFooter,
 } from '@/components/ui/table'
-import {
-  getTreasuryReserveBalance,
-  getCommunityFundBalance,
-  getTotalCirculatingCredits,
-  getActiveMemberCount,
-  getPendingApprovalCount,
-  getOpenIssueCount,
-  getTreasuryFlowByRole,
-  getCreditsByRole,
-  getSystemWalletSummary,
-} from '@/lib/queries/dashboard'
-import { Prisma } from '@prisma/client'
+import { adminDashboardApi } from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
+import { Prisma } from '@/lib/prisma-shim'
 
 function roleName(role: string) {
   const map: Record<string, string> = {
@@ -45,37 +36,40 @@ function roleName(role: string) {
   return map[role] ?? role
 }
 
-async function DashboardContent() {
-  const [
-    treasuryBalance,
-    communityBalance,
-    circulatingCredits,
-    activeMembers,
-    pendingApprovals,
-    openIssues,
-    flowByRole,
-    creditsByRole,
-    systemWallets,
-  ] = await Promise.all([
-    getTreasuryReserveBalance(),
-    getCommunityFundBalance(),
-    getTotalCirculatingCredits(),
-    getActiveMemberCount(),
-    getPendingApprovalCount(),
-    getOpenIssueCount(),
-    getTreasuryFlowByRole(),
-    getCreditsByRole(),
-    getSystemWalletSummary(),
-  ])
+function BackendOfflineBanner() {
+  return (
+    <div className="p-8 max-w-7xl">
+      <div className="rounded-xl border border-amber-200 bg-amber-50 px-6 py-5">
+        <p className="font-heading text-amber-900 text-lg">Backend offline</p>
+        <p className="text-sm font-body text-amber-700 mt-1">
+          Start the backend to see dashboard data:{' '}
+          <code className="bg-amber-100 px-1 rounded">cd backend && pnpm dev</code>
+        </p>
+      </div>
+    </div>
+  )
+}
 
-  const totalDeposits = flowByRole.reduce(
+async function DashboardContent() {
+  let data: Awaited<ReturnType<typeof adminDashboardApi.get>>
+  try {
+    data = await adminDashboardApi.get(getServerApi())
+  } catch {
+    return <BackendOfflineBanner />
+  }
+
+  const totalDeposits = data.flowByRole.reduce(
     (acc, r) => acc.add(r.totalDeposits),
     new Prisma.Decimal(0),
   )
-  const totalSettlements = flowByRole.reduce(
+  const totalSettlements = data.flowByRole.reduce(
     (acc, r) => acc.add(r.totalSettlements),
     new Prisma.Decimal(0),
   )
+
+  const treasuryBalance = new Prisma.Decimal(data.treasuryReserve)
+  const communityBalance = new Prisma.Decimal(data.communityFund)
+  const circulatingCredits = new Prisma.Decimal(data.totalCirculating)
 
   return (
     <div className="p-8 space-y-8 max-w-7xl">
@@ -138,26 +132,26 @@ async function DashboardContent() {
         />
         <StatCard
           title="Active Members"
-          value={activeMembers.toLocaleString()}
+          value={data.activeMembers.toLocaleString()}
           sub="accounts with ACTIVE status"
           icon={Users}
           accent="green"
         />
         <StatCard
           title="Pending Approvals"
-          value={pendingApprovals.toLocaleString()}
+          value={data.pendingApprovals.toLocaleString()}
           sub="awaiting review"
           icon={ClipboardList}
           href="/admin/approvals"
-          accent={pendingApprovals > 0 ? 'orange' : 'green'}
+          accent={data.pendingApprovals > 0 ? 'orange' : 'green'}
         />
         <StatCard
           title="Open Issues"
-          value={openIssues.toLocaleString()}
+          value={data.openIssues.toLocaleString()}
           sub="open or in progress"
           icon={AlertTriangle}
           href="/admin/community?tab=issues"
-          accent={openIssues > 0 ? 'red' : 'green'}
+          accent={data.openIssues > 0 ? 'red' : 'green'}
         />
       </div>
 
@@ -169,7 +163,7 @@ async function DashboardContent() {
             Lifetime deposits and approved/settled settlements per role
           </p>
         </div>
-        {flowByRole.length === 0 ? (
+        {data.flowByRole.length === 0 ? (
           <div className="px-6 py-10 text-center">
             <p className="text-sm font-body text-karis-stone-500">
               No transactions yet. Activity will appear here.
@@ -191,7 +185,7 @@ async function DashboardContent() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {flowByRole.map((row) => (
+              {data.flowByRole.map((row) => (
                 <TableRow key={row.role}>
                   <TableCell className="px-6 font-body text-karis-stone-900">
                     {roleName(row.role)}
@@ -229,7 +223,7 @@ async function DashboardContent() {
               Current circulating balance by member role
             </p>
           </div>
-          {creditsByRole.length === 0 ? (
+          {data.creditsByRole.length === 0 ? (
             <div className="px-6 py-10 text-center">
               <p className="text-sm font-body text-karis-stone-500">
                 No wallet activity yet. Activity will appear here.
@@ -251,7 +245,7 @@ async function DashboardContent() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {creditsByRole.map((row) => (
+                {data.creditsByRole.map((row) => (
                   <TableRow key={row.role}>
                     <TableCell className="px-6 font-body text-karis-stone-900">
                       {roleName(row.role)}
@@ -289,7 +283,7 @@ async function DashboardContent() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {systemWallets.map((w) => (
+              {data.systemWallets.map((w) => (
                 <TableRow key={w.key}>
                   <TableCell className="px-6 font-body text-karis-stone-900">
                     {w.key.replace(/_/g, ' ')}

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { RefreshCw } from 'lucide-react'
-import { resendEmailAction } from '@/app/(admin)/_actions/email'
+import { adminEmailsApi, getBrowserApi, ApiClientError } from '@/lib/api'
 
 export function ResendButton({ logId }: { logId: string }) {
   const [state, setState] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
@@ -11,12 +11,11 @@ export function ResendButton({ logId }: { logId: string }) {
   async function handleClick() {
     setState('loading')
     try {
-      const result = await resendEmailAction(logId)
-      setState(result.ok ? 'done' : 'error')
-      if (!result.ok) setErrorMsg(result.error)
-    } catch {
+      await adminEmailsApi.resend(getBrowserApi(), logId)
+      setState('done')
+    } catch (err) {
       setState('error')
-      setErrorMsg('Unexpected error')
+      setErrorMsg(err instanceof ApiClientError ? err.message : 'Unexpected error')
     }
   }
 

@@ -8,7 +8,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { getAuditLogs } from '@/lib/queries/audit-log'
+import { adminAuditLogApi } from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
 import { Download } from 'lucide-react'
 import { AuditTable } from './_components/audit-table'
 
@@ -47,7 +48,11 @@ export default async function AuditLogPage({
     dateTo: sp.dateTo || undefined,
   }
 
-  const { logs, total } = await getAuditLogs({ ...filters, page, pageSize: PAGE_SIZE })
+  const { logs, total } = await adminAuditLogApi.list(getServerApi(), {
+    ...filters,
+    page,
+    pageSize: PAGE_SIZE,
+  })
   const totalPages = Math.ceil(total / PAGE_SIZE)
 
   const exportParams = new URLSearchParams(
@@ -137,7 +142,7 @@ export default async function AuditLogPage({
         {Object.values(filters).some(Boolean) ? ' matching filters' : ' total'}
       </div>
 
-      <AuditTable logs={logs} />
+      <AuditTable logs={logs.map((l) => ({ ...l, createdAt: new Date(l.createdAt) }))} />
 
       {/* Pagination */}
       {totalPages > 1 && (

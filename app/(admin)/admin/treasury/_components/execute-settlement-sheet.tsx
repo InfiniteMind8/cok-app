@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { CheckSquare } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -13,16 +14,15 @@ import {
 } from '@/components/ui/sheet'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
-import { executeSettlementAction } from '@/app/(admin)/_actions/settlements'
-import { Prisma } from '@prisma/client'
+import { adminSettlementsApi, getBrowserApi, type MoneyString } from '@/lib/api'
 
 interface ApprovedSettlement {
   id: string
-  amount: Prisma.Decimal
+  amount: MoneyString
   userId: string
   userName: string
   memberId: string
-  approvedAt: Date | null
+  approvedAt: string | null
 }
 
 interface ExecuteSettlementSheetProps {
@@ -30,6 +30,7 @@ interface ExecuteSettlementSheetProps {
 }
 
 export function ExecuteSettlementSheet({ settlements }: ExecuteSettlementSheetProps) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [selectedId, setSelectedId] = useState<string>('')
   const [proofUrl, setProofUrl] = useState('')
@@ -44,11 +45,12 @@ export function ExecuteSettlementSheet({ settlements }: ExecuteSettlementSheetPr
     }
     startTransition(async () => {
       try {
-        await executeSettlementAction(selectedId, proofUrl || undefined)
+        await adminSettlementsApi.execute(getBrowserApi(), selectedId, proofUrl || undefined)
         toast.success('Settlement executed — wallet debited')
         setSelectedId('')
         setProofUrl('')
         setOpen(false)
+        router.refresh()
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed to execute settlement')
       }
@@ -104,7 +106,7 @@ export function ExecuteSettlementSheet({ settlements }: ExecuteSettlementSheetPr
                         <p className="text-xs font-body text-karis-stone-500">{s.memberId}</p>
                       </div>
                       <p className="text-sm font-body text-karis-gold-700 tabular-nums font-medium">
-                        K {new Prisma.Decimal(s.amount).toFixed(2)}
+                        K {s.amount}
                       </p>
                     </div>
                   </button>
@@ -118,7 +120,7 @@ export function ExecuteSettlementSheet({ settlements }: ExecuteSettlementSheetPr
                 <p className="text-karis-stone-900">
                   {selected.userName} —{' '}
                   <span className="text-karis-gold-700 tabular-nums font-medium">
-                    K {new Prisma.Decimal(selected.amount).toFixed(2)}
+                    K {selected.amount}
                   </span>
                 </p>
               </div>

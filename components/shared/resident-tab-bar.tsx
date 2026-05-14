@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Wallet, Home, Users, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { Role } from '@prisma/client'
+import { Role } from '@/lib/prisma-shim'
 
 interface TabBarProps {
   role: Role

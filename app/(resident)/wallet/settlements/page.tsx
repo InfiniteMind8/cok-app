@@ -2,7 +2,8 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft, ReceiptText } from 'lucide-react'
 import { getCurrentUser } from '@/lib/auth'
-import { getUserSettlementRequests } from '@/lib/queries/wallet'
+import { residentWalletApi } from '@/lib/api'
+import { getServerApi } from '@/lib/api/server'
 import { SettlementRow } from './_components/settlement-timeline'
 
 export const dynamic = 'force-dynamic'
@@ -11,7 +12,7 @@ export default async function SettlementsPage() {
   const user = await getCurrentUser()
   if (!user) redirect('/sign-in')
 
-  const requests = await getUserSettlementRequests(user.id)
+  const requests = await residentWalletApi.listSettlements(getServerApi())
 
   return (
     <div className="px-4 py-5 max-w-lg mx-auto space-y-4 pb-8">

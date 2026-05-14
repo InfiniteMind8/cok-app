@@ -1,10 +1,11 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { User, Camera, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { uploadProfilePhotoAction } from '@/app/(resident)/_actions/profile'
+import { attachmentsApi, meApi, getBrowserApi } from '@/lib/api'
 
 interface ProfilePhotoUploadProps {
   currentUrl: string | null
@@ -12,6 +13,7 @@ interface ProfilePhotoUploadProps {
 }
 
 export function ProfilePhotoUpload({ currentUrl, fullName }: ProfilePhotoUploadProps) {
+  const router = useRouter()
   const inputRef = useRef<HTMLInputElement>(null)
   const [photoUrl, setPhotoUrl] = useState<string | null>(currentUrl)
   const [uploading, setUploading] = useState(false)
@@ -23,24 +25,18 @@ export function ProfilePhotoUpload({ currentUrl, fullName }: ProfilePhotoUploadP
 
     setUploading(true)
     try {
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('entityType', 'USER')
-      formData.append('fieldName', 'profilePhoto')
-      formData.append('category', 'profile_photo')
-
-      const res = await fetch('/api/attachments/upload', { method: 'POST', body: formData })
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({ error: 'Upload failed' }))
-        toast.error((body as { error?: string }).error ?? 'Upload failed')
-        return
-      }
-      const { storageKey } = (await res.json()) as { storageKey: string }
-      const { signedUrl } = await uploadProfilePhotoAction(storageKey)
-      setPhotoUrl(signedUrl)
+      const api = getBrowserApi()
+      const upload = await attachmentsApi.upload(api, file, {
+        entityType: 'USER',
+        fieldName: 'profilePhoto',
+        category: 'profile_photo',
+      })
+      const result = await meApi.uploadProfilePhoto(api, upload.storageKey)
+      setPhotoUrl(result.signedUrl)
       toast.success('Profile photo updated')
-    } catch {
-      toast.error('Upload failed')
+      router.refresh()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Upload failed')
     } finally {
       setUploading(false)
     }

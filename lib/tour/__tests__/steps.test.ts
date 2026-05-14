@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { getTourSteps } from '../steps'
-import type { Role } from '@prisma/client'
+import type { Role } from '@/lib/prisma-shim'
 
 const ALL_ROLES: Role[] = ['MASTER_ADMIN', 'ADMIN', 'RESIDENT', 'VENDOR', 'VISITOR']
 
