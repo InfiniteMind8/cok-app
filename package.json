@@ -86,6 +86,10 @@
       "msgpackr-extract",
       "prisma",
       "sharp"
+    ],
+    "ignoredBuiltDependencies": [
+      "sharp",
+      "unrs-resolver"
     ]
   }
 }
