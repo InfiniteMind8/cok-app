@@ -36,8 +36,27 @@ function roleName(role: string) {
   return map[role] ?? role
 }
 
+function BackendOfflineBanner() {
+  return (
+    <div className="p-8 max-w-7xl">
+      <div className="rounded-xl border border-amber-200 bg-amber-50 px-6 py-5">
+        <p className="font-heading text-amber-900 text-lg">Backend offline</p>
+        <p className="text-sm font-body text-amber-700 mt-1">
+          Start the backend to see dashboard data:{' '}
+          <code className="bg-amber-100 px-1 rounded">cd backend && pnpm dev</code>
+        </p>
+      </div>
+    </div>
+  )
+}
+
 async function DashboardContent() {
-  const data = await adminDashboardApi.get(getServerApi())
+  let data: Awaited<ReturnType<typeof adminDashboardApi.get>>
+  try {
+    data = await adminDashboardApi.get(getServerApi())
+  } catch {
+    return <BackendOfflineBanner />
+  }
 
   const totalDeposits = data.flowByRole.reduce(
     (acc, r) => acc.add(r.totalDeposits),
