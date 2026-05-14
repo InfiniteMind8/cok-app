@@ -8,6 +8,10 @@ import { Wordmark } from '@/components/shared/wordmark'
 import { Badge } from '@/components/ui/badge'
 
 export default async function HomePage() {
+  if (process.env.DEV_BYPASS_AUTH === 'true' && process.env.NODE_ENV !== 'production') {
+    redirect('/admin/dashboard')
+  }
+
   const { userId } = await auth()
 
   if (userId) {

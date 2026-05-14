@@ -15,7 +15,11 @@ export default async function AdminLayout({
 }) {
   const user = await requireRole('MASTER_ADMIN')
   await requireMfaEnrolled(user)
-  const { shouldShow } = await meApi.tourStatus(getServerApi())
+  const isBypass =
+    process.env.DEV_BYPASS_AUTH === 'true' && process.env.NODE_ENV !== 'production'
+  const { shouldShow } = isBypass
+    ? { shouldShow: false }
+    : await meApi.tourStatus(getServerApi())
 
   return (
     <TourProvider initialShow={shouldShow} steps={getTourSteps(user.role)}>

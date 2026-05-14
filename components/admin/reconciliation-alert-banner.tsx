@@ -5,7 +5,12 @@ import { getServerApi } from '@/lib/api/server'
 import { AcknowledgeButton } from '@/app/(admin)/admin/treasury/reconciliation/_components/acknowledge-button'
 
 export async function ReconciliationAlertBanner() {
-  const alert = await adminReconciliationApi.getActiveAlert(getServerApi())
+  let alert: Awaited<ReturnType<typeof adminReconciliationApi.getActiveAlert>>
+  try {
+    alert = await adminReconciliationApi.getActiveAlert(getServerApi())
+  } catch {
+    return null
+  }
   if (!alert) return null
 
   const details = alert.details as { discrepancy?: string } | null

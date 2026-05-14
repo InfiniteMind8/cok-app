@@ -18,7 +18,12 @@ function severityStyles(severity: AnnouncementSeverity): { bg: string; text: str
 // every caller. The backend's /v1/me/broadcasts/active scopes to the JWT
 // owner, so we don't need it here.
 export async function EmergencyBroadcastBanner({ userId: _userId }: { userId: string }) {
-  const broadcasts = await meApi.getActiveBroadcasts(getServerApi())
+  let broadcasts: Awaited<ReturnType<typeof meApi.getActiveBroadcasts>>
+  try {
+    broadcasts = await meApi.getActiveBroadcasts(getServerApi())
+  } catch {
+    return null
+  }
   if (!broadcasts.length) return null
 
   return (

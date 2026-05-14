@@ -28,6 +28,9 @@ export function getServerApi(): ApiClient {
     _server = new ApiClient({
       baseUrl: getBaseUrl(),
       getToken: async () => {
+        if (process.env.DEV_BYPASS_AUTH === 'true' && process.env.NODE_ENV !== 'production') {
+          return 'dev-bypass'
+        }
         const { getToken } = await auth()
         return getToken()
       },

@@ -7,12 +7,32 @@ import type { Role, MeResponse } from '@/lib/api/types'
 
 export type { Role }
 
+const DEV_USER: MeResponse = {
+  id: 'dev-bypass',
+  clerkId: 'dev-bypass',
+  email: 'dev@cityofkaris.com',
+  fullName: 'Dev User',
+  role: 'MASTER_ADMIN',
+  memberId: 'dev-bypass-member',
+  profilePhotoUrl: null,
+  displayCurrency: 'USD',
+  foundingMember: false,
+  onboardingTourCompletedAt: new Date().toISOString(),
+  onboardingTourDismissedAt: new Date().toISOString(),
+  createdAt: new Date().toISOString(),
+}
+
+function isBypassEnabled() {
+  return process.env.DEV_BYPASS_AUTH === 'true' && process.env.NODE_ENV !== 'production'
+}
+
 // D.4: server-side auth helpers now resolve the user through the backend
 // `/v1/me` endpoint instead of touching Prisma. The backend's `requireAuth`
 // middleware is the single source of truth for status / deactivation rejects
 // (returns 403 with code 'FORBIDDEN'). Missing/expired Clerk session returns
 // 401 with code 'UNAUTHORIZED'.
 export async function getCurrentUser(): Promise<MeResponse | null> {
+  if (isBypassEnabled()) return DEV_USER
   const { userId } = await auth()
   if (!userId) return null
   try {
@@ -29,6 +49,7 @@ export async function getCurrentUser(): Promise<MeResponse | null> {
 }
 
 export async function requireRole(role: Role | Role[]): Promise<MeResponse> {
+  if (isBypassEnabled()) return DEV_USER
   const { userId } = await auth()
   if (!userId) redirect('/sign-in')
 
